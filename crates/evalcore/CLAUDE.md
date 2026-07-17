@@ -1,0 +1,14 @@
+# evalcore (CLI binary)
+
+The user-facing binary. This crate is **wiring only**: clap parsing, config→factory→engine→reporter composition, file writing, exit codes. Logic lives in the library crates — if you're writing an algorithm here, it belongs elsewhere.
+
+## Contracts (breaking these breaks users' CI)
+
+- Exit codes: `0` = every case passed; `1` = case failures or any error. Tested in `tests/cli.rs`.
+- Relative paths in a config file resolve against the **config file's directory**, never the CWD.
+- Reports go to stdout by default; with `--output <file>` the report goes to the file and a one-line summary goes to stderr.
+- `validate` never executes targets or scorers.
+
+## Tests
+
+`tests/cli.rs` spawns the real binary via `assert_cmd`. The quickstart example (`examples/quickstart/`) doubles as the test fixture — editing it can break these tests, deliberately. Assert on stable output fragments (counts, case ids), never on latencies.

@@ -1,0 +1,30 @@
+[package]
+name = "evalcore"
+description = "Snapshot testing for AI behavior — a single-binary, config-first eval runner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "evalcore"
+path = "src/main.rs"
+
+[dependencies]
+evalcore-config = { workspace = true }
+evalcore-core = { workspace = true }
+evalcore-report = { workspace = true }
+evalcore-scorers = { workspace = true }
+evalcore-store = { workspace = true }
+
+anyhow = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+wiremock = { workspace = true }

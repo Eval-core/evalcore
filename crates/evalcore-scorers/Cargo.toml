@@ -1,0 +1,22 @@
+[package]
+name = "evalcore-scorers"
+description = "Built-in scorers (contains, exact, regex, subprocess) for EvalCore"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+evalcore-config = { workspace = true }
+evalcore-core = { workspace = true }
+
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
+[dev-dependencies]
+wiremock = { workspace = true }

@@ -1,0 +1,11 @@
+/target
+**/*.rs.bk
+junit.xml
+report.xml
+.DS_Store
+.env
+PRD.md
+
+# Example cassettes are recorded with contributors' own API keys; committing
+# one is a deliberate act, not a default.
+examples/**/.evalcore/

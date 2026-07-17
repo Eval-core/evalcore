@@ -1,0 +1,21 @@
+# Live example: evaluates gpt-4.1-mini with a deterministic check AND an
+# LLM judge. Needs OPENAI_API_KEY in the environment (see repo .env).
+targets:
+  openai:
+    type: openai-compatible
+    url: https://api.openai.com/v1
+    model: gpt-4.1-mini
+    api_key_env: OPENAI_API_KEY
+
+datasets:
+  - file: cases.jsonl
+
+scorers:
+  - type: contains
+    value: "30"
+  - type: judge
+    url: https://api.openai.com/v1
+    model: gpt-4.1-mini
+    api_key_env: OPENAI_API_KEY
+    rubric: "Does the answer state a concrete refund window in days?"
+    threshold: 0.6

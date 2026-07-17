@@ -1,0 +1,22 @@
+# EvalCore quickstart: evaluates a `cat` echo target, so it runs with no
+# network and no API keys. Swap the target for your real app when ready:
+#
+#   my-app:
+#     type: openai-compatible
+#     url: https://api.openai.com/v1
+#     model: gpt-4.1
+#     api_key_env: OPENAI_API_KEY
+#
+# Run it:  evalcore run examples/quickstart/evals.yaml
+targets:
+  echo:
+    type: shell
+    cmd: "cat"
+
+datasets:
+  - file: cases.jsonl
+
+scorers:
+  - type: contains
+    value: "refund"
+    case_sensitive: false
