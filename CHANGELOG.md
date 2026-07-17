@@ -4,6 +4,23 @@ All notable changes to EvalCore. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com); versions follow semver
 (pre-1.0: minor bumps may break APIs and config).
 
+## [Unreleased]
+
+### Added
+- **`http` target type**: evaluate an arbitrary HTTP/JSON endpoint — typically
+  your own deployed app's REST API (`POST /chat {"question": ...}`) — through
+  the record/replay cache, exactly like an LLM target. `{{input}}` is
+  percent-encoded into `url` and substituted verbatim into every string value
+  of a JSON `body` template; `response_path` (RFC 6901 JSON Pointer) pulls the
+  answer out of a 2xx JSON response, or the raw body text is used when omitted.
+  Supports GET/POST/PUT/PATCH, static `headers`, and env-var auth
+  (`api_key_env` + `auth_header`/`auth_prefix`, defaulting to
+  `authorization: Bearer <key>`). Transient failures (429/5xx/transport) retry
+  with the same deterministic backoff as `openai-compatible`. The cache
+  identity keys on the request shape only, never on secrets, so `--cache
+  replay` runs offline with no key configured. No cost/token accounting for
+  `http` targets in v1 (generic APIs have no standard usage shape).
+
 ## [0.4.0] — 2026-07-17
 
 ### Added

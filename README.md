@@ -74,6 +74,27 @@ evalcore run evals.yaml --cache off      # bypass
 
 Treat the cache file like VCR cassettes: commit it, and CI runs `--cache replay` with zero LLM spend and zero flakiness. Changing the model, URL, or a case's input changes the key, so stale hits don't lie to you. Shell targets are never cached — they run your local code, whose behavior can change without the config changing.
 
+## Evaluate your deployed app's own REST endpoint
+
+The `http` target points EvalCore at any HTTP/JSON API — typically your own RAG service or agent behind `POST /chat` — and caches it exactly like an LLM call, so the same commit-the-cassette, replay-in-CI story applies to your app's real responses:
+
+```yaml
+targets:
+  my-rag:
+    type: http
+    url: https://api.myapp.com/chat   # {{input}} allowed here too (percent-encoded)
+    method: POST                       # default POST; GET/PUT/PATCH also supported
+    headers:                           # static headers — NEVER secrets (values are cached)
+      x-tenant: acme
+    api_key_env: MYAPP_API_KEY         # optional; sent as `authorization: Bearer <key>`
+    body:                              # JSON template; {{input}} fills string values
+      question: "{{input}}"
+      session: eval
+    response_path: /answer             # RFC 6901 JSON Pointer; omit to use the raw body
+```
+
+`{{input}}` is substituted from each case: percent-encoded into `url`, verbatim into every string value of `body`. On a 2xx, `response_path` pulls the answer out of the JSON response (omit it to score the raw body text); non-2xx and transient failures are classified and retried just like the LLM target. **Keep credentials in `api_key_env`, never in `headers:`** — header values are hashed into the cache identity and stored in the committed `.evalcore/cache.db`, whereas the API key never enters the cache. The key is sent as `authorization: Bearer <key>` by default; for an `x-api-key` style header set both `auth_header: x-api-key` and `auth_prefix: ""`. The cache identity keys on the request shape (url/method/headers/body/response_path), never on the key, so `--cache replay` runs offline with no secret configured.
+
 ## Retries, cost tracking, budgets
 
 Transient failures (429, 5xx, network) retry automatically with exponential backoff, honoring `Retry-After`. Token usage is captured per case; declare your prices and EvalCore reports cost and enforces a budget:

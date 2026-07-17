@@ -102,6 +102,30 @@ impl EvalConfig {
                 }
                 TargetConfig::Trace { cost } => cost,
                 TargetConfig::Shell { .. } => &None,
+                TargetConfig::Http {
+                    url,
+                    method,
+                    headers,
+                    api_key_env,
+                    auth_header,
+                    auth_prefix,
+                    body,
+                    response_path,
+                    ..
+                } => {
+                    validate_http_target(
+                        name,
+                        url,
+                        method,
+                        headers,
+                        api_key_env,
+                        auth_header,
+                        auth_prefix,
+                        body,
+                        response_path,
+                    )?;
+                    &None
+                }
             };
             if let Some(cost) = cost {
                 if cost.input_per_1m < 0.0 || cost.output_per_1m < 0.0 {
@@ -113,6 +137,89 @@ impl EvalConfig {
         }
         Ok(())
     }
+}
+
+/// Structural checks for an `http` target. Deeper resolution (env vars,
+/// method parsing) happens in the factory; this only rejects configs that can
+/// never produce a meaningful request.
+#[allow(clippy::too_many_arguments)]
+fn validate_http_target(
+    name: &str,
+    url: &str,
+    method: &str,
+    headers: &Option<BTreeMap<String, String>>,
+    api_key_env: &Option<String>,
+    auth_header: &Option<String>,
+    auth_prefix: &Option<String>,
+    body: &Option<serde_json::Value>,
+    response_path: &Option<String>,
+) -> Result<(), ConfigError> {
+    if url.is_empty() || !(url.starts_with("http://") || url.starts_with("https://")) {
+        return Err(ConfigError::Invalid(format!(
+            "target {name:?}: url must be a non-empty http:// or https:// URL"
+        )));
+    }
+    const ALLOWED_METHODS: [&str; 4] = ["GET", "POST", "PUT", "PATCH"];
+    let normalized = method.to_ascii_uppercase();
+    if !ALLOWED_METHODS.contains(&normalized.as_str()) {
+        return Err(ConfigError::Invalid(format!(
+            "target {name:?}: method {method:?} is not one of GET, POST, PUT, PATCH"
+        )));
+    }
+    if normalized == "GET" && body.is_some() {
+        return Err(ConfigError::Invalid(format!(
+            "target {name:?}: a GET request may not carry a body"
+        )));
+    }
+    // Without a `{{input}}` anchor every case would send an identical request,
+    // which is never what the user means.
+    let body_has_input = body
+        .as_ref()
+        .map(|value| {
+            serde_json::to_string(value)
+                .unwrap_or_default()
+                .contains("{{input}}")
+        })
+        .unwrap_or(false);
+    if !url.contains("{{input}}") && !body_has_input {
+        return Err(ConfigError::Invalid(format!(
+            "target {name:?}: neither url nor body contains {{{{input}}}}; \
+             every case would send the same request"
+        )));
+    }
+    if api_key_env.is_none() && (auth_header.is_some() || auth_prefix.is_some()) {
+        return Err(ConfigError::Invalid(format!(
+            "target {name:?}: auth_header/auth_prefix require api_key_env"
+        )));
+    }
+    // The API key rides in the auth header, so a static `headers:` entry with
+    // the same (case-insensitive) name would send two conflicting header lines.
+    if api_key_env.is_some() {
+        if let Some(headers) = headers {
+            let auth_name = auth_header
+                .as_deref()
+                .unwrap_or("authorization")
+                .to_ascii_lowercase();
+            if let Some(clash) = headers
+                .keys()
+                .find(|name| name.to_ascii_lowercase() == auth_name)
+            {
+                return Err(ConfigError::Invalid(format!(
+                    "target {name:?}: header {clash:?} collides with the auth header \
+                     (the api_key_env key is sent there); remove it from headers"
+                )));
+            }
+        }
+    }
+    if let Some(path) = response_path {
+        if !path.starts_with('/') {
+            return Err(ConfigError::Invalid(format!(
+                "target {name:?}: response_path must be an RFC 6901 JSON Pointer \
+                 starting with '/'"
+            )));
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -200,6 +307,57 @@ pub enum TargetConfig {
         #[serde(default)]
         cost: Option<CostConfig>,
     },
+    /// Call an arbitrary HTTP/JSON endpoint — typically your own deployed
+    /// app's REST API — so it can be evaluated through the record/replay cache
+    /// like any LLM target. `{{input}}` is substituted into `url`
+    /// (percent-encoded — every non-alphanumeric byte) and into every string
+    /// value of `body` (verbatim).
+    Http {
+        /// Request URL; `{{input}}` is percent-encoded when substituted.
+        url: String,
+        /// HTTP method: GET, POST, PUT, or PATCH (case-insensitive). GET may
+        /// not carry a `body`.
+        #[serde(default = "default_http_method")]
+        method: String,
+        /// Static request headers, sent verbatim. Never put secrets here:
+        /// header values are hashed into the cache identity and persisted in
+        /// the committed `.evalcore/cache.db`. Use `api_key_env` for
+        /// credentials — it never enters the cache. Keys are matched
+        /// case-insensitively.
+        #[serde(default)]
+        headers: Option<BTreeMap<String, String>>,
+        /// Name of the environment variable holding the API key. Secrets are
+        /// never written into the YAML itself.
+        #[serde(default)]
+        api_key_env: Option<String>,
+        /// Header the API key is sent in (default `authorization`). Only valid
+        /// alongside `api_key_env`.
+        #[serde(default)]
+        auth_header: Option<String>,
+        /// Prefix prepended to the key (default `"Bearer "`). For an
+        /// `x-api-key` style header set both `auth_header: x-api-key` and
+        /// `auth_prefix: ""`. Only valid alongside `api_key_env`.
+        #[serde(default)]
+        auth_prefix: Option<String>,
+        /// Retries on transient failures (429/5xx/network), with exponential
+        /// backoff honoring `Retry-After`.
+        #[serde(default = "default_max_retries")]
+        max_retries: u32,
+        /// JSON request body template; `{{input}}` inside any string value is
+        /// replaced with the case input. Omit to send no body.
+        #[serde(default)]
+        body: Option<serde_json::Value>,
+        /// RFC 6901 JSON Pointer into the JSON response (e.g. `/answer`).
+        /// Omitted: the raw response body text is the output. A pointer that
+        /// resolves to JSON `null` yields the literal string "null"; only an
+        /// absent path is an error.
+        #[serde(default)]
+        response_path: Option<String>,
+    },
+}
+
+fn default_http_method() -> String {
+    "POST".into()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -552,5 +710,165 @@ run: { concurrency: 0 }
 "#;
         let err = EvalConfig::from_yaml_str(zero_concurrency).unwrap_err();
         assert!(err.to_string().contains("concurrency"), "got: {err}");
+    }
+
+    #[test]
+    fn parses_full_http_target() {
+        let yaml = r#"
+targets:
+  my-rag:
+    type: http
+    url: https://api.myapp.com/chat
+    method: post
+    headers:
+      x-tenant: acme
+    api_key_env: MYAPP_API_KEY
+    auth_header: authorization
+    auth_prefix: "Bearer "
+    max_retries: 3
+    body:
+      question: "{{input}}"
+      session: eval
+    response_path: /answer
+datasets: [{ file: cases.jsonl }]
+scorers: [{ type: exact }]
+"#;
+        let config = EvalConfig::from_yaml_str(yaml).unwrap();
+        match config.targets.get("my-rag") {
+            Some(TargetConfig::Http {
+                url,
+                method,
+                headers,
+                api_key_env,
+                auth_header,
+                auth_prefix,
+                max_retries,
+                body,
+                response_path,
+            }) => {
+                assert_eq!(url, "https://api.myapp.com/chat");
+                assert_eq!(
+                    method, "post",
+                    "method stored verbatim; normalized in factory"
+                );
+                assert_eq!(headers.as_ref().unwrap()["x-tenant"], "acme");
+                assert_eq!(api_key_env.as_deref(), Some("MYAPP_API_KEY"));
+                assert_eq!(auth_header.as_deref(), Some("authorization"));
+                assert_eq!(auth_prefix.as_deref(), Some("Bearer "));
+                assert_eq!(*max_retries, 3);
+                let body = body.as_ref().unwrap();
+                assert_eq!(body["question"], serde_json::json!("{{input}}"));
+                assert_eq!(body["session"], serde_json::json!("eval"));
+                assert_eq!(response_path.as_deref(), Some("/answer"));
+            }
+            other => panic!("expected http target, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn http_minimal_defaults_method_to_post() {
+        let yaml = r#"
+targets:
+  api:
+    type: http
+    url: "https://api.myapp.com/chat?q={{input}}"
+datasets: [{ file: cases.jsonl }]
+scorers: [{ type: exact }]
+"#;
+        let config = EvalConfig::from_yaml_str(yaml).unwrap();
+        match config.targets.get("api") {
+            Some(TargetConfig::Http {
+                method,
+                headers,
+                api_key_env,
+                auth_header,
+                auth_prefix,
+                max_retries,
+                body,
+                response_path,
+                ..
+            }) => {
+                assert_eq!(method, "POST", "method defaults to POST");
+                assert!(headers.is_none());
+                assert!(api_key_env.is_none());
+                assert!(auth_header.is_none());
+                assert!(auth_prefix.is_none());
+                assert_eq!(*max_retries, DEFAULT_MAX_RETRIES);
+                assert!(body.is_none());
+                assert!(response_path.is_none());
+            }
+            other => panic!("expected http target, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_http_configs() {
+        // (target block, fragment the error must mention)
+        let cases = [
+            (
+                r#"    type: http
+    url: "ftp://api.myapp.com/chat?q={{input}}""#,
+                "http://",
+            ),
+            (
+                r#"    type: http
+    url: "https://api.myapp.com/chat?q={{input}}"
+    method: DELETE"#,
+                "GET, POST, PUT, PATCH",
+            ),
+            (
+                r#"    type: http
+    url: "https://api.myapp.com/chat?q={{input}}"
+    method: get
+    body:
+      question: "{{input}}""#,
+                "GET request may not carry a body",
+            ),
+            (
+                r#"    type: http
+    url: "https://api.myapp.com/chat"
+    body:
+      question: fixed"#,
+                "{{input}}",
+            ),
+            (
+                r#"    type: http
+    url: "https://api.myapp.com/chat?q={{input}}"
+    auth_header: x-api-key"#,
+                "require api_key_env",
+            ),
+            (
+                r#"    type: http
+    url: "https://api.myapp.com/chat?q={{input}}"
+    auth_prefix: "Token ""#,
+                "require api_key_env",
+            ),
+            (
+                r#"    type: http
+    url: "https://api.myapp.com/chat?q={{input}}"
+    response_path: answer"#,
+                "JSON Pointer",
+            ),
+            (
+                // A static header collides (case-insensitively) with the
+                // header the API key is sent in.
+                r#"    type: http
+    url: "https://api.myapp.com/chat?q={{input}}"
+    api_key_env: MYAPP_API_KEY
+    headers:
+      Authorization: "Bearer nope""#,
+                "collides with the auth header",
+            ),
+        ];
+        for (block, fragment) in cases {
+            let yaml = format!(
+                "targets:\n  t:\n{block}\ndatasets: [{{ file: cases.jsonl }}]\nscorers: [{{ type: exact }}]\n"
+            );
+            let err = EvalConfig::from_yaml_str(&yaml).unwrap_err().to_string();
+            assert!(
+                err.contains(fragment),
+                "block {block:?} should be rejected mentioning {fragment:?}, got: {err}"
+            );
+        }
     }
 }

@@ -7,7 +7,21 @@ Domain types (`TestCase`, `TargetOutput`, `Score`, `CaseResult`, `RunSummary`), 
 - `types.rs` — domain types + the `Scorer` trait (trait here, implementations in `evalcore-scorers`, so there's no dependency cycle).
 - `baseline.rs` — pure `compare(&baseline, &current) -> BaselineDiff`, matched by case id. Gate semantics are user-facing contract: regressions and new-failing cases fail the gate; accepted failures, fixes, and removals don't. Storage is `evalcore-store`'s job, rendering is `evalcore-report`'s.
 - `dataset.rs` — JSONL loading. Errors must cite `file:line`.
-- `target.rs` — `Target` trait, `ShellTarget`, `OpenAiCompatTarget`, and the `build_target`/`build_target_with` factories (env-var secrets resolve here; `SecretPolicy::Optional` exists only for replay runs). The OpenAI target retries transient failures (429/5xx/transport) with deterministic backoff honoring `Retry-After`, and captures `usage` into `TokenUsage`. `cache_identity` invariants: everything that changes the request (model, url, `system`, `params`) is IN; retry/cost settings stay OUT (they change how we call, not what the model answers); unset optional fields are OMITTED from the identity JSON, not serialized as null — otherwise adding a config field would invalidate every existing cassette (there's a shape-pinning test).
+- `target.rs` — `Target` trait, `ShellTarget`, `OpenAiCompatTarget`, and the `build_target`/`build_target_with` factories (env-var secrets resolve here; `SecretPolicy::Optional` exists only for replay runs). The OpenAI target retries transient failures (429/5xx/transport) with deterministic backoff honoring `Retry-After`, and captures `usage` into `TokenUsage`. `cache_identity` invariants: everything that changes the request (model, url, `system`, `params`) is IN; retry/cost settings stay OUT (they change how we call, not what the model answers); unset optional fields are OMITTED from the identity JSON, not serialized as null — otherwise adding a config field would invalidate every existing cassette (there's a shape-pinning test). The retry policy (`AttemptError`, `retry_with_backoff`) and secret resolution (`resolve_api_key`) live here as `pub(crate)` helpers so every HTTP target shares one implementation — never fork the backoff schedule.
+- `http_target.rs` — `HttpTarget`: evaluate an arbitrary HTTP/JSON endpoint (your own deployed app) through the same cache and retry policy. `{{input}}` is percent-encoded into `url` (every non-alphanumeric byte) and substituted verbatim into every string value of the JSON `body` (keys untouched); `response_path` is an RFC 6901 pointer into a 2xx JSON body (omit for the raw text). `tokens` is always `None` — generic APIs have no standard usage shape, so v1 has no cost. `cache_identity` is `{"http": {url, method, [headers], [body], [response_path]}}` — the request shape only; `api_key_env`/`auth_header`/`auth_prefix`/`max_retries` and every secret stay OUT. Because header **values** are in the identity — and thus hashed into the committed `.evalcore/cache.db` — never put secrets in `headers:`; use `api_key_env`, which never enters the cache. A `headers:` name that collides (case-insensitively) with the auth header is rejected at config validation, since reqwest would otherwise send two header lines.
+
+  ```yaml
+  targets:
+    my-rag:
+      type: http
+      url: https://api.myapp.com/chat   # {{input}} percent-encoded when substituted
+      method: POST                       # default POST; GET/PUT/PATCH too (GET forbids a body)
+      headers: { x-tenant: acme }        # static, NON-secret (values are hashed into the cache)
+      api_key_env: MYAPP_API_KEY         # -> authorization: Bearer <key>; never cached
+      auth_header: authorization         # default; x-api-key style = auth_header: x-api-key + auth_prefix: ""
+      body: { question: "{{input}}" }    # {{input}} fills string values verbatim
+      response_path: /answer             # RFC 6901 pointer; omit for raw body text
+  ```
 - `engine.rs` — `run_suite(target, cases, scorers, RunOptions)`: concurrent execution via `buffered(n)`, which **preserves dataset order** in results. That ordering is load-bearing (stable reports, future baseline diffs) — don't switch to `buffer_unordered` without re-sorting. Costs each case from `RunOptions::cost_rates`; `budget_usd` turns over-budget cases into failed-with-reason results, never a mid-run abort.
 
 ## Rules

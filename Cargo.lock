@@ -396,6 +396,7 @@ dependencies = [
  "async-trait",
  "evalcore-config",
  "futures",
+ "percent-encoding",
  "reqwest",
  "serde",
  "serde_json",

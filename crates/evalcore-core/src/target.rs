@@ -62,20 +62,44 @@ pub fn build_target_with(
             system,
             params,
         } => {
-            let api_key = match (api_key_env, secrets) {
-                (Some(var), SecretPolicy::Require) => Some(
-                    std::env::var(var)
-                        .with_context(|| format!("environment variable {var} is not set"))?,
-                ),
-                (Some(var), SecretPolicy::Optional) => std::env::var(var).ok(),
-                (None, _) => None,
-            };
+            let api_key = resolve_api_key(api_key_env, secrets)?;
             Ok(Box::new(
                 OpenAiCompatTarget::new(url.clone(), model.clone(), api_key)
                     .with_max_retries(*max_retries)
                     .with_system(system.clone())
                     .with_params(params.clone()),
             ))
+        }
+        TargetConfig::Http {
+            url,
+            method,
+            headers,
+            api_key_env,
+            auth_header,
+            auth_prefix,
+            max_retries,
+            body,
+            response_path,
+        } => {
+            let api_key = resolve_api_key(api_key_env, secrets)?;
+            let mut target = crate::http_target::HttpTarget::new(
+                url.clone(),
+                crate::http_target::parse_method(method)?,
+            )
+            .with_max_retries(*max_retries)
+            .with_api_key(api_key)
+            .with_body(body.clone())
+            .with_response_path(response_path.clone());
+            if let Some(headers) = headers {
+                target = target.with_headers(headers.clone());
+            }
+            if let Some(auth_header) = auth_header {
+                target = target.with_auth_header(auth_header.clone());
+            }
+            if let Some(auth_prefix) = auth_prefix {
+                target = target.with_auth_prefix(auth_prefix.clone());
+            }
+            Ok(Box::new(target))
         }
     }
 }
@@ -182,8 +206,9 @@ pub struct OpenAiCompatTarget {
     params: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
-/// Outcome of one attempt, classified for the retry loop.
-enum AttemptError {
+/// Outcome of one attempt, classified for the retry loop. Shared by every
+/// HTTP-shaped target ([`OpenAiCompatTarget`], [`crate::http_target::HttpTarget`]).
+pub(crate) enum AttemptError {
     /// 429/5xx/transport — worth retrying.
     Transient {
         message: String,
@@ -191,6 +216,55 @@ enum AttemptError {
     },
     /// Anything else — retrying would just repeat the failure.
     Permanent(anyhow::Error),
+}
+
+/// Drives `attempt` under the shared retry policy: transient failures back off
+/// deterministically (honoring `Retry-After`) up to `max_retries`, permanent
+/// failures return immediately, and an exhausted budget yields the attempt's
+/// message tagged with the attempt count. One policy for every HTTP target so
+/// retry semantics can't drift between them.
+pub(crate) async fn retry_with_backoff<F, Fut>(
+    max_retries: u32,
+    mut attempt: F,
+) -> anyhow::Result<TargetOutput>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<TargetOutput, AttemptError>>,
+{
+    let mut retries = 0;
+    loop {
+        match attempt().await {
+            Ok(output) => return Ok(output),
+            Err(AttemptError::Permanent(err)) => return Err(err),
+            Err(AttemptError::Transient {
+                message,
+                retry_after,
+            }) => {
+                if retries >= max_retries {
+                    bail!("{message} (after {} attempts)", retries + 1);
+                }
+                tokio::time::sleep(retry_after.unwrap_or_else(|| backoff(retries))).await;
+                retries += 1;
+            }
+        }
+    }
+}
+
+/// Resolve an optional API key from the environment under the given policy.
+/// Shared by every factory that reads `api_key_env`.
+pub(crate) fn resolve_api_key(
+    api_key_env: &Option<String>,
+    secrets: SecretPolicy,
+) -> anyhow::Result<Option<String>> {
+    match (api_key_env, secrets) {
+        (Some(var), SecretPolicy::Require) => {
+            Ok(Some(std::env::var(var).with_context(|| {
+                format!("environment variable {var} is not set")
+            })?))
+        }
+        (Some(var), SecretPolicy::Optional) => Ok(std::env::var(var).ok()),
+        (None, _) => Ok(None),
+    }
 }
 
 impl OpenAiCompatTarget {
@@ -313,23 +387,7 @@ fn backoff(attempt: u32) -> Duration {
 impl Target for OpenAiCompatTarget {
     async fn invoke(&self, case: &TestCase) -> anyhow::Result<TargetOutput> {
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
-        let mut attempt = 0;
-        loop {
-            match self.attempt(&url, case).await {
-                Ok(output) => return Ok(output),
-                Err(AttemptError::Permanent(err)) => return Err(err),
-                Err(AttemptError::Transient {
-                    message,
-                    retry_after,
-                }) => {
-                    if attempt >= self.max_retries {
-                        bail!("{message} (after {} attempts)", attempt + 1);
-                    }
-                    tokio::time::sleep(retry_after.unwrap_or_else(|| backoff(attempt))).await;
-                    attempt += 1;
-                }
-            }
-        }
+        retry_with_backoff(self.max_retries, || self.attempt(&url, case)).await
     }
 
     fn cache_identity(&self) -> Option<serde_json::Value> {
