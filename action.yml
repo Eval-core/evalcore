@@ -27,6 +27,10 @@ inputs:
     description: "EvalCore release tag to install (e.g. v0.3.0), or 'latest'"
     required: false
     default: "latest"
+  html-artifact:
+    description: "Upload a self-contained HTML report as a build artifact with this name (most useful on failure). Set to '' to disable."
+    required: false
+    default: "evalcore-report"
 
 runs:
   using: composite
@@ -69,9 +73,17 @@ runs:
 
     - name: Run eval suite
       shell: bash
+      env:
+        HTML_ARTIFACT: ${{ inputs.html-artifact }}
       run: |
         set +e
-        evalcore run "${{ inputs.config }}" ${{ inputs.args }} | tee "$RUNNER_TEMP/evalcore-report.txt"
+        # A self-contained HTML report is written (and later uploaded) only when
+        # html-artifact is non-empty; empty leaves the command byte-identical.
+        HTML_ARGS=()
+        if [ -n "$HTML_ARTIFACT" ]; then
+          HTML_ARGS=(--html "$RUNNER_TEMP/evalcore-report.html")
+        fi
+        evalcore run "${{ inputs.config }}" ${{ inputs.args }} "${HTML_ARGS[@]}" | tee "$RUNNER_TEMP/evalcore-report.txt"
         code=${PIPESTATUS[0]}
         {
           echo "## EvalCore"
@@ -79,5 +91,20 @@ runs:
           echo '```'
           cat "$RUNNER_TEMP/evalcore-report.txt"
           echo '```'
+          if [ -n "$HTML_ARTIFACT" ]; then
+            echo ""
+            echo "HTML report uploaded as artifact: \`$HTML_ARTIFACT\`"
+          fi
         } >> "$GITHUB_STEP_SUMMARY"
         exit "$code"
+
+    # Upload the HTML report regardless of the run's outcome — it's most
+    # valuable when the suite failed. Skipped entirely when html-artifact is ''.
+    # This never alters the run step's exit code above.
+    - name: Upload HTML report
+      if: ${{ always() && inputs.html-artifact != '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.html-artifact }}
+        path: ${{ runner.temp }}/evalcore-report.html
+        if-no-files-found: ignore

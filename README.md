@@ -19,7 +19,10 @@ In GitHub Actions, one step runs a suite and gates the job (report lands in the 
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
+    html-artifact: evalcore-report   # upload a shareable HTML report (default; "" disables)
 ```
+
+The `html-artifact` input uploads a self-contained HTML report as a build artifact a reviewer can click straight from the PR — the pass/fail summary, gate outcomes, and every case's output, per-scorer scores, and agent trajectory, expandable inline. It uploads even when the suite fails (that's when it matters most), and embeds the baseline diff when `--baseline` is set. Locally or in any pipeline, `evalcore run … --html report.html` writes the same document alongside (never replacing) the primary `--reporter` output.
 
 ## Quickstart
 

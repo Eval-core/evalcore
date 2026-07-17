@@ -37,6 +37,11 @@ enum Commands {
         /// Write the report to a file instead of stdout.
         #[arg(long)]
         output: Option<PathBuf>,
+        /// Also write a self-contained HTML report to this path, in addition
+        /// to the primary --reporter output (which is unchanged). Composes with
+        /// every reporter and embeds the baseline diff when --baseline is used.
+        #[arg(long)]
+        html: Option<PathBuf>,
         /// Record/replay cache mode for cacheable targets (LLM APIs).
         /// auto: replay hits, record misses. replay: miss = failure (CI).
         /// live: always call and re-record. off: bypass entirely.
@@ -98,6 +103,7 @@ async fn main() -> anyhow::Result<ExitCode> {
             target,
             reporter,
             output,
+            html,
             cache,
             baseline,
             save_baseline,
@@ -107,6 +113,7 @@ async fn main() -> anyhow::Result<ExitCode> {
                 target_name: target.as_deref(),
                 reporter,
                 output_path: output.as_deref(),
+                html_path: html.as_deref(),
                 cache,
                 baseline: baseline.as_deref(),
                 save_baseline: save_baseline.as_deref(),
@@ -121,6 +128,7 @@ struct RunArgs<'a> {
     target_name: Option<&'a str>,
     reporter: Reporter,
     output_path: Option<&'a Path>,
+    html_path: Option<&'a Path>,
     cache: CacheArg,
     baseline: Option<&'a str>,
     save_baseline: Option<&'a str>,
@@ -132,6 +140,7 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         target_name,
         reporter,
         output_path,
+        html_path,
         cache,
         baseline,
         save_baseline,
@@ -269,6 +278,9 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
     // With --baseline the gate is "no regressions" instead of "all passed":
     // failures already accepted into the baseline don't fail CI.
     let mut gate_passed = summary.all_passed();
+    // Retain the baseline diff so the HTML report can embed it below; the
+    // terminal/stderr section is still printed exactly as before.
+    let mut baseline_diff: Option<evalcore_core::BaselineDiff> = None;
     if let Some(label) = baseline {
         let store = store
             .as_ref()
@@ -284,7 +296,18 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
             _ => eprint!("{section}"),
         }
         gate_passed = !diff.gate_failed();
+        baseline_diff = Some(diff);
     }
+
+    // Additional HTML artifact, alongside (never replacing) the primary
+    // reporter. Written before save_baseline clears the summary's gates so the
+    // report keeps its gates panel; embeds the baseline diff when one exists.
+    if let Some(path) = html_path {
+        let rendered_html = evalcore_report::html(&summary, baseline_diff.as_ref());
+        std::fs::write(path, &rendered_html)
+            .with_context(|| format!("failed to write HTML report to {}", path.display()))?;
+    }
+
     if let Some(label) = save_baseline {
         let store = store
             .as_ref()

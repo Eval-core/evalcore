@@ -7,6 +7,18 @@ All notable changes to EvalCore. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- **Self-contained HTML report** (`--html <path>`): writes a single, shareable
+  HTML document — the artifact a reviewer clicks in a PR — alongside (never
+  replacing) the primary `--reporter` output. Header counts, tokens, and cost;
+  a gates panel; one expandable row per case revealing the output, per-scorer
+  scores, and the agent trajectory (tool calls, inputs/outputs); and the
+  baseline diff when `--baseline` is set. Entirely inline (no external requests,
+  no JavaScript — `<details>` drives expansion), works air-gapped from
+  `file://`, light/dark themed, deterministic byte-for-byte, and every
+  user-derived value is HTML-escaped. The GitHub Action gains an `html-artifact`
+  input (default `evalcore-report`) that uploads the report as a build artifact
+  — even on failure — and notes it in the job step summary; set it to `""` to
+  disable.
 - **Suite-level aggregate gates**: `run.gates` declares absolute floors over a
   whole run as CI acceptance criteria — `pass_rate` (fraction of cases passing
   every scorer, in `[0,1]`) and `mean_score` (mean of scorer values, optionally

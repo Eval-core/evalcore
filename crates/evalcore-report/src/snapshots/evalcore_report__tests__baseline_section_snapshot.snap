@@ -7,6 +7,6 @@ baseline "main": 2/3 passed -> current: 1/3 passed
 REGRESSED refund-2
      contains: expected output to contain "refund" & <more>
 NEW FAIL  boom
-     target error: target error: connection refused
+     target error: connection refused
 REMOVED   retired
 baseline gate: FAIL (1 regressed, 1 new failing)

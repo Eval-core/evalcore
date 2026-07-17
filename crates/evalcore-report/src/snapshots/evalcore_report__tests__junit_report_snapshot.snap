@@ -10,7 +10,7 @@ expression: junit(&fixture())
       <failure message="contains: expected output to contain &quot;refund&quot; &amp; &lt;more&gt;"/>
     </testcase>
     <testcase name="boom" time="0.000">
-      <failure message="target error: target error: connection refused"/>
+      <failure message="target error: connection refused"/>
     </testcase>
   </testsuite>
 </testsuites>

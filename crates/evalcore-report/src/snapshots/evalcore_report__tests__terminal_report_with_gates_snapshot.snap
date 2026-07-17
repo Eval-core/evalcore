@@ -6,7 +6,7 @@ PASS refund-1 (12ms)
 FAIL refund-2
      contains: expected output to contain "refund" & <more>
 FAIL boom
-     target error: target error: connection refused
+     target error: connection refused
 
 1 passed, 2 failed, 3 total · 210 tokens · $0.0020
 GATE PASS pass_rate >= 0.3 (actual 0.33)

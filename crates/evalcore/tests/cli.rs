@@ -108,6 +108,68 @@ fn unknown_target_lists_available_ones() {
         .stderr(predicate::str::contains("available: echo"));
 }
 
+/// Strip `(<n>ms)` latency stamps so two separate runs compare equal despite
+/// the real shell target's timing jitter — latencies are never stable, so the
+/// workspace convention is to assert on everything else.
+fn redact_latencies(s: &[u8]) -> String {
+    String::from_utf8_lossy(s)
+        .lines()
+        .map(|line| match line.rfind(" (") {
+            Some(idx) if line.ends_with("ms)") => line[..idx].to_string(),
+            _ => line.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[test]
+fn html_report_is_written_alongside_terminal_without_changing_stdout() {
+    // A run without --html, captured as the stdout baseline (latencies redacted).
+    let plain = evalcore().args(["run", quickstart()]).assert().success();
+    let plain_stdout = redact_latencies(&plain.get_output().stdout);
+
+    // The same run with --html: stdout must match (modulo latency jitter), exit
+    // unchanged, and the HTML file must exist carrying a known case id.
+    let dir = tempfile::tempdir().unwrap();
+    let report = dir.path().join("out.html");
+    let with_html = evalcore()
+        .args(["run", quickstart(), "--reporter", "terminal", "--html"])
+        .arg(&report)
+        .assert()
+        .success();
+    assert_eq!(
+        redact_latencies(&with_html.get_output().stdout),
+        plain_stdout,
+        "--html must not perturb the terminal reporter's stdout"
+    );
+
+    let doc = std::fs::read_to_string(&report).unwrap();
+    assert!(
+        doc.starts_with("<!DOCTYPE html>"),
+        "got: {}",
+        &doc[..40.min(doc.len())]
+    );
+    assert!(doc.contains("refund-1"), "case id must be in the report");
+}
+
+#[test]
+fn html_report_composes_with_json_reporter_keeping_stdout_pure_json() {
+    let dir = tempfile::tempdir().unwrap();
+    let report = dir.path().join("out.html");
+    let assert = evalcore()
+        .args(["run", quickstart(), "--reporter", "json", "--html"])
+        .arg(&report)
+        .assert()
+        .success();
+
+    // Stdout stays parseable JSON — the HTML went to the file, not stdout.
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|e| panic!("stdout must be pure JSON, got err {e}: {stdout}"));
+    assert!(parsed.get("results").is_some(), "JSON report on stdout");
+    assert!(report.exists(), "HTML file written");
+}
+
 /// Write a one-case, always-passing suite (echo target, `contains: "ok"`) with
 /// the given `run.gates` block appended.
 fn write_gated_suite(dir: &std::path::Path, gates: &str) {

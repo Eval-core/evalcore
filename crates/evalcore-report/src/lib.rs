@@ -2,7 +2,7 @@
 //! — no I/O, no clock, no global state — so outputs are snapshot-testable and
 //! identical for identical runs.
 
-use evalcore_core::RunSummary;
+use evalcore_core::{BaselineDiff, RunSummary, TargetOutput, Trajectory};
 
 /// Human-readable report for terminals and logs.
 pub fn terminal(summary: &RunSummary) -> String {
@@ -114,6 +114,308 @@ pub fn baseline(diff: &evalcore_core::BaselineDiff, label: &str) -> String {
     out
 }
 
+/// Self-contained HTML report: the shareable "here's the eval report" artifact
+/// a reviewer clicks in a PR. One document, entirely inline (no external
+/// requests, no fonts, no images), zero JavaScript (`<details>` drives every
+/// expander), and deterministic — identical `summary`/`diff` render
+/// byte-identical bytes, so it snapshot-tests like every other reporter.
+///
+/// `diff`, when present, embeds the same baseline comparison the terminal diff
+/// renderer prints. Everything user-derived (case ids, outputs, reasons, tool
+/// names, JSON payloads) is HTML-escaped, so a hostile output renders inert.
+pub fn html(summary: &RunSummary, diff: Option<&BaselineDiff>) -> String {
+    let mut out = String::new();
+    out.push_str("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
+    out.push_str("<meta charset=\"utf-8\">\n");
+    out.push_str("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
+    out.push_str("<title>EvalCore report</title>\n");
+    out.push_str("<style>\n");
+    out.push_str(HTML_STYLE);
+    out.push_str("</style>\n</head>\n<body>\n");
+    out.push_str("<main>\n");
+
+    // Header: the same figures the terminal reporter's summary line shows.
+    let overall = if summary.all_passed() { "pass" } else { "fail" };
+    out.push_str("<header>\n");
+    out.push_str("<h1>EvalCore report</h1>\n");
+    out.push_str("<div class=\"stats\">\n");
+    out.push_str(&format!(
+        "<span class=\"stat overall-{overall}\">{}</span>\n",
+        if summary.all_passed() {
+            "all passed"
+        } else {
+            "failing"
+        }
+    ));
+    out.push_str(&format!(
+        "<span class=\"stat pass\">{} passed</span>\n",
+        summary.passed()
+    ));
+    out.push_str(&format!(
+        "<span class=\"stat fail\">{} failed</span>\n",
+        summary.failed()
+    ));
+    out.push_str(&format!(
+        "<span class=\"stat\">{} total</span>\n",
+        summary.total()
+    ));
+    if let Some(tokens) = summary.total_tokens() {
+        out.push_str(&format!(
+            "<span class=\"stat\">{} tokens</span>\n",
+            tokens.total()
+        ));
+    }
+    if let Some(cost) = summary.total_cost_usd() {
+        out.push_str(&format!("<span class=\"stat\">${cost:.4}</span>\n"));
+    }
+    out.push_str("</div>\n</header>\n");
+
+    // Gates panel — omitted entirely when no gates are configured.
+    if !summary.gates.is_empty() {
+        out.push_str("<section class=\"gates\">\n<h2>Gates</h2>\n");
+        out.push_str("<table>\n<thead><tr><th>Status</th><th>Gate</th><th>Actual</th><th>Reason</th></tr></thead>\n<tbody>\n");
+        for gate in &summary.gates {
+            let (cls, label) = if gate.passed {
+                ("pass", "PASS")
+            } else {
+                ("fail", "FAIL")
+            };
+            let reason = gate.reason.as_deref().map(html_escape).unwrap_or_default();
+            out.push_str(&format!(
+                "<tr><td><span class=\"badge {cls}\">{label}</span></td><td>{}</td><td class=\"num\">{:.2}</td><td>{reason}</td></tr>\n",
+                html_escape(&gate.gate),
+                gate.actual,
+            ));
+        }
+        out.push_str("</tbody>\n</table>\n</section>\n");
+    }
+
+    // Case table: one expandable row per case, in dataset order.
+    out.push_str("<section class=\"cases\">\n<h2>Cases</h2>\n");
+    out.push_str("<div class=\"row head\"><span class=\"c-status\">Status</span><span class=\"c-id\">Case</span><span class=\"c-latency\">Latency</span><span class=\"c-cost\">Cost</span></div>\n");
+    for result in &summary.results {
+        push_case(&mut out, result);
+    }
+    out.push_str("</section>\n");
+
+    // Baseline diff — same data the terminal diff renderer shows.
+    if let Some(diff) = diff {
+        push_baseline(&mut out, diff);
+    }
+
+    out.push_str("</main>\n</body>\n</html>\n");
+    out
+}
+
+/// Render one case as an expandable `<details>` "row".
+fn push_case(out: &mut String, result: &evalcore_core::CaseResult) {
+    let (cls, label) = if result.passed() {
+        ("pass", "PASS")
+    } else {
+        ("fail", "FAIL")
+    };
+    let latency = result.output.as_ref().map_or(0, |o| o.latency_ms);
+    let cost = result
+        .cost_usd
+        .map(|c| format!("${c:.4}"))
+        .unwrap_or_default();
+    out.push_str("<details class=\"case\">\n");
+    out.push_str(&format!(
+        "<summary class=\"row\"><span class=\"c-status\"><span class=\"badge {cls}\">{label}</span></span><span class=\"c-id\">{}</span><span class=\"c-latency num\">{latency}ms</span><span class=\"c-cost num\">{cost}</span></summary>\n",
+        html_escape(&result.case_id),
+    ));
+    out.push_str("<div class=\"case-body\">\n");
+
+    if let Some(error) = &result.error {
+        out.push_str(&format!(
+            "<p class=\"error\">target error: {}</p>\n",
+            html_escape(error)
+        ));
+    }
+
+    if let Some(output) = &result.output {
+        out.push_str("<h3>Output</h3>\n");
+        out.push_str(&format!("<pre>{}</pre>\n", html_escape(&output.text)));
+    }
+
+    if !result.scores.is_empty() {
+        out.push_str("<h3>Scores</h3>\n");
+        out.push_str("<table>\n<thead><tr><th>Scorer</th><th>Value</th><th>Passed</th><th>Reason</th></tr></thead>\n<tbody>\n");
+        for score in &result.scores {
+            let (scls, slabel) = if score.passed {
+                ("pass", "yes")
+            } else {
+                ("fail", "no")
+            };
+            let reason = score.reason.as_deref().map(html_escape).unwrap_or_default();
+            out.push_str(&format!(
+                "<tr><td>{}</td><td class=\"num\">{}</td><td><span class=\"badge {scls}\">{slabel}</span></td><td>{reason}</td></tr>\n",
+                html_escape(&score.scorer),
+                score.value,
+            ));
+        }
+        out.push_str("</tbody>\n</table>\n");
+    }
+
+    if let Some(TargetOutput {
+        trajectory: Some(trajectory),
+        ..
+    }) = &result.output
+    {
+        push_trajectory(out, trajectory);
+    }
+
+    out.push_str("</div>\n</details>\n");
+}
+
+/// Render an agent trajectory: one nested `<details>` per step.
+fn push_trajectory(out: &mut String, trajectory: &Trajectory) {
+    out.push_str("<h3>Trajectory</h3>\n");
+    if trajectory.steps.is_empty() {
+        out.push_str("<p class=\"muted\">no steps</p>\n");
+        return;
+    }
+    out.push_str("<ol class=\"trajectory\">\n");
+    for step in &trajectory.steps {
+        out.push_str(&format!(
+            "<li><span class=\"tool\">{}</span>\n",
+            html_escape(&step.tool)
+        ));
+        out.push_str("<details class=\"payload\"><summary>input</summary>\n");
+        out.push_str(&format!(
+            "<pre>{}</pre></details>\n",
+            html_escape(&pretty(&step.input))
+        ));
+        if let Some(output) = &step.output {
+            out.push_str("<details class=\"payload\"><summary>output</summary>\n");
+            out.push_str(&format!(
+                "<pre>{}</pre></details>\n",
+                html_escape(&pretty(output))
+            ));
+        }
+        out.push_str("</li>\n");
+    }
+    out.push_str("</ol>\n");
+}
+
+/// Render the baseline diff section.
+fn push_baseline(out: &mut String, diff: &BaselineDiff) {
+    out.push_str("<section class=\"baseline\">\n<h2>Baseline diff</h2>\n");
+    out.push_str(&format!(
+        "<p class=\"muted\">baseline {}/{} passed &rarr; current {}/{} passed</p>\n",
+        diff.baseline_passed, diff.baseline_total, diff.current_passed, diff.current_total
+    ));
+    let gate = if diff.gate_failed() {
+        format!(
+            "<p class=\"gate fail\">baseline gate: FAIL ({} regressed, {} new failing)</p>\n",
+            diff.regressions.len(),
+            diff.new_failing.len()
+        )
+    } else {
+        "<p class=\"gate pass\">baseline gate: OK — no regressions</p>\n".into()
+    };
+    out.push_str(&gate);
+
+    push_regression_group(out, "Regressed", "fail", &diff.regressions);
+    push_regression_group(out, "New failing", "fail", &diff.new_failing);
+    push_id_group(out, "Fixed", "pass", &diff.fixed);
+    push_id_group(out, "Removed", "muted", &diff.removed);
+    out.push_str("</section>\n");
+}
+
+fn push_regression_group(
+    out: &mut String,
+    title: &str,
+    cls: &str,
+    cases: &[evalcore_core::CaseRegression],
+) {
+    if cases.is_empty() {
+        return;
+    }
+    out.push_str(&format!("<h3 class=\"{cls}\">{title}</h3>\n<ul>\n"));
+    for case in cases {
+        out.push_str(&format!("<li><code>{}</code>", html_escape(&case.case_id)));
+        if !case.reasons.is_empty() {
+            out.push_str("<ul class=\"reasons\">\n");
+            for reason in &case.reasons {
+                out.push_str(&format!("<li>{}</li>\n", html_escape(reason)));
+            }
+            out.push_str("</ul>");
+        }
+        out.push_str("</li>\n");
+    }
+    out.push_str("</ul>\n");
+}
+
+fn push_id_group(out: &mut String, title: &str, cls: &str, ids: &[String]) {
+    if ids.is_empty() {
+        return;
+    }
+    out.push_str(&format!("<h3 class=\"{cls}\">{title}</h3>\n<ul>\n"));
+    for id in ids {
+        out.push_str(&format!("<li><code>{}</code></li>\n", html_escape(id)));
+    }
+    out.push_str("</ul>\n");
+}
+
+/// Deterministic pretty JSON for a payload value (serde_json's `Map` is a
+/// `BTreeMap` here — `preserve_order` is banned workspace-wide — so keys sort
+/// stably).
+fn pretty(value: &serde_json::Value) -> String {
+    serde_json::to_string_pretty(value).unwrap_or_default()
+}
+
+/// Minimal, theme-aware stylesheet, inlined into every report. Light by
+/// default, dark via `prefers-color-scheme`. No external resources.
+const HTML_STYLE: &str = "\
+:root{--bg:#ffffff;--fg:#1c1e21;--muted:#6b7280;--border:#e5e7eb;--panel:#f9fafb;\
+--pass:#137333;--pass-bg:#e6f4ea;--fail:#c5221f;--fail-bg:#fce8e6;--code:#f3f4f6;}\
+@media (prefers-color-scheme:dark){:root{--bg:#16181c;--fg:#e6e6e6;--muted:#9aa0a6;\
+--border:#2c2f36;--panel:#1e2127;--pass:#81c995;--pass-bg:#1e3a28;--fail:#f28b82;\
+--fail-bg:#3a1f1e;--code:#232733;}}\
+*{box-sizing:border-box;}\
+body{margin:0;background:var(--bg);color:var(--fg);\
+font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}\
+main{max-width:960px;margin:0 auto;padding:24px 16px 64px;}\
+h1{font-size:20px;margin:0 0 12px;}\
+h2{font-size:16px;margin:28px 0 10px;border-bottom:1px solid var(--border);padding-bottom:4px;}\
+h3{font-size:13px;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}\
+h3.pass{color:var(--pass);}h3.fail{color:var(--fail);}h3.muted{color:var(--muted);}\
+.stats{display:flex;flex-wrap:wrap;gap:8px;}\
+.stat{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-variant-numeric:tabular-nums;}\
+.stat.pass{color:var(--pass);}.stat.fail{color:var(--fail);}\
+.overall-pass{background:var(--pass-bg);color:var(--pass);border-color:transparent;font-weight:600;}\
+.overall-fail{background:var(--fail-bg);color:var(--fail);border-color:transparent;font-weight:600;}\
+table{width:100%;border-collapse:collapse;margin:4px 0;}\
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top;}\
+th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;}\
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}\
+.badge{display:inline-block;min-width:34px;text-align:center;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600;}\
+.badge.pass{background:var(--pass-bg);color:var(--pass);}\
+.badge.fail{background:var(--fail-bg);color:var(--fail);}\
+.row{display:grid;grid-template-columns:70px 1fr 90px 80px;gap:8px;align-items:center;padding:6px 8px;}\
+.row.head{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}\
+.c-id{overflow-wrap:anywhere;}\
+details.case{border-bottom:1px solid var(--border);}\
+details.case>summary{cursor:pointer;list-style:none;}\
+details.case>summary::-webkit-details-marker{display:none;}\
+details.case[open]>summary{background:var(--panel);}\
+.case-body{padding:6px 12px 14px;}\
+pre{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:8px 10px;\
+overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0;font-size:12.5px;}\
+code{background:var(--code);border-radius:4px;padding:1px 5px;font-size:12.5px;}\
+.error{color:var(--fail);font-weight:600;}\
+.muted{color:var(--muted);}\
+ol.trajectory{margin:4px 0;padding-left:20px;}\
+ol.trajectory>li{margin:6px 0;}\
+.tool{font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}\
+details.payload{margin:4px 0;}\
+details.payload>summary{cursor:pointer;color:var(--muted);font-size:12px;}\
+ul.reasons{color:var(--muted);}\
+.gate.pass{color:var(--pass);font-weight:600;}\
+.gate.fail{color:var(--fail);font-weight:600;}\
+";
+
 fn xml_escape(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -122,10 +424,24 @@ fn xml_escape(text: &str) -> String {
         .replace('\'', "&apos;")
 }
 
+/// HTML-escape text destined for element content or an attribute value. Mirrors
+/// `xml_escape` but emits `&#39;` for the apostrophe (universally valid in HTML,
+/// unlike `&apos;`). Every user-derived string in the HTML report goes through
+/// this, so a case output of `<script>alert(1)</script>` renders as inert text.
+fn html_escape(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use evalcore_core::{CaseResult, GateResult, Score, TargetOutput, TokenUsage};
+    use evalcore_core::{
+        CaseResult, GateResult, Score, TargetOutput, TokenUsage, TraceStep, Trajectory,
+    };
 
     /// Fixture with fixed latencies/tokens so every reporter output is
     /// deterministic.
@@ -175,7 +491,10 @@ mod tests {
                 CaseResult {
                     case_id: "boom".into(),
                     output: None,
-                    error: Some("target error: connection refused".into()),
+                    // The engine stores errors UNPREFIXED; `target error: ` is
+                    // added by the renderers/`failure_reasons()`, so the fixture
+                    // must not double it.
+                    error: Some("connection refused".into()),
                     scores: vec![],
                     cost_usd: None,
                 },
@@ -298,6 +617,149 @@ mod tests {
         };
         let diff = evalcore_core::compare(&baseline_run, &fixture());
         insta::assert_snapshot!(baseline(&diff, "main"));
+    }
+
+    /// A trajectory-bearing case, for the HTML report's trajectory section.
+    fn trajectory_case() -> CaseResult {
+        CaseResult {
+            case_id: "agent-1".into(),
+            output: Some(TargetOutput {
+                text: "Refunds take 30 days.".into(),
+                latency_ms: 4400,
+                tokens: Some(TokenUsage {
+                    input: 200,
+                    output: 68,
+                }),
+                trajectory: Some(Trajectory {
+                    steps: vec![
+                        TraceStep {
+                            tool: "search_kb".into(),
+                            input: serde_json::json!({"query": "refund policy"}),
+                            output: Some(serde_json::json!("30 day window")),
+                        },
+                        TraceStep {
+                            tool: "reply".into(),
+                            input: serde_json::json!({"text": "Refunds take 30 days."}),
+                            output: None,
+                        },
+                    ],
+                }),
+            }),
+            error: None,
+            scores: vec![Score {
+                scorer: "trajectory".into(),
+                value: 1.0,
+                passed: true,
+                reason: None,
+            }],
+            cost_usd: Some(0.000_19),
+        }
+    }
+
+    /// The gated fixture plus a trajectory case: exercises every HTML section.
+    fn fixture_full() -> RunSummary {
+        let mut summary = fixture_with_gates();
+        summary.results.push(trajectory_case());
+        summary
+    }
+
+    #[test]
+    fn html_full_report_snapshot() {
+        // Baseline: refund-1 was failing, refund-2 passed, and boom/agent-1
+        // didn't exist. The current run fixes refund-1 (Fixed), regresses
+        // refund-2 (Regressed), adds failing boom (New failing), and drops
+        // `retired` (Removed) — every baseline-diff group is exercised.
+        let baseline_run = RunSummary {
+            results: vec![
+                CaseResult {
+                    case_id: "refund-1".into(),
+                    output: None,
+                    error: Some("was flaky".into()),
+                    scores: vec![],
+                    cost_usd: None,
+                },
+                CaseResult {
+                    case_id: "refund-2".into(),
+                    output: None,
+                    error: None,
+                    scores: vec![],
+                    cost_usd: None,
+                },
+                CaseResult {
+                    case_id: "retired".into(),
+                    output: None,
+                    error: Some("was failing".into()),
+                    scores: vec![],
+                    cost_usd: None,
+                },
+            ],
+            gates: Vec::new(),
+        };
+        let summary = fixture_full();
+        let diff = evalcore_core::compare(&baseline_run, &summary);
+        insta::assert_snapshot!(html(&summary, Some(&diff)));
+    }
+
+    #[test]
+    fn html_minimal_report_snapshot() {
+        // No gates, no trajectory, no baseline diff.
+        insta::assert_snapshot!(html(&fixture(), None));
+    }
+
+    #[test]
+    fn html_escapes_user_derived_content() {
+        // A hostile case id, output, and scorer reason must all render inert.
+        let summary = RunSummary {
+            results: vec![CaseResult {
+                case_id: "<script>alert('id')</script>".into(),
+                output: Some(TargetOutput {
+                    text: "<script>alert(\"xss\")</script> & \"done\"".into(),
+                    latency_ms: 5,
+                    tokens: None,
+                    trajectory: None,
+                }),
+                error: None,
+                scores: vec![Score {
+                    scorer: "contains".into(),
+                    value: 0.0,
+                    passed: false,
+                    reason: Some("wanted <b>x</b> & 'y' but got \"z\"".into()),
+                }],
+                cost_usd: None,
+            }],
+            gates: Vec::new(),
+        };
+        let rendered = html(&summary, None);
+
+        assert!(
+            rendered.contains("&lt;script&gt;"),
+            "angle brackets escaped"
+        );
+        assert!(rendered.contains("&amp;"), "ampersand escaped");
+        assert!(rendered.contains("&quot;"), "double quote escaped");
+        assert!(rendered.contains("&#39;"), "apostrophe escaped");
+        assert!(
+            !rendered.contains("<script>"),
+            "no live script tag survives"
+        );
+    }
+
+    #[test]
+    fn html_is_deterministic() {
+        // Pins the no-clock, no-random rule: identical inputs, identical bytes.
+        let summary = fixture_full();
+        let baseline_run = RunSummary {
+            results: vec![CaseResult {
+                case_id: "refund-2".into(),
+                output: None,
+                error: None,
+                scores: vec![],
+                cost_usd: None,
+            }],
+            gates: Vec::new(),
+        };
+        let diff = evalcore_core::compare(&baseline_run, &summary);
+        assert_eq!(html(&summary, Some(&diff)), html(&summary, Some(&diff)));
     }
 
     #[test]
