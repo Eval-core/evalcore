@@ -1,8 +1,8 @@
 # EvalCore
 
-**Snapshot testing for AI behavior.** A single-binary, config-first eval runner for LLM apps and agents — deterministic in CI, extensible from any language, with agent-trajectory evaluation over OpenTelemetry traces on the roadmap.
+**Snapshot testing for AI behavior.** A single-binary, config-first eval runner for LLM apps and agents — deterministic in CI via record/replay caching, extensible from any language, with agent-trajectory evaluation over OpenTelemetry traces.
 
-> Status: early scaffold (pre-0.1). See [PRD.md](PRD.md) for the full product plan.
+> Status: pre-1.0 — config and APIs may still shift between minor versions. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -15,7 +15,7 @@ cargo install evalcore                 # from crates.io
 In GitHub Actions, one step runs a suite and gates the job (report lands in the step summary):
 
 ```yaml
-- uses: eval-core/evalcore@v0.3.0
+- uses: eval-core/evalcore@v0.4.0
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
@@ -99,6 +99,8 @@ run:
 
 Cases skipped by the budget are reported as failures with a reason — the run completes and exits 1 rather than aborting. The terminal summary shows totals: `12 passed, 0 failed, 12 total · 48210 tokens · $0.0341`.
 
+How the math works: `cost = (input_tokens × input_per_1m + output_tokens × output_per_1m) / 1M`, using the token counts the provider reported (or, for trace runs, the usage found in the spans). EvalCore deliberately ships **no pricing table** — prices change and differ per provider, deployment, and tier, and a stale table produces silently wrong dollars. Your rates live in config where code review can see them. Replayed runs report the *recorded* usage, so cost stays visible even when actual spend is $0. Known gap: LLM-judge calls are not yet included in totals or budgets.
+
 ## Baselines: gate on regressions, not perfection
 
 Real eval suites are rarely 100% green — what you actually want to block in CI is *getting worse*. Save an accepted state, then gate against it:
@@ -144,7 +146,7 @@ scorers:
 PASS refund-flow-native (0ms)
 PASS refund-flow-otel (4400ms)      # latency & tokens read from the trace itself
 
-2 passed, 0 failed, 2 total · 268 tokens
+2 passed, 0 failed, 2 total · 268 tokens · $0.0002
 ```
 
 Try it: `evalcore run examples/agent-trace/evals.yaml`. The rule semantics are specified in [docs/trajectory-spec.md](docs/trajectory-spec.md).
@@ -153,7 +155,7 @@ Try it: `evalcore run examples/agent-trace/evals.yaml`. The rule semantics are s
 
 1. **Protocols over SDKs** — targets speak HTTP or shell, custom scorers speak JSON over stdin/stdout (any language), judges are any OpenAI-compatible endpoint. Rust is the engine, never a requirement.
 2. **Deterministic in CI** — record/replay caching of every LLM call (shipped, see above).
-3. **Traces as the unit of agent evaluation** — assert on tool calls, ordering, and budgets from OTel traces (roadmap, v0.2).
+3. **Traces as the unit of agent evaluation** — assert on tool calls, ordering, and budgets from OTel traces (shipped, see above).
 4. **Local-first** — results in SQLite next to your repo; no server, no signup.
 
 ## Development

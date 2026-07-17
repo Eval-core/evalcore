@@ -1,6 +1,6 @@
 # GitHub Action: run an EvalCore suite and gate CI on the result.
 #
-#   - uses: eval-core/evalcore@v0.3.0
+#   - uses: eval-core/evalcore@v0.4.0
 #     with:
 #       config: evals/evals.yaml
 #       args: --cache replay --baseline main
