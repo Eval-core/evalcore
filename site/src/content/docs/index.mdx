@@ -1,0 +1,72 @@
+---
+title: Snapshot testing for AI behavior
+description: Deterministic AI evals in CI — record/replay caching, any language, agent traces. A single-binary, config-first eval runner for LLM apps and agents.
+template: splash
+hero:
+  tagline: Deterministic AI evals in CI — record/replay caching, any language, agent traces.
+  actions:
+    - text: Get started
+      link: getting-started/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: GitHub
+      link: https://github.com/eval-core/evalcore
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+An eval suite is a YAML file plus a JSONL dataset. This one evaluates a `cat`
+echo target, so it runs with no network and no API keys:
+
+```sh
+# Install
+cargo install evalcore
+
+# Run the shipped example (no API keys, no network)
+evalcore run examples/quickstart/evals.yaml
+```
+
+```yaml
+# evals.yaml
+targets:
+  echo:
+    type: shell
+    cmd: "cat"
+datasets:
+  - file: cases.jsonl
+scorers:
+  - type: contains
+    value: "refund"
+    case_sensitive: false
+```
+
+`evalcore run` exits `0` when every case passes and `1` otherwise — it drops
+straight into CI.
+
+<CardGrid stagger>
+	<Card title="Deterministic in CI" icon="approve-check">
+		Every LLM call is recorded to a local SQLite cassette and replayed
+		byte-for-byte. Commit the cassette; CI runs `--cache replay` at **$0**,
+		offline, with no flaky judges and no API keys.
+	</Card>
+	<Card title="Any language" icon="seti:shell">
+		Targets speak HTTP or shell; custom scorers speak JSON over stdin/stdout;
+		judges are any OpenAI-compatible endpoint. Rust is the engine, never the
+		interface — you never write Rust.
+	</Card>
+	<Card title="Agent trajectories" icon="random">
+		Ingest recorded OTel/OpenInference traces and grade **the answer and the
+		path** in one suite: `must_call` / `must_not_call` ordering rules, step
+		budgets, and final-answer grading.
+	</Card>
+	<Card title="Gates & baselines" icon="rocket">
+		Block regressions, not imperfection. `--baseline` tolerates accepted
+		failures and fails only on regressions; `run.gates` adds pass-rate and
+		mean-score floors over the whole run.
+	</Card>
+</CardGrid>
+
+**No telemetry. No signup. Local SQLite.** Results live in `.evalcore/` next to
+your repo — there is no server and nothing to sign up for.
