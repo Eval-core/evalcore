@@ -68,6 +68,7 @@ export default defineConfig({
 						{ label: 'Record / replay', slug: 'guides/record-replay' },
 						{ label: 'Evaluating REST APIs', slug: 'guides/evaluating-rest-apis' },
 						{ label: 'Agents and traces', slug: 'guides/agents-and-traces' },
+						{ label: 'RAG evaluation', slug: 'guides/rag-evaluation' },
 						{ label: 'LLM-as-judge', slug: 'guides/llm-as-judge' },
 						{ label: 'Cost and budgets', slug: 'guides/cost-and-budgets' },
 						{ label: 'Custom scorers', slug: 'guides/custom-scorers' },

@@ -238,16 +238,24 @@ Each non-blank line is one JSON object. Blank lines are skipped. Fields:
 | `input` | string | for invoked targets | The prompt/input sent to the target. Defaults to `""` for trace cases. |
 | `expected` | any JSON | no | Optional expectation, interpreted per-scorer (e.g. `exact` compares against it when no inline `value` is set). |
 | `trace` | path | for `trace` targets | Path to the recorded trace file, resolved relative to the dataset file. |
+| `context` | string, or list of strings | no | Retrieved RAG context the answer is graded against. A single string normalizes to a one-element list; an empty array (`[]`) normalizes to *none* (treated as absent). Scorers see it (the `judge` scorer grades against it, `subprocess` scorers receive it); targets never do. Since v0.6.0. |
 
 Every case needs an `input` **or** a `trace`; a case with neither is an error:
 `case at <file>:<line> has neither 'input' nor 'trace'`. A malformed line
-reports `invalid case at <file>:<line>`.
+reports `invalid case at <file>:<line>`. A `context` that is not a string or an
+array of strings (a number, an object, a mixed array) is likewise a dataset
+error naming the case's `file:line`.
 
 ```jsonl
 {"id": "refund-1", "input": "How long do refunds take?", "expected": "30 days"}
 {"input": "anonymous case gets id case-2"}
+{"id": "rag-1", "input": "How long do refunds take?", "context": "Refunds are processed within 30 days."}
+{"id": "rag-2", "input": "What do I need?", "context": ["Bring your order number.", "Keep the receipt."]}
 {"id": "agent-flow", "trace": "traces/run1.json"}
 ```
+
+See the [RAG evaluation guide](../../guides/rag-evaluation/) for how context
+flows to the scorers.
 
 ## Scorers
 

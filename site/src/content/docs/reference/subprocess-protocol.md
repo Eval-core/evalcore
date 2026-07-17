@@ -27,9 +27,10 @@ The scorer receives a single JSON object on stdin:
 
 ```json
 {
+  "context": ["Refunds are processed within 30 days."],
+  "expected": "30 days",
   "input": "How long do refunds take?",
-  "output": "Refunds are honored within 30 days.",
-  "expected": "30 days"
+  "output": "Refunds are honored within 30 days."
 }
 ```
 
@@ -38,6 +39,11 @@ The scorer receives a single JSON object on stdin:
 | `input` | string | The case's input, as sent to the target. |
 | `output` | string | The target's output text for this case. |
 | `expected` | any JSON, or `null` | The case's `expected` field, verbatim. `null` when the case has none. |
+| `context` | list of strings | The case's retrieved RAG context chunks. **Present only when the case carries context** — omitted entirely otherwise, so a contextless payload keeps its original shape. Since v0.6.0. |
+
+Object keys are serialized in **alphabetical order** (`context`, `expected`,
+`input`, `output`), so a contextless case's payload is byte-identical to the
+pre-0.6.0 shape.
 
 The command **must read stdin** (even if only to discard it). A command that
 exits before EvalCore finishes writing the payload can race and fail the write.

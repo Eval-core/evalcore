@@ -49,6 +49,17 @@ And custom scoring logic — a Python faithfulness or similarity check — is a
 on stdin and reads a score back on stdout. See
 [Custom scorers](/evalcore/guides/custom-scorers/).
 
+## How do I evaluate a RAG pipeline?
+
+Attach the retrieved **context** to each dataset case (a single string or an
+array of chunks), then grade the answer against it. The recommended PR-path
+approach is the native `judge` scorer with a groundedness rubric like "Is the
+answer fully supported by the provided context?" — its verdicts go through the
+record/replay cache, so they replay deterministically and free. Your target
+never sees the context: a RAG app does its own retrieval, so context stays on the
+scoring side. For the shipped Ragas/DeepEval metric shims and a nightly-tier
+workflow, see [RAG evaluation](/evalcore/guides/rag-evaluation/).
+
 ## What happens on a cache miss in replay mode?
 
 The case **fails with a reason** — it is never a silent live call (that would
