@@ -66,10 +66,15 @@ jobs:
       - name: Build local evalcore
         run: cargo install --path crates/evalcore --locked
 
+      # Distinct html-artifact names: upload-artifact@v4 rejects two artifacts
+      # sharing a name in one workflow run (409 Conflict), and both invocations
+      # land in this single job.
       - uses: ./
         with:
           config: examples/quickstart/evals.yaml
+          html-artifact: evalcore-report-quickstart
 
       - uses: ./
         with:
           config: examples/agent-trace/evals.yaml
+          html-artifact: evalcore-report-agent-trace
