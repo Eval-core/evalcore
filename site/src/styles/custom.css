@@ -1,7 +1,7 @@
 /* EvalCore — typography-led, near-monochrome theme.
  *
  * The wordmark set in Inter is the brand; there is no logo. Restraint is the
- * point: one accent (muted indigo) for links and active states only, flat
+ * point: one accent (burnt orange) for links and active states only, flat
  * surfaces, 1px hairline borders, a single 6px radius, and no gradients,
  * shadows (except the terminal cast), or colored blocks anywhere.
  *
@@ -17,7 +17,7 @@
 }
 
 /* ---- Dark palette (Starlight default :root) ----------------------------- *
- * bg #0b0b0c · text #ededed · border #262626 · muted #999 · accent #818cf8
+ * bg #0b0b0c · text #ededed · border #262626 · muted #999 · accent #fb923c
  * code surface #151517 */
 :root {
 	--sl-color-white: #ededed;
@@ -30,12 +30,14 @@
 	--sl-color-gray-7: #141416;
 	--sl-color-black: #0b0b0c;
 
-	--sl-color-accent-low: #1e1b3a;
-	--sl-color-accent: #4f46e5;
-	--sl-color-accent-high: #818cf8;
+	/* Burnt orange accent — links, active nav, focus. Full Starlight accent
+	 * scale is overridden so no indigo/blue default can leak through. */
+	--sl-color-accent-low: #3a1e0e;
+	--sl-color-accent: #fb923c;
+	--sl-color-accent-high: #fdba74;
 
 	--sl-color-text: #ededed;
-	--sl-color-text-accent: #818cf8;
+	--sl-color-text-accent: #fb923c;
 	--sl-color-bg: #0b0b0c;
 	--sl-color-bg-nav: #0b0b0c;
 	--sl-color-bg-sidebar: #0b0b0c;
@@ -45,12 +47,14 @@
 	--sl-color-hairline-shade: #1c1c1e;
 
 	--muted: #999999;
+	--accent-hover: #fdba74;
+	--selection-bg: rgb(251 146 60 / 28%);
 	--code-bg: #151517;
 	--cast-shadow: 0 1px 3px rgb(0 0 0 / 45%);
 }
 
 /* ---- Light palette ------------------------------------------------------ *
- * bg #ffffff · text #111 · border #e5e5e5 · muted #666 · accent #4f46e5
+ * bg #ffffff · text #111 · border #e5e5e5 · muted #666 · accent #c2410c
  * code surface #f6f6f7 */
 :root[data-theme='light'] {
 	--sl-color-white: #111111;
@@ -63,12 +67,13 @@
 	--sl-color-gray-7: #f6f6f7;
 	--sl-color-black: #ffffff;
 
-	--sl-color-accent-low: #e7e6fb;
-	--sl-color-accent: #4f46e5;
-	--sl-color-accent-high: #312e81;
+	/* Burnt orange accent (darker for AA contrast on white). */
+	--sl-color-accent-low: #ffedd5;
+	--sl-color-accent: #c2410c;
+	--sl-color-accent-high: #7c2d12;
 
 	--sl-color-text: #111111;
-	--sl-color-text-accent: #4f46e5;
+	--sl-color-text-accent: #c2410c;
 	--sl-color-bg: #ffffff;
 	--sl-color-bg-nav: #ffffff;
 	--sl-color-bg-sidebar: #ffffff;
@@ -78,6 +83,8 @@
 	--sl-color-hairline-shade: #eeeeee;
 
 	--muted: #666666;
+	--accent-hover: #9a3412;
+	--selection-bg: #ffedd5;
 	--code-bg: #f6f6f7;
 	--cast-shadow: 0 1px 3px rgb(0 0 0 / 8%);
 }
@@ -127,6 +134,29 @@ body {
 .sl-markdown-content a {
 	text-decoration-thickness: 1px;
 	text-underline-offset: 2px;
+}
+.sl-markdown-content a:hover {
+	color: var(--accent-hover);
+}
+
+/* Warm selection tint. */
+::selection {
+	background: var(--selection-bg);
+}
+
+/* Header wordmark is plain text color — the type is the brand, never accent. */
+.site-title,
+a.site-title {
+	color: var(--sl-color-text);
+}
+
+/* Splash pages carry no sidebar, but Starlight's .main-pane still reserves
+ * --sl-sidebar-width and offsets the column with an asymmetric margin
+ * (auto 0), leaving it left of center with dead space on the right. Reclaim
+ * full width and center the content column symmetrically. */
+:root[data-has-hero] .main-pane {
+	width: 100%;
+	--sl-content-margin-inline: auto;
 }
 
 /* ==========================================================================
@@ -190,14 +220,21 @@ body {
 	max-width: 46rem;
 	margin: 2.5rem auto 0;
 }
+/* Render at the asset's intrinsic ratio — no forced aspect-ratio/object-fit,
+ * which cropped the first line on the 10:7 recording. */
+.ec-cast video,
 .ec-cast img {
+	display: block;
 	width: 100%;
-	aspect-ratio: 16 / 10;
-	object-fit: cover;
+	max-width: 100%;
+	height: auto;
 	border: 1px solid var(--sl-color-hairline);
 	border-radius: var(--radius);
 	box-shadow: var(--cast-shadow);
 	background: var(--code-bg);
+}
+.ec-cast img {
+	margin: 0;
 }
 .ec-cast figcaption {
 	margin-top: 0.6rem;

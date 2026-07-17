@@ -217,13 +217,14 @@ which is why the OTel example above reports `4400ms`. Trace targets also respect
 ## The full example, walked
 
 <figure class="ec-cast">
-	<img
-		src="/evalcore/casts/agent-trace.gif"
-		alt="Terminal recording: evalcore grades a recorded agent trace — the trajectory rules and final answer both pass, with tokens and cost read straight from the spans."
-		width="920"
-		height="575"
-		loading="lazy"
-	/>
+	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore grades a recorded agent trace — the trajectory rules and final answer both pass, with tokens and cost read straight from the spans.">
+		<source src="/evalcore/casts/agent-trace.webm" type="video/webm" />
+		<img
+			src="/evalcore/casts/agent-trace.gif"
+			alt="Terminal recording: evalcore grades a recorded agent trace — the trajectory rules and final answer both pass, with tokens and cost read straight from the spans."
+			loading="lazy"
+		/>
+	</video>
 	<figcaption>Grade the answer and the path from one recorded trace — offline and deterministic.</figcaption>
 </figure>
 

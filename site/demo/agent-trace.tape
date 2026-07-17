@@ -10,14 +10,16 @@
 Output site/public/casts/agent-trace.gif
 Output site/public/casts/agent-trace.webm
 
+# Rendered at 2x pixel density for retina sharpness: the same ~100x28 column
+# grid (FontSize 32 on a 2000x1240 canvas) at twice the resolution.
 Set Shell "bash"
-Set FontSize 16
-Set Width 1000
-Set Height 620
-Set Padding 20
+Set FontSize 32
+Set Width 2000
+Set Height 1240
+Set Padding 40
 Set Theme "Catppuccin Mocha"
 Set TypingSpeed 38ms
-Set Framerate 24
+Set Framerate 20
 Set PlaybackSpeed 1.0
 
 # Pin `evalcore` to the freshly built release binary and use a clean prompt,
@@ -33,7 +35,8 @@ Type "clear"
 Enter
 Show
 
-Sleep 600ms
+# A beat of stillness so loop-watchers catch the start of the session.
+Sleep 800ms
 Type "# Grade a recorded agent: the final answer AND the trajectory, one suite."
 Enter
 Sleep 500ms
