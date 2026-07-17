@@ -58,6 +58,7 @@ mod tests {
             text: text.into(),
             latency_ms: 0,
             tokens: None,
+            trajectory: None,
         }
     }
 

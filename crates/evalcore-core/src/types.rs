@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::trace::Trajectory;
+
 /// One test case from a dataset.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestCase {
@@ -55,6 +57,15 @@ pub struct TargetOutput {
     /// recorded usage, so cost accounting stays consistent offline.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tokens: Option<TokenUsage>,
+    /// Structured agent trajectory, when the target produced one (`trace`
+    /// targets always do). Lets the `trajectory` scorer assert on the steps
+    /// while judge/text scorers grade `text` (the final answer) — the answer
+    /// and the path scored on the same case. Absent (`None`) for every other
+    /// target. `None` is omitted on serialization so pre-existing LLM
+    /// cassettes — where trajectory is always `None`, since trace targets are
+    /// never cached — keep their exact bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trajectory: Option<Trajectory>,
 }
 
 /// One scorer's verdict on one output.
@@ -168,4 +179,29 @@ pub trait Scorer: Send + Sync {
     fn name(&self) -> String;
 
     async fn score(&self, case: &TestCase, output: &TargetOutput) -> anyhow::Result<Score>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn target_output_trajectory_is_cassette_backcompat() {
+        // Old cached JSON predates the `trajectory` field: it must deserialize
+        // (→ None), and a None trajectory must serialize to the SAME bytes as
+        // before the field existed — otherwise every committed LLM cassette
+        // would be invalidated.
+        let old_shape = r#"{"text":"hi","latency_ms":7}"#;
+        let output: TargetOutput = serde_json::from_str(old_shape).unwrap();
+        assert!(
+            output.trajectory.is_none(),
+            "absent field deserializes to None"
+        );
+
+        let reserialized = serde_json::to_string(&output).unwrap();
+        assert_eq!(
+            reserialized, old_shape,
+            "None trajectory must not add bytes to the recorded shape"
+        );
+    }
 }

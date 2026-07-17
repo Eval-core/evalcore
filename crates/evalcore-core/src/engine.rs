@@ -121,6 +121,7 @@ mod tests {
                     input: 10,
                     output: 5,
                 }),
+                trajectory: None,
             })
         }
     }

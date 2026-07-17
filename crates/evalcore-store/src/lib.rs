@@ -218,6 +218,7 @@ mod tests {
                 text: format!("call-{n}"),
                 latency_ms: 5,
                 tokens: None,
+                trajectory: None,
             })
         }
 
@@ -268,6 +269,7 @@ mod tests {
             text: "hello".into(),
             latency_ms: 42,
             tokens: None,
+            trajectory: None,
         };
 
         assert!(store.get("k1").unwrap().is_none());

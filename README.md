@@ -145,7 +145,7 @@ Combine both flags for a rolling baseline (`--baseline main --save-baseline main
 
 ## Agent trajectories: evaluate what the agent *did*
 
-Agents aren't judged by their final answer alone. EvalCore ingests **recorded traces** — its own [native trajectory format](docs/trajectory-spec.md) or an OTel/OpenInference JSON export your framework already emits — and asserts on the run itself. No SDK, no integration, any language:
+Agents aren't judged by their final answer alone — but the answer still matters. EvalCore ingests **recorded traces** — its own [native trajectory format](docs/trajectory-spec.md) or an OTel/OpenInference JSON export your framework already emits — and grades **the answer and the path in one suite**. No SDK, no integration, any language:
 
 ```yaml
 targets:
@@ -154,7 +154,11 @@ targets:
 datasets:
   - file: cases.jsonl                # {"id": "refund-flow", "trace": "traces/run1.json"}
 scorers:
-  - type: trajectory
+  - type: contains                   # grade the ANSWER: the trace's final
+    value: "30 days"                 # output (native final_output / OTel root
+                                     # span), not the trajectory JSON. Use a
+                                     # judge here for graded rubric scoring.
+  - type: trajectory                 # grade the PATH: what the agent did
     rules:
       - must_call: search_kb
         with:

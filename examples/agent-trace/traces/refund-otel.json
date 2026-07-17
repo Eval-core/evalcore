@@ -6,7 +6,8 @@
       "endTimeUnixNano": "2500000000",
       "attributes": [
         {"key": "gen_ai.usage.input_tokens", "value": {"intValue": "220"}},
-        {"key": "gen_ai.usage.output_tokens", "value": {"intValue": "48"}}
+        {"key": "gen_ai.usage.output_tokens", "value": {"intValue": "48"}},
+        {"key": "gen_ai.completion", "value": {"stringValue": "Yes — refunds are honored within 30 days of purchase."}}
       ]
     },
     {

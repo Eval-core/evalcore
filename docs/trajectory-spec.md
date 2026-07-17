@@ -10,11 +10,12 @@ than EvalCore are welcome to produce or consume it.
 
 ## 1. Canonical trajectory format
 
-A trajectory is a JSON object with a single `steps` array. Each step is one
-**tool call**, in chronological order:
+A trajectory is a JSON object with a `steps` array and an optional
+`final_output` string. Each step is one **tool call**, in chronological order:
 
 ```json
 {
+  "final_output": "Refunds are honored within 30 days.",
   "steps": [
     {
       "tool": "search_kb",
@@ -24,6 +25,18 @@ A trajectory is a JSON object with a single `steps` array. Each step is one
   ]
 }
 ```
+
+Top-level fields:
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `steps` | array | yes | The tool calls, in chronological order (below) |
+| `final_output` | string | no | The agent's final answer, graded by text/judge scorers (see §5) |
+
+`final_output`, when present, MUST be a string (a non-string value is a
+loading error, not a silently dropped field).
+
+Each step:
 
 | Field | Type | Required | Meaning |
 |---|---|---|---|
@@ -53,6 +66,24 @@ EvalCore's `trace` target auto-detects and normalizes:
 | output | `gen_ai.tool.call.result` | `output.value` |
 | token usage (any span) | `gen_ai.usage.input_tokens` / `gen_ai.usage.output_tokens` | `llm.token_count.prompt` / `llm.token_count.completion` |
 
+The **final answer** is read from a **root span**. A root candidate is a span
+whose `parentSpanId` is empty/absent or references a span not present in the
+export (a partial trace rooted at a dropped parent):
+
+| Concept | OTel GenAI semconv | OpenInference |
+|---|---|---|
+| final answer (root span) | `gen_ai.completion` | `output.value` |
+
+- Among the root candidates that carry one of these attributes, the one with
+  the **latest** `startTimeUnixNano` is the final answer. For a proper
+  single-root trace this is just that root; on a flat export where every span
+  is a candidate (e.g. a planner LLM emitting an interim thought before the
+  responder answers), the last thing said is the answer, not the first.
+- Precedence when both attributes are present **on the chosen span**:
+  `output.value` (OpenInference), then `gen_ai.completion` (OTel GenAI).
+- The value is kept as a **raw string** — a stringified-JSON answer is not
+  unwrapped, since the final answer is text, not a payload to address fields on.
+  No candidate carries one → no final answer.
 - Spans are ordered by `startTimeUnixNano`; spans without timestamps keep
   document order after timestamped ones.
 - String-valued inputs/outputs that parse as JSON are unwrapped, so matchers
@@ -121,7 +152,18 @@ with:
 - Both may be given; all present constraints must hold.
 - A missing field never matches.
 
-## 5. Design intent
+## 5. Final answer vs. the path
+
+When a trace carries a final answer, the `trace` target's text output **is that
+answer**, so `judge`, `contains`, `regex`, and `exact` scorers grade the
+agent's actual answer — not the trajectory JSON. The `trajectory` scorer always
+operates on the steps. Both can run on the same case: a judge grades whether the
+answer was right while trajectory rules check whether the path was safe — "was
+the answer right *and* was the path safe" in one suite. When a trace carries no
+final answer, the text output stays the serialized trajectory JSON (so existing
+suites that grade it with `contains` keep working).
+
+## 6. Design intent
 
 The unit of agent evaluation is the **run the app already emitted**, not a
 response EvalCore invoked. Apps keep emitting the telemetry they emit today;

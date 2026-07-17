@@ -129,6 +129,7 @@ mod tests {
                             input: 100,
                             output: 20,
                         }),
+                        trajectory: None,
                     }),
                     error: None,
                     scores: vec![Score {
@@ -148,6 +149,7 @@ mod tests {
                             input: 80,
                             output: 10,
                         }),
+                        trajectory: None,
                     }),
                     error: None,
                     scores: vec![Score {

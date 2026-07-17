@@ -221,6 +221,7 @@ impl HttpTarget {
             // Generic HTTP APIs have no standard usage shape, so v1 reports no
             // tokens (and therefore no cost) for http targets.
             tokens: None,
+            trajectory: None,
         })
     }
 }

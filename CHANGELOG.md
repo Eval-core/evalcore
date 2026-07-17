@@ -7,6 +7,17 @@ All notable changes to EvalCore. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- **Final-answer extraction from agent traces**: a `trace` target now grades
+  the agent's actual answer, not the trajectory JSON. The native format gains an
+  optional top-level `final_output` string, and OTel exports extract the final
+  answer from the root span (OpenInference `output.value`, else OTel GenAI
+  `gen_ai.completion`). When present, it becomes the target's text output — so
+  `judge`, `contains`, `regex`, and `exact` grade the answer — while the
+  `trajectory` scorer always asserts on the steps: the answer and the path
+  graded on the same case. Traces without a final answer keep emitting the
+  trajectory JSON as text, so existing suites are unaffected. `TargetOutput`
+  gains an optional structured `trajectory` channel; LLM cassettes (where it is
+  always absent) keep their exact recorded bytes.
 - **`http` target type**: evaluate an arbitrary HTTP/JSON endpoint — typically
   your own deployed app's REST API (`POST /chat {"question": ...}`) — through
   the record/replay cache, exactly like an LLM target. `{{input}}` is

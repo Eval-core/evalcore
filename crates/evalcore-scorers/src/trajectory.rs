@@ -35,11 +35,22 @@ impl Scorer for TrajectoryScorer {
     }
 
     async fn score(&self, _case: &TestCase, output: &TargetOutput) -> anyhow::Result<Score> {
-        let trajectory = parse_trajectory(&output.text)?;
+        // Prefer the structured trajectory (`trace` targets attach it, so the
+        // steps are graded even when `text` holds the final answer). Fall back
+        // to parsing `text` for trajectory JSON arriving through any other
+        // target (e.g. a shell target emitting the native format).
+        let parsed;
+        let trajectory = match &output.trajectory {
+            Some(trajectory) => trajectory,
+            None => {
+                parsed = parse_trajectory(&output.text)?;
+                &parsed
+            }
+        };
         let failures: Vec<String> = self
             .rules
             .iter()
-            .filter_map(|rule| check_rule(rule, &trajectory).err())
+            .filter_map(|rule| check_rule(rule, trajectory).err())
             .collect();
 
         let passed = failures.is_empty();
@@ -167,6 +178,7 @@ mod tests {
             text: trajectory.to_string(),
             latency_ms: 0,
             tokens: None,
+            trajectory: None,
         }
     }
 
@@ -293,12 +305,61 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn scores_from_structured_trajectory_ignoring_text() {
+        // `text` is a plain final answer (not trajectory JSON); the scorer must
+        // read the structured trajectory and never try to parse `text`.
+        let output = TargetOutput {
+            text: "Refunds are honored within 30 days.".into(),
+            latency_ms: 0,
+            tokens: None,
+            trajectory: Some(Trajectory {
+                steps: vec![
+                    TraceStep {
+                        tool: "search_kb".into(),
+                        input: serde_json::json!({"query": "refund policy"}),
+                        output: None,
+                    },
+                    TraceStep {
+                        tool: "reply".into(),
+                        input: serde_json::json!({}),
+                        output: None,
+                    },
+                ],
+            }),
+        };
+        let score = run(
+            serde_json::json!([
+                {"must_call": "search_kb", "with": {"query": {"contains": "refund"}}},
+                {"max_steps": 2},
+            ]),
+            &output,
+        )
+        .await;
+        assert!(
+            score.passed,
+            "structured trajectory graded; got: {:?}",
+            score.reason
+        );
+    }
+
+    #[tokio::test]
+    async fn falls_back_to_parsing_text_when_no_structured_trajectory() {
+        // trajectory: None (e.g. a shell target emitting native JSON) → the
+        // scorer parses `text`, preserving today's behavior.
+        let output = refund_flow(); // output_of sets trajectory: None
+        assert!(output.trajectory.is_none());
+        let score = run(serde_json::json!([{"must_call": "search_kb"}]), &output).await;
+        assert!(score.passed, "fallback text parse; got: {:?}", score.reason);
+    }
+
+    #[tokio::test]
     async fn non_trajectory_output_is_a_scorer_error() {
         let scorer = TrajectoryScorer::new(vec![]);
         let output = TargetOutput {
             text: "just some model text".into(),
             latency_ms: 0,
             tokens: None,
+            trajectory: None,
         };
         assert!(scorer.score(&case(), &output).await.is_err());
     }

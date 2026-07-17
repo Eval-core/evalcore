@@ -161,6 +161,7 @@ impl Target for ShellTarget {
             text: String::from_utf8_lossy(&output.stdout).into_owned(),
             latency_ms: start.elapsed().as_millis() as u64,
             tokens: None,
+            trajectory: None,
         })
     }
 }
@@ -184,10 +185,20 @@ impl Target for TraceTarget {
             .with_context(|| format!("failed to read trace {}", path.display()))?;
         let normalized = crate::trace::normalize_trace(&raw)
             .with_context(|| format!("failed to normalize trace {}", path.display()))?;
+        // `text` is the final answer when the trace carries one (judge/text
+        // scorers grade it), else the serialized trajectory JSON exactly as
+        // before (back-compat for suites that grade the JSON with `contains`).
+        // The structured trajectory is ALWAYS attached so the `trajectory`
+        // scorer asserts on the steps regardless of what `text` holds.
+        let text = match normalized.final_output {
+            Some(answer) => answer,
+            None => serde_json::to_string(&normalized.trajectory)?,
+        };
         Ok(TargetOutput {
-            text: serde_json::to_string(&normalized.trajectory)?,
+            text,
             latency_ms: normalized.latency_ms,
             tokens: normalized.tokens,
+            trajectory: Some(normalized.trajectory),
         })
     }
     // cache_identity stays None: traces are local files, never worth caching.
@@ -420,6 +431,7 @@ impl OpenAiCompatTarget {
                 text,
                 latency_ms: start.elapsed().as_millis() as u64,
                 tokens,
+                trajectory: None,
             })
         };
         parse().map_err(AttemptError::Permanent)
@@ -473,6 +485,48 @@ mod tests {
             expected: None,
             trace: None,
         }
+    }
+
+    async fn trace_output(trace_json: &str) -> TargetOutput {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("trace.json");
+        std::fs::write(&path, trace_json).unwrap();
+        let case = TestCase {
+            id: "trace-case".into(),
+            input: String::new(),
+            expected: None,
+            trace: Some(path),
+        };
+        TraceTarget.invoke(&case).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn trace_target_text_is_final_answer_when_present() {
+        let out = trace_output(
+            r#"{"final_output": "Refunds take 30 days.",
+                "steps": [{"tool": "search_kb", "input": {"q": "refund"}}]}"#,
+        )
+        .await;
+        // `text` is the final answer, not the trajectory JSON — judge/text
+        // scorers grade the answer.
+        assert_eq!(out.text, "Refunds take 30 days.");
+        // The structured trajectory is still attached for the trajectory scorer.
+        let trajectory = out.trajectory.expect("trace target always attaches it");
+        assert_eq!(trajectory.steps.len(), 1);
+        assert_eq!(trajectory.steps[0].tool, "search_kb");
+    }
+
+    #[tokio::test]
+    async fn trace_target_text_is_trajectory_json_when_no_final_answer() {
+        let out = trace_output(r#"{"steps": [{"tool": "search_kb", "input": {}}]}"#).await;
+        // No final_output → back-compat: text is the serialized trajectory JSON.
+        let parsed: serde_json::Value = serde_json::from_str(&out.text).unwrap();
+        assert!(
+            parsed.get("steps").is_some(),
+            "text is trajectory JSON: {}",
+            out.text
+        );
+        assert!(out.trajectory.is_some(), "trajectory always populated");
     }
 
     #[tokio::test]

@@ -14,6 +14,13 @@ datasets:
   - file: cases.jsonl
 
 scorers:
+  # Grade the final answer: trace targets extract it (native `final_output` /
+  # the OTel root span) so text scorers grade the answer, not the trajectory
+  # JSON. Offline, no network.
+  - type: contains
+    value: "30 days"
+  # Grade the path: trajectory rules always operate on the steps, in parallel
+  # with the answer check above — the answer and the path, one suite.
   - type: trajectory
     rules:
       - must_call: search_kb

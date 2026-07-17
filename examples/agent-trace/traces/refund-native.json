@@ -1,4 +1,5 @@
 {
+  "final_output": "Yes — refunds are honored within 30 days of purchase.",
   "steps": [
     {"tool": "verify_identity", "input": {"user": "u-123"}, "output": {"verified": true}},
     {"tool": "search_kb", "input": {"query": "refund policy time limits"}, "output": "Refunds are honored within 30 days."},
