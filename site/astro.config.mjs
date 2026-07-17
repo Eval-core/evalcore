@@ -13,12 +13,17 @@ export default defineConfig({
 			title: 'EvalCore',
 			description:
 				'Snapshot testing for AI behavior: a single-binary, config-first eval runner for LLM apps and agents.',
-			logo: {
-				src: './src/assets/logo.svg',
-				alt: 'EvalCore',
-			},
 			favicon: '/favicon.svg',
-			customCss: ['./src/styles/custom.css'],
+			// Self-hosted fonts (no external requests). The site title set in Inter
+			// is the brand — there is no logo. Order matters: fonts first, then the
+			// theme that references them.
+			customCss: [
+				'@fontsource-variable/inter',
+				'@fontsource/jetbrains-mono/400.css',
+				'@fontsource/jetbrains-mono/500.css',
+				'@fontsource/jetbrains-mono/700.css',
+				'./src/styles/custom.css',
+			],
 			social: [
 				{
 					icon: 'github',
@@ -26,6 +31,27 @@ export default defineConfig({
 					href: 'https://github.com/eval-core/evalcore',
 				},
 			],
+			// Code blocks: quiet monochrome surfaces, hairline border, one 6px
+			// radius, no frame shadow, and the site's own mono/sans families.
+			expressiveCode: {
+				themes: ['github-light', 'github-dark'],
+				styleOverrides: {
+					borderRadius: 'var(--radius)',
+					borderColor: 'var(--sl-color-hairline)',
+					codeBackground: 'var(--code-bg)',
+					codeFontFamily: 'var(--sl-font-mono)',
+					uiFontFamily: 'var(--sl-font)',
+					frames: {
+						shadowColor: 'transparent',
+						editorTabBarBackground: 'var(--code-bg)',
+						editorActiveTabBackground: 'var(--code-bg)',
+						editorTabBarBorderBottomColor: 'var(--sl-color-hairline)',
+						terminalBackground: 'var(--code-bg)',
+						terminalTitlebarBackground: 'var(--code-bg)',
+						terminalTitlebarBorderBottomColor: 'var(--sl-color-hairline)',
+					},
+				},
+			},
 			sidebar: [
 				{
 					label: 'Getting started',

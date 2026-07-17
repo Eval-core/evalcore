@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="EvalCore">
-  <title>EvalCore</title>
-  <!-- Cassette body: the record/replay cassette is EvalCore's signature. Two
-       reel hubs are punched (fill-rule evenodd) so the mark adapts to any
-       background. The green check across the tape window reads "recorded,
-       passing". -->
-  <path fill="#7C3AED" fill-rule="evenodd" d="M13 15H51A7 7 0 0 1 58 22V42A7 7 0 0 1 51 49H13A7 7 0 0 1 6 42V22A7 7 0 0 1 13 15ZM19.5 26A4.5 4.5 0 1 0 28.5 26A4.5 4.5 0 1 0 19.5 26ZM35.5 26A4.5 4.5 0 1 0 44.5 26A4.5 4.5 0 1 0 35.5 26Z"/>
-  <path fill="none" stroke="#10B981" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M21 40L27 45.5L43 32.5"/>
-</svg>
