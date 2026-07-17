@@ -1,9 +1,11 @@
 //! Dataset loading. v0 format: JSONL, one test case per line.
 
+use std::fmt;
 use std::path::Path;
 
 use anyhow::Context;
-use serde::Deserialize;
+use serde::de::{self, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer};
 
 use crate::types::TestCase;
 
@@ -17,6 +19,66 @@ struct RawCase {
     expected: Option<serde_json::Value>,
     #[serde(default)]
     trace: Option<std::path::PathBuf>,
+    /// RAG context: a single `"string"` or an array `["chunk", ...]`. Anything
+    /// else (a number, an object, a mixed array) is a dataset error naming the
+    /// case's line. An empty array normalizes to `None`.
+    #[serde(default, deserialize_with = "deserialize_context")]
+    context: Option<Vec<String>>,
+}
+
+/// Accepts a single string (→ one-chunk vec) or an array of strings, rejecting
+/// any other shape so a malformed `context` fails the case with a clear type
+/// error. An empty array normalizes to `None`.
+fn deserialize_context<'de, D>(deserializer: D) -> Result<Option<Vec<String>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct ContextVisitor;
+
+    impl<'de> Visitor<'de> for ContextVisitor {
+        type Value = Option<Vec<String>>;
+
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("a context string or an array of context strings")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(Some(vec![value.to_owned()]))
+        }
+
+        fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(Some(vec![value]))
+        }
+
+        // A null `context` is treated as absent rather than an error.
+        fn visit_unit<E>(self) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(None)
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: SeqAccess<'de>,
+        {
+            let mut chunks = Vec::new();
+            // A non-string element (number, object, nested array) surfaces here
+            // as an "invalid type" error, rejecting mixed arrays.
+            while let Some(chunk) = seq.next_element::<String>()? {
+                chunks.push(chunk);
+            }
+            Ok((!chunks.is_empty()).then_some(chunks))
+        }
+    }
+
+    deserializer.deserialize_any(ContextVisitor)
 }
 
 /// Load a JSONL dataset. Blank lines are skipped; cases without an `id` get
@@ -47,6 +109,7 @@ pub fn load_jsonl(path: &Path) -> anyhow::Result<Vec<TestCase>> {
                 input: raw.input.unwrap_or_default(),
                 expected: raw.expected,
                 trace: raw.trace.map(|t| dataset_dir.join(t)),
+                context: raw.context,
             })
         })
         .collect()
@@ -100,6 +163,44 @@ mod tests {
             err.to_string().contains("neither `input` nor `trace`"),
             "got: {err}"
         );
+    }
+
+    #[test]
+    fn context_accepts_single_string_array_and_normalizes_empty() {
+        let (_dir, path) = write_dataset(
+            r#"{"id": "one", "input": "q", "context": "just one chunk"}
+{"id": "many", "input": "q", "context": ["chunk a", "chunk b"]}
+{"id": "empty", "input": "q", "context": []}
+{"id": "none", "input": "q"}
+"#,
+        );
+        let cases = load_jsonl(&path).unwrap();
+        assert_eq!(
+            cases[0].context.as_deref(),
+            Some(["just one chunk".to_string()].as_slice()),
+            "single string becomes a one-element vec"
+        );
+        assert_eq!(
+            cases[1].context.as_deref(),
+            Some(["chunk a".to_string(), "chunk b".to_string()].as_slice()),
+            "array is preserved in order"
+        );
+        assert_eq!(cases[2].context, None, "empty array normalizes to None");
+        assert_eq!(cases[3].context, None, "absent context is None");
+    }
+
+    #[test]
+    fn context_rejects_non_string_shapes_naming_the_case() {
+        // A bare number.
+        let (_dir, path) = write_dataset(r#"{"id": "bad", "input": "q", "context": 42}"#);
+        let err = load_jsonl(&path).unwrap_err();
+        assert!(err.to_string().contains(":1"), "names the line; got: {err}");
+
+        // A mixed array (string then number) is rejected element-by-element.
+        let (_dir, path) =
+            write_dataset("{\"input\": \"ok\"}\n{\"input\": \"q\", \"context\": [\"a\", 7]}\n");
+        let err = load_jsonl(&path).unwrap_err();
+        assert!(err.to_string().contains(":2"), "names the line; got: {err}");
     }
 
     #[test]

@@ -2,11 +2,14 @@
 //! stdin, read a verdict as JSON from stdout.
 //!
 //! Protocol (v0):
-//!   stdin:  {"input": string, "output": string, "expected": json|null}
+//!   stdin:  {"input": string, "output": string, "expected": json|null,
+//!            "context"?: array of strings}
 //!   stdout: {"score": number 0.0..=1.0, "passed"?: bool, "reason"?: string}
-//! When `passed` is omitted it defaults to `score >= 0.5`. Commands MUST read
-//! stdin (even if only to discard it) or they may exit before the payload is
-//! written.
+//! `context` (the case's RAG chunks) is present ONLY when the case carries it —
+//! omitted entirely otherwise, so scorers that don't need it see the original
+//! payload shape. When `passed` is omitted it defaults to `score >= 0.5`.
+//! Commands MUST read stdin (even if only to discard it) or they may exit
+//! before the payload is written.
 
 use std::process::Stdio;
 
@@ -35,6 +38,20 @@ struct Verdict {
     reason: Option<String>,
 }
 
+/// Build the stdin payload for a case. `context` is added only when the case
+/// carries it, so a contextless case's payload keeps its original byte-shape.
+fn build_payload(case: &TestCase, output: &TargetOutput) -> serde_json::Value {
+    let mut payload = serde_json::json!({
+        "input": case.input,
+        "output": output.text,
+        "expected": case.expected,
+    });
+    if let Some(context) = &case.context {
+        payload["context"] = serde_json::json!(context);
+    }
+    payload
+}
+
 #[async_trait]
 impl Scorer for SubprocessScorer {
     fn name(&self) -> String {
@@ -42,11 +59,7 @@ impl Scorer for SubprocessScorer {
     }
 
     async fn score(&self, case: &TestCase, output: &TargetOutput) -> anyhow::Result<Score> {
-        let payload = serde_json::json!({
-            "input": case.input,
-            "output": output.text,
-            "expected": case.expected,
-        });
+        let payload = build_payload(case, output);
 
         let mut child = tokio::process::Command::new("sh")
             .arg("-c")
@@ -131,7 +144,50 @@ mod tests {
             input: "the input".into(),
             expected: Some(serde_json::json!("the expectation")),
             trace: None,
+            context: None,
         }
+    }
+
+    #[test]
+    fn payload_omits_context_when_absent() {
+        // Byte-shape pin: a contextless case must not gain a `context` key.
+        let payload = build_payload(&case(), &output("hi"));
+        assert_eq!(
+            payload.to_string(),
+            r#"{"expected":"the expectation","input":"the input","output":"hi"}"#
+        );
+    }
+
+    #[test]
+    fn payload_includes_context_when_present() {
+        let mut c = case();
+        c.context = Some(vec!["chunk a".into(), "chunk b".into()]);
+        let payload = build_payload(&c, &output("hi"));
+        assert_eq!(
+            payload.to_string(),
+            r#"{"context":["chunk a","chunk b"],"expected":"the expectation","input":"the input","output":"hi"}"#
+        );
+    }
+
+    #[tokio::test]
+    async fn scorer_receives_context_on_stdin_when_present() {
+        // The command must read stdin fully (`cat`) before grepping it, or it
+        // may exit before the payload is written.
+        let scorer = SubprocessScorer::new(
+            r#"body=$(cat); echo "$body" | grep -q "grounding chunk" && printf '{"score": 1.0}' || printf '{"score": 0.0}'"#
+                .into(),
+        );
+        let mut with_ctx = case();
+        with_ctx.context = Some(vec!["grounding chunk".into()]);
+        let score = scorer.score(&with_ctx, &output("hi")).await.unwrap();
+        assert!(
+            score.passed,
+            "context chunk should reach the scorer's stdin"
+        );
+
+        // The same command sees no context key for a contextless case.
+        let score = scorer.score(&case(), &output("hi")).await.unwrap();
+        assert!(!score.passed, "contextless payload carries no context");
     }
 
     #[tokio::test]

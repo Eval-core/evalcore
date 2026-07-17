@@ -233,6 +233,18 @@ fn push_case(out: &mut String, result: &evalcore_core::CaseResult) {
         ));
     }
 
+    // RAG context, when the case carried it: numbered chunks, each escaped.
+    // Rendered before the output so a reviewer reads the retrieved evidence
+    // first. Uses no dedicated CSS rule, so context-free reports (which never
+    // emit this block) stay byte-identical.
+    if let Some(context) = &result.context {
+        out.push_str("<h3>Context</h3>\n<ol class=\"context\">\n");
+        for chunk in context {
+            out.push_str(&format!("<li>{}</li>\n", html_escape(chunk)));
+        }
+        out.push_str("</ol>\n");
+    }
+
     if let Some(output) = &result.output {
         out.push_str("<h3>Output</h3>\n");
         out.push_str(&format!("<pre>{}</pre>\n", html_escape(&output.text)));
@@ -467,6 +479,7 @@ mod tests {
                         reason: None,
                     }],
                     cost_usd: Some(0.0012),
+                    context: None,
                 },
                 CaseResult {
                     case_id: "refund-2".into(),
@@ -487,6 +500,7 @@ mod tests {
                         reason: Some("expected output to contain \"refund\" & <more>".into()),
                     }],
                     cost_usd: Some(0.0008),
+                    context: None,
                 },
                 CaseResult {
                     case_id: "boom".into(),
@@ -497,6 +511,7 @@ mod tests {
                     error: Some("connection refused".into()),
                     scores: vec![],
                     cost_usd: None,
+                    context: None,
                 },
             ],
             gates: Vec::new(),
@@ -597,6 +612,7 @@ mod tests {
                     error: None,
                     scores: vec![],
                     cost_usd: None,
+                    context: None,
                 },
                 CaseResult {
                     case_id: "refund-2".into(),
@@ -604,6 +620,7 @@ mod tests {
                     error: None,
                     scores: vec![],
                     cost_usd: None,
+                    context: None,
                 },
                 CaseResult {
                     case_id: "retired".into(),
@@ -611,6 +628,7 @@ mod tests {
                     error: Some("was failing".into()),
                     scores: vec![],
                     cost_usd: None,
+                    context: None,
                 },
             ],
             gates: Vec::new(),
@@ -653,13 +671,46 @@ mod tests {
                 reason: None,
             }],
             cost_usd: Some(0.000_19),
+            context: None,
         }
     }
 
-    /// The gated fixture plus a trajectory case: exercises every HTML section.
+    /// A passing case carrying RAG context, for the HTML report's Context
+    /// block. Passes and is absent from the baseline, so it lands in none of the
+    /// baseline-diff groups (which track failures) — keeping those stable.
+    fn context_case() -> CaseResult {
+        CaseResult {
+            case_id: "rag-1".into(),
+            output: Some(TargetOutput {
+                text: "Refunds are issued within 30 days.".into(),
+                latency_ms: 18,
+                tokens: Some(TokenUsage {
+                    input: 90,
+                    output: 12,
+                }),
+                trajectory: None,
+            }),
+            error: None,
+            scores: vec![Score {
+                scorer: "judge".into(),
+                value: 1.0,
+                passed: true,
+                reason: None,
+            }],
+            cost_usd: Some(0.0003),
+            context: Some(vec![
+                "Refunds are processed within 30 days of the request.".into(),
+                "Refunds require an order number & the original receipt.".into(),
+            ]),
+        }
+    }
+
+    /// The gated fixture plus a trajectory case and a context case: exercises
+    /// every HTML section.
     fn fixture_full() -> RunSummary {
         let mut summary = fixture_with_gates();
         summary.results.push(trajectory_case());
+        summary.results.push(context_case());
         summary
     }
 
@@ -677,6 +728,7 @@ mod tests {
                     error: Some("was flaky".into()),
                     scores: vec![],
                     cost_usd: None,
+                    context: None,
                 },
                 CaseResult {
                     case_id: "refund-2".into(),
@@ -684,6 +736,7 @@ mod tests {
                     error: None,
                     scores: vec![],
                     cost_usd: None,
+                    context: None,
                 },
                 CaseResult {
                     case_id: "retired".into(),
@@ -691,6 +744,7 @@ mod tests {
                     error: Some("was failing".into()),
                     scores: vec![],
                     cost_usd: None,
+                    context: None,
                 },
             ],
             gates: Vec::new(),
@@ -726,6 +780,7 @@ mod tests {
                     reason: Some("wanted <b>x</b> & 'y' but got \"z\"".into()),
                 }],
                 cost_usd: None,
+                context: None,
             }],
             gates: Vec::new(),
         };
@@ -745,6 +800,43 @@ mod tests {
     }
 
     #[test]
+    fn html_escapes_hostile_context_chunks() {
+        // A malicious retrieved chunk must render inert in the Context block.
+        let summary = RunSummary {
+            results: vec![CaseResult {
+                case_id: "rag".into(),
+                output: Some(TargetOutput {
+                    text: "answer".into(),
+                    latency_ms: 5,
+                    tokens: None,
+                    trajectory: None,
+                }),
+                error: None,
+                scores: vec![],
+                cost_usd: None,
+                context: Some(vec!["<script>alert(1)</script> & \"quoted\" 'chunk'".into()]),
+            }],
+            gates: Vec::new(),
+        };
+        let rendered = html(&summary, None);
+
+        assert!(
+            rendered.contains("&lt;script&gt;alert(1)&lt;/script&gt;"),
+            "context script tag escaped"
+        );
+        assert!(rendered.contains("&amp;"), "ampersand escaped in context");
+        assert!(
+            rendered.contains("&quot;"),
+            "double quote escaped in context"
+        );
+        assert!(rendered.contains("&#39;"), "apostrophe escaped in context");
+        assert!(
+            !rendered.contains("<script>"),
+            "no live script tag survives from a context chunk"
+        );
+    }
+
+    #[test]
     fn html_is_deterministic() {
         // Pins the no-clock, no-random rule: identical inputs, identical bytes.
         let summary = fixture_full();
@@ -755,6 +847,7 @@ mod tests {
                 error: None,
                 scores: vec![],
                 cost_usd: None,
+                context: None,
             }],
             gates: Vec::new(),
         };

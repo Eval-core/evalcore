@@ -4,6 +4,24 @@ All notable changes to EvalCore. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com); versions follow semver
 (pre-1.0: minor bumps may break APIs and config).
 
+## [Unreleased]
+
+### Added
+- **Per-case `context` for RAG evaluation**: a dataset case may carry retrieved
+  `context` — a single string or an array of strings (an empty array normalizes
+  to none). Context lives on the scoring side only: targets never receive it (a
+  RAG app does its own retrieval, and cache keys still hash just identity +
+  `input`), while scorers do. The `judge` scorer injects the context as a
+  clearly delimited, numbered section placed before the answer — so rubrics like
+  "grounded in the provided context?" have something to grade against — and,
+  because the context is part of the judge prompt, changing it re-records the
+  verdict just like a rubric change; contextless judge prompts stay
+  byte-identical, so existing cassettes keep replaying. The `subprocess` scorer
+  gains a `context` array in its stdin payload, present only when the case
+  carries context. The HTML report renders a numbered, escaped Context block in
+  each case's expandable details; the JSON report carries it too, while the
+  terminal and JUnit reporters are unchanged.
+
 ## [0.5.0] — 2026-07-17
 
 ### Added

@@ -6,6 +6,8 @@
 //! `CachedTarget` exactly like the main target, keyed on the full judge
 //! prompt. Replayed verdicts are therefore deterministic.
 
+use std::fmt::Write;
+
 use anyhow::{bail, Context};
 use async_trait::async_trait;
 use evalcore_core::{Score, Scorer, Target, TargetOutput, TestCase};
@@ -32,10 +34,29 @@ impl JudgeScorer {
             .as_ref()
             .map(|e| format!("\n<expected>\n{e}\n</expected>\n"))
             .unwrap_or_default();
+        // RAG context, when the case carries it: a clearly delimited section of
+        // numbered chunks, placed before the answer so rubrics like "grounded
+        // in the provided context?" have something to grade against. Empty when
+        // absent — so a contextless prompt is byte-identical to before this
+        // feature (a pinning test guards that), and any change to the context
+        // changes the prompt, which is the judge's cache key.
+        let context = case
+            .context
+            .as_ref()
+            .map(|chunks| {
+                let mut section = String::from("<context>\n");
+                for (i, chunk) in chunks.iter().enumerate() {
+                    // `write!` into a String never fails; number each chunk 1-based.
+                    let _ = writeln!(section, "[{}] {chunk}", i + 1);
+                }
+                section.push_str("</context>\n");
+                section
+            })
+            .unwrap_or_default();
         format!(
             "You are an impartial evaluation judge.\n\n\
              Rubric: {rubric}\n\n\
-             <input>\n{input}\n</input>\n{expected}\
+             <input>\n{input}\n</input>\n{expected}{context}\
              <output>\n{output}\n</output>\n\n\
              Grade how well the output satisfies the rubric.\n\
              Respond with only a JSON object, no prose, no code fences:\n\
@@ -78,6 +99,7 @@ impl Scorer for JudgeScorer {
             input: self.prompt(case, output),
             expected: None,
             trace: None,
+            context: None,
         };
         let response = self
             .target
@@ -118,6 +140,7 @@ mod tests {
             input: input.into(),
             expected: None,
             trace: None,
+            context: None,
         }
     }
 
@@ -146,6 +169,88 @@ mod tests {
         )
         .unwrap();
         JudgeScorer::new(Box::new(target), "Is the answer grounded?".into(), 0.7)
+    }
+
+    /// A judge whose prompt we can inspect without any network — `prompt()` is
+    /// pure, so the target is never invoked.
+    fn offline_judge() -> JudgeScorer {
+        let target =
+            OpenAiCompatTarget::new("http://127.0.0.1:1/v1".into(), "m".into(), None, 120).unwrap();
+        JudgeScorer::new(Box::new(target), "Is the answer grounded?".into(), 0.7)
+    }
+
+    #[test]
+    fn contextless_prompt_is_byte_identical_to_pre_context() {
+        // HARD back-compat: a case WITHOUT context must produce the exact prompt
+        // it produced before the `context` feature existed, or every recorded
+        // judge cassette would invalidate on upgrade. This literal is the pin.
+        let prompt = offline_judge().prompt(&case("q"), &output("a"));
+        assert_eq!(
+            prompt,
+            "You are an impartial evaluation judge.\n\n\
+             Rubric: Is the answer grounded?\n\n\
+             <input>\nq\n</input>\n\
+             <output>\na\n</output>\n\n\
+             Grade how well the output satisfies the rubric.\n\
+             Respond with only a JSON object, no prose, no code fences:\n\
+             {\"score\": <number between 0.0 and 1.0>, \"reason\": \"<one short sentence>\"}"
+        );
+    }
+
+    #[test]
+    fn context_section_is_numbered_and_precedes_the_answer() {
+        let judge = offline_judge();
+        let mut c = case("q");
+        c.context = Some(vec!["first chunk".into(), "second chunk".into()]);
+        let prompt = judge.prompt(&c, &output("a"));
+
+        assert!(
+            prompt.contains("<context>\n[1] first chunk\n[2] second chunk\n</context>\n"),
+            "numbered chunks in a delimited section; got: {prompt}"
+        );
+        let context_at = prompt.find("<context>").unwrap();
+        let answer_at = prompt.find("<output>").unwrap();
+        assert!(
+            context_at < answer_at,
+            "context must be positioned before the answer"
+        );
+        // A context change re-keys the judge (its cache key is the prompt).
+        assert_ne!(
+            prompt,
+            judge.prompt(&case("q"), &output("a")),
+            "adding context must change the judge request"
+        );
+    }
+
+    #[tokio::test]
+    async fn with_context_request_carries_the_chunks() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/chat/completions"))
+            .and(body_string_contains("[1] retrieved chunk alpha"))
+            .and(body_string_contains("[2] retrieved chunk beta"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "choices": [{"message": {"role": "assistant", "content": "{\"score\": 1.0}"}}],
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let target = OpenAiCompatTarget::new(
+            format!("{}/v1", server.uri()),
+            "judge-model".into(),
+            None,
+            120,
+        )
+        .unwrap();
+        let judge = JudgeScorer::new(Box::new(target), "grounded?".into(), 0.5);
+        let mut c = case("q");
+        c.context = Some(vec![
+            "retrieved chunk alpha".into(),
+            "retrieved chunk beta".into(),
+        ]);
+        judge.score(&c, &output("a")).await.unwrap();
+        server.verify().await;
     }
 
     #[tokio::test]

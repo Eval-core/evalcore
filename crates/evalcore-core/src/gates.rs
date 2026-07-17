@@ -125,6 +125,7 @@ mod tests {
             error: error.map(Into::into),
             scores,
             cost_usd: None,
+            context: None,
         }
     }
 

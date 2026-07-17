@@ -20,6 +20,14 @@ pub struct TestCase {
     /// dataset loader relative to the dataset file.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trace: Option<std::path::PathBuf>,
+    /// Retrieved context chunks for RAG evaluation. Scorers see it (the judge
+    /// grades against it, subprocess scorers receive it); targets never do — a
+    /// RAG app does its own retrieval, and cache keys hash only identity +
+    /// `input`, so context never reaches the target/cache path. The dataset
+    /// loader accepts a single string or an array of strings and normalizes an
+    /// empty array to `None`. Omitted from serialization when `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<Vec<String>>,
 }
 
 /// Token counts reported by the provider for one call.
@@ -94,6 +102,12 @@ pub struct CaseResult {
     /// USD cost of this case's target call, when the target declares rates.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cost_usd: Option<f64>,
+    /// The case's RAG context chunks, threaded from the dataset so the HTML
+    /// reporter can display them. Absent (`None`) for cases without context;
+    /// omitted on serialization so pre-existing baseline rows keep their exact
+    /// bytes (a shape-pinning test guards this).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<Vec<String>>,
 }
 
 impl CaseResult {
@@ -210,6 +224,41 @@ mod tests {
         assert_eq!(
             reserialized, old_shape,
             "None trajectory must not add bytes to the recorded shape"
+        );
+    }
+
+    #[test]
+    fn case_result_context_is_baseline_backcompat() {
+        // Baseline rows persist CaseResult JSON and predate the `context`
+        // field: old rows must deserialize (→ None), and a None context must
+        // serialize to the SAME bytes as before the field existed.
+        let old_shape = r#"{"case_id":"c","scores":[]}"#;
+        let result: CaseResult = serde_json::from_str(old_shape).unwrap();
+        assert!(
+            result.context.is_none(),
+            "absent field deserializes to None"
+        );
+
+        let reserialized = serde_json::to_string(&result).unwrap();
+        assert_eq!(
+            reserialized, old_shape,
+            "None context must not add bytes to the recorded shape"
+        );
+
+        // The other direction: a present context rides along in the JSON.
+        let with_context = CaseResult {
+            context: Some(vec!["chunk a".into(), "chunk b".into()]),
+            ..result
+        };
+        let json = serde_json::to_string(&with_context).unwrap();
+        assert!(
+            json.contains(r#""context":["chunk a","chunk b"]"#),
+            "present context serializes; got: {json}"
+        );
+        let round_tripped: CaseResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            round_tripped.context.as_deref(),
+            Some(["chunk a".to_string(), "chunk b".to_string()].as_slice())
         );
     }
 

@@ -5,6 +5,8 @@ report.xml
 .DS_Store
 .env
 PRD.md
+__pycache__/
+*.pyc
 
 # Example cassettes are recorded with contributors' own API keys; committing
 # one is a deliberate act, not a default.

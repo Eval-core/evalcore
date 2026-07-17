@@ -45,6 +45,7 @@ pub async fn run_suite(
                             )),
                             scores: Vec::new(),
                             cost_usd: None,
+                            context: case.context,
                         };
                     }
                 }
@@ -92,6 +93,7 @@ async fn run_case(target: &dyn Target, scorers: &[Box<dyn Scorer>], case: TestCa
                 error: None,
                 scores,
                 cost_usd: None,
+                context: case.context,
             }
         }
         Err(err) => CaseResult {
@@ -100,6 +102,7 @@ async fn run_case(target: &dyn Target, scorers: &[Box<dyn Scorer>], case: TestCa
             error: Some(format!("{err:#}")),
             scores: Vec::new(),
             cost_usd: None,
+            context: case.context,
         },
     }
 }
@@ -158,6 +161,7 @@ mod tests {
                 input: (*input).into(),
                 expected: None,
                 trace: None,
+                context: None,
             })
             .collect()
     }
@@ -179,6 +183,35 @@ mod tests {
         assert!(summary.all_passed());
         let ids: Vec<_> = summary.results.iter().map(|r| r.case_id.as_str()).collect();
         assert_eq!(ids, ["case-0", "case-1", "case-2"]);
+    }
+
+    #[tokio::test]
+    async fn threads_case_context_into_the_result() {
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(NonEmpty)];
+        let cases = vec![
+            TestCase {
+                id: "with-ctx".into(),
+                input: "a".into(),
+                expected: None,
+                trace: None,
+                context: Some(vec!["chunk one".into(), "chunk two".into()]),
+            },
+            TestCase {
+                id: "no-ctx".into(),
+                input: "b".into(),
+                expected: None,
+                trace: None,
+                context: None,
+            },
+        ];
+        let summary = run_suite(&Upper, cases, &scorers, options(2)).await;
+
+        assert_eq!(
+            summary.results[0].context.as_deref(),
+            Some(["chunk one".to_string(), "chunk two".to_string()].as_slice()),
+            "context rides from the case onto the result"
+        );
+        assert_eq!(summary.results[1].context, None);
     }
 
     #[tokio::test]

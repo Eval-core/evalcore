@@ -75,6 +75,7 @@ mod tests {
             input: String::new(),
             expected,
             trace: None,
+            context: None,
         }
     }
 

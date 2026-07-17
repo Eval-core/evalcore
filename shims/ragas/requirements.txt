@@ -1,0 +1,9 @@
+# Ragas RAG-metric shims for EvalCore's subprocess scorer.
+# Install: pip install -r shims/ragas/requirements.txt
+#
+# These pull an LLM client (langchain-openai) because Ragas' faithfulness and
+# context-recall metrics call an LLM themselves. Provider credentials (e.g.
+# OPENAI_API_KEY) are read from the environment by these libraries — not by the
+# shim scripts.
+ragas>=0.2,<0.4
+langchain-openai>=0.1,<1.0

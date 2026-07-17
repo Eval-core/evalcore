@@ -1,0 +1,7 @@
+# DeepEval RAG-metric shims for EvalCore's subprocess scorer.
+# Install: pip install -r shims/deepeval/requirements.txt
+#
+# DeepEval's faithfulness and contextual-recall metrics call an LLM themselves.
+# Provider credentials (e.g. OPENAI_API_KEY) are read from the environment by
+# DeepEval — not by the shim scripts.
+deepeval>=1.0,<4.0

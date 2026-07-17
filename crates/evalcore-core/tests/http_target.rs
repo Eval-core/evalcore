@@ -39,6 +39,7 @@ fn case(input: &str) -> TestCase {
         input: input.into(),
         expected: None,
         trace: None,
+        context: None,
     }
 }
 

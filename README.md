@@ -60,7 +60,11 @@ Judge calls go through the record/replay cache too — replayed judge verdicts a
 
 ```jsonl
 {"id": "refund-1", "input": "How do I get a refund for my order?"}
+{"id": "rag-1", "input": "How long do refunds take?", "context": "Refunds are processed within 30 days."}
+{"id": "rag-2", "input": "What do I need for a refund?", "context": ["Refunds require an order number.", "Keep your original receipt."]}
 ```
+
+For RAG evaluation, a case may carry retrieved `context` — a single string or an array of strings. **Scorers see the context but targets never do:** a RAG app runs its own retrieval (put anything the target needs in `input`), so context stays on the scoring side. The judge grades the answer against the context (write rubrics like "grounded in the provided context?"), and subprocess scorers receive it as a `context` array on stdin. Because the context is part of the judge's prompt, changing it re-records the judge verdict, just like changing the rubric.
 
 `evalcore run` exits `0` when every case passes and `1` otherwise, so it drops straight into CI.
 

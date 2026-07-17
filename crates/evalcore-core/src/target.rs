@@ -484,6 +484,7 @@ mod tests {
             input: input.into(),
             expected: None,
             trace: None,
+            context: None,
         }
     }
 
@@ -496,6 +497,7 @@ mod tests {
             input: String::new(),
             expected: None,
             trace: Some(path),
+            context: None,
         };
         TraceTarget.invoke(&case).await.unwrap()
     }

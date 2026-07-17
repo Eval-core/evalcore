@@ -250,6 +250,7 @@ mod tests {
             input: input.into(),
             expected: None,
             trace: None,
+            context: None,
         }
     }
 
@@ -293,6 +294,7 @@ mod tests {
                 error: None,
                 scores: vec![],
                 cost_usd: None,
+                context: None,
             }],
             gates: Vec::new(),
         };
@@ -303,6 +305,7 @@ mod tests {
                 error: None,
                 scores: vec![],
                 cost_usd: None,
+                context: None,
             }],
             gates: Vec::new(),
         };

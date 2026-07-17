@@ -106,6 +106,7 @@ mod tests {
                 reason: None,
             }],
             cost_usd: None,
+            context: None,
         }
     }
 
