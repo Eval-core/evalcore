@@ -70,25 +70,35 @@ scorers:
 
 ### 2 · Run it once, live
 
-`--cache record` calls the model for real and writes every request/response to a
-local SQLite cassette. Token usage and cost come back per case when the target
+The first run has no cache hits, so every call goes live against the model and
+gets recorded to a local SQLite cassette (the default `auto` mode: replay hits,
+record misses). Token usage and cost appear on the summary when the target
 declares `cost` rates:
 
 ```ansi
-$ evalcore run evals.yaml --cache record
-support-bot · refund-1  ✓ contains  ✓ judge 0.86    1,204 tok   $0.0021
-support-bot · refund-2  ✓ contains  ✓ judge 0.79      998 tok   $0.0017
+$ evalcore run evals.yaml
+PASS refund-1 (843ms)
+PASS refund-2 (512ms)
 
-2 passed · 0 failed · 2,202 tokens · $0.0038
-cassette → .evalcore/cache.db
+2 passed, 0 failed, 2 total · 2202 tokens · $0.0038
 ```
 
 ### 3 · Replay forever in CI — $0, offline, deterministic
 
 Commit the cassette. Now CI runs `--cache replay`: every call is served from the
-recording, so there is no network, no API key, and no flaky judge. `--baseline main`
-fails only on regressions, not on accepted failures. `evalcore run` exits `0` when
-everything passes and `1` otherwise, so CI gates on it directly:
+recording, so there is no network, no API key, and no flaky judge — calls return
+instantly, and the recorded token and dollar totals are reported as virtual usage:
+
+```ansi
+$ evalcore run evals.yaml --cache replay --baseline main
+PASS refund-1 (0ms)
+PASS refund-2 (0ms)
+
+2 passed, 0 failed, 2 total · 2202 tokens · $0.0038
+```
+
+`--baseline main` fails only on regressions, not on accepted failures. `evalcore run`
+exits `0` when everything passes and `1` otherwise, so CI gates on it directly:
 
 ```yaml
 # .github/workflows/evals.yml
@@ -100,7 +110,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: eval-core/evalcore@v0.5.0
-      - run: evalcore run evals.yaml --cache replay --baseline main
+        with:
+          config: evals.yaml
+          args: --cache replay --baseline main
 ```
 
 ## Everything you need
