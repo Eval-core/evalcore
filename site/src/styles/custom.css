@@ -164,6 +164,16 @@ a.site-title {
  * ======================================================================== */
 
 /* ---- Hero: centered, typographic, two quiet buttons --------------------- */
+/* The hero ships without an image, but Starlight still reserves its 7fr/4fr
+ * image column at >=50rem and flips .stack to text-align:start — shifting the
+ * copy left of viewport center. Collapse to one full-width centered column.
+ * (Unlayered rules beat @layer starlight.core regardless of specificity.) */
+[data-has-hero] .hero {
+	grid-template-columns: 100%;
+}
+[data-has-hero] .hero .stack {
+	text-align: center;
+}
 .hero {
 	padding-block: 2rem 1rem;
 }
