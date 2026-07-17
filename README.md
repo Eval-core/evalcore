@@ -2,6 +2,8 @@
 
 **Snapshot testing for AI behavior.** A single-binary, config-first eval runner for LLM apps and agents — deterministic in CI via record/replay caching, extensible from any language, with agent-trajectory evaluation over OpenTelemetry traces.
 
+**[Documentation](https://eval-core.github.io/evalcore/)** · [Quickstart](https://eval-core.github.io/evalcore/getting-started/quickstart/) · [crates.io](https://crates.io/crates/evalcore) · [Releases](https://github.com/eval-core/evalcore/releases)
+
 > Status: pre-1.0 — config and APIs may still shift between minor versions. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
