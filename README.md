@@ -98,6 +98,36 @@ baseline gate: FAIL (1 regressed, 0 new failing)
 
 Combine both flags for a rolling baseline (`--baseline main --save-baseline main`): compare first, then re-record. Baselines live in the same `.evalcore` store as the cache — commit it and CI gates offline.
 
+## Agent trajectories: evaluate what the agent *did*
+
+Agents aren't judged by their final answer alone. EvalCore ingests **recorded traces** — its own [native trajectory format](docs/trajectory-spec.md) or an OTel/OpenInference JSON export your framework already emits — and asserts on the run itself. No SDK, no integration, any language:
+
+```yaml
+targets:
+  support-agent:
+    type: trace                      # ingest, don't invoke
+datasets:
+  - file: cases.jsonl                # {"id": "refund-flow", "trace": "traces/run1.json"}
+scorers:
+  - type: trajectory
+    rules:
+      - must_call: search_kb
+        with:
+          query: { contains: "refund" }
+      - must_not_call: issue_refund
+        before: verify_identity      # never refund before verifying identity
+      - max_steps: 8
+```
+
+```
+PASS refund-flow-native (0ms)
+PASS refund-flow-otel (4400ms)      # latency & tokens read from the trace itself
+
+2 passed, 0 failed, 2 total · 268 tokens
+```
+
+Try it: `evalcore run examples/agent-trace/evals.yaml`. The rule semantics are specified in [docs/trajectory-spec.md](docs/trajectory-spec.md).
+
 ## Design principles
 
 1. **Protocols over SDKs** — targets speak HTTP or shell, custom scorers speak JSON over stdin/stdout (any language), judges are any OpenAI-compatible endpoint. Rust is the engine, never a requirement.

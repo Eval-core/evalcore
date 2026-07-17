@@ -383,6 +383,7 @@ name = "evalcore-config"
 version = "0.2.0"
 dependencies = [
  "serde",
+ "serde_json",
  "serde_yaml",
  "thiserror",
 ]

@@ -10,6 +10,7 @@ fn case(input: &str) -> TestCase {
         id: "t".into(),
         input: input.into(),
         expected: None,
+        trace: None,
     }
 }
 

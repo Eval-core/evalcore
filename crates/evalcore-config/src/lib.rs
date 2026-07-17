@@ -166,6 +166,11 @@ pub enum TargetConfig {
         #[serde(default)]
         cost: Option<CostConfig>,
     },
+    /// Ingest recorded agent traces instead of invoking anything: each case
+    /// names a trace file (`{"id": ..., "trace": "traces/run1.json"}`), in
+    /// EvalCore's native trajectory format or OTel/OpenInference JSON export.
+    /// Pair with the `trajectory` scorer.
+    Trace {},
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -197,6 +202,9 @@ pub enum ScorerConfig {
     /// `{"input", "output", "expected"}` as JSON on stdin and must print
     /// `{"score": 0.0..=1.0, "passed"?: bool, "reason"?: string}` on stdout.
     Subprocess { cmd: String },
+    /// Assert on an agent trajectory (tool calls, ordering, step budget).
+    /// Requires a `trace` target, whose output is the normalized trajectory.
+    Trajectory { rules: Vec<TrajectoryRule> },
     /// LLM-as-judge: grade the output against a rubric using any
     /// OpenAI-compatible endpoint. Judge calls go through the record/replay
     /// cache, so replayed verdicts are deterministic.
@@ -221,6 +229,46 @@ fn default_true() -> bool {
 
 fn default_judge_threshold() -> f64 {
     0.5
+}
+
+/// One trajectory assertion. Untagged: the distinctive required key
+/// (`must_call` / `must_not_call` / `max_steps`) selects the variant.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TrajectoryRule {
+    /// At least one call of this tool must exist (optionally with matching
+    /// arguments, optionally only counting calls after another tool ran).
+    MustCall {
+        must_call: String,
+        /// Argument constraints: field name → matcher.
+        #[serde(default)]
+        with: BTreeMap<String, FieldMatcher>,
+        /// Only count calls strictly after the first call of this tool.
+        #[serde(default)]
+        after: Option<String>,
+    },
+    /// This tool must never be called — or, with `before`, never before the
+    /// first call of another tool (if that tool never runs, any call fails).
+    MustNotCall {
+        must_not_call: String,
+        #[serde(default)]
+        before: Option<String>,
+    },
+    /// The trajectory must contain at most this many tool calls.
+    MaxSteps { max_steps: usize },
+}
+
+/// Matches one argument field of a tool call. Both constraints may be given;
+/// all present constraints must hold.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FieldMatcher {
+    /// Substring match on the field rendered as a string.
+    #[serde(default)]
+    pub contains: Option<String>,
+    /// Exact JSON equality.
+    #[serde(default)]
+    pub equals: Option<serde_json::Value>,
 }
 
 #[cfg(test)]
@@ -342,6 +390,54 @@ scorers:
 "#;
         let config = EvalConfig::from_yaml_str(yaml).unwrap();
         assert_eq!(config.run.concurrency, 4);
+    }
+
+    #[test]
+    fn parses_trace_target_and_trajectory_scorer() {
+        let yaml = r#"
+targets:
+  agent: { type: trace }
+datasets:
+  - file: traces.jsonl
+scorers:
+  - type: trajectory
+    rules:
+      - must_call: search_kb
+        with:
+          query: { contains: "refund" }
+      - must_not_call: issue_refund
+        before: verify_identity
+      - max_steps: 8
+"#;
+        let config = EvalConfig::from_yaml_str(yaml).unwrap();
+        assert!(matches!(
+            config.targets.get("agent"),
+            Some(TargetConfig::Trace {})
+        ));
+        match &config.scorers[0] {
+            ScorerConfig::Trajectory { rules } => {
+                assert_eq!(rules.len(), 3);
+                match &rules[0] {
+                    TrajectoryRule::MustCall {
+                        must_call, with, ..
+                    } => {
+                        assert_eq!(must_call, "search_kb");
+                        assert_eq!(with["query"].contains.as_deref(), Some("refund"));
+                    }
+                    other => panic!("expected must_call, got {other:?}"),
+                }
+                assert!(matches!(
+                    &rules[1],
+                    TrajectoryRule::MustNotCall { must_not_call, before: Some(b) }
+                        if must_not_call == "issue_refund" && b == "verify_identity"
+                ));
+                assert!(matches!(
+                    &rules[2],
+                    TrajectoryRule::MaxSteps { max_steps: 8 }
+                ));
+            }
+            other => panic!("expected trajectory scorer, got {other:?}"),
+        }
     }
 
     #[test]

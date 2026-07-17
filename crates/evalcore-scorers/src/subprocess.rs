@@ -129,6 +129,7 @@ mod tests {
             id: "t".into(),
             input: "the input".into(),
             expected: Some(serde_json::json!("the expectation")),
+            trace: None,
         }
     }
 

@@ -1,0 +1,7 @@
+{
+  "steps": [
+    {"tool": "verify_identity", "input": {"user": "u-123"}, "output": {"verified": true}},
+    {"tool": "search_kb", "input": {"query": "refund policy time limits"}, "output": "Refunds are honored within 30 days."},
+    {"tool": "issue_refund", "input": {"order": "o-987", "amount": 42.5}, "output": {"status": "issued"}}
+  ]
+}

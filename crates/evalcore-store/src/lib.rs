@@ -248,6 +248,7 @@ mod tests {
             id: id.into(),
             input: input.into(),
             expected: None,
+            trace: None,
         }
     }
 

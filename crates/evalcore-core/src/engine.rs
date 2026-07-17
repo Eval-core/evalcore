@@ -152,6 +152,7 @@ mod tests {
                 id: format!("case-{i}"),
                 input: (*input).into(),
                 expected: None,
+                trace: None,
             })
             .collect()
     }

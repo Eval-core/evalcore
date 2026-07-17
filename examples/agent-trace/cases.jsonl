@@ -1,0 +1,2 @@
+{"id": "refund-flow-native", "trace": "traces/refund-native.json"}
+{"id": "refund-flow-otel", "trace": "traces/refund-otel.json"}

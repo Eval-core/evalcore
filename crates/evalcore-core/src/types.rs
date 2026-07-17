@@ -6,12 +6,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestCase {
     pub id: String,
-    /// The prompt/input sent to the target.
+    /// The prompt/input sent to the target. Empty for trace cases.
+    #[serde(default)]
     pub input: String,
     /// Optional expectation, interpreted per-scorer (e.g. `exact` compares
     /// against it when no inline value is configured).
     #[serde(default)]
     pub expected: Option<serde_json::Value>,
+    /// For `trace` targets: path to the recorded trace file, resolved by the
+    /// dataset loader relative to the dataset file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace: Option<std::path::PathBuf>,
 }
 
 /// Token counts reported by the provider for one call.

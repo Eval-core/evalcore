@@ -10,6 +10,8 @@ Built-in scorer implementations. The `Scorer` trait lives in `evalcore-core`; th
 | `exact` | `{type: exact}` or `{type: exact, value: "yes"}` | equals inline `value`, else the case's `expected` |
 | `regex` | `{type: regex, pattern: "^[A-Z]"}` | pattern match; compiled at build time (fail-fast) |
 | `subprocess` | `{type: subprocess, cmd: "python3 my_scorer.py"}` | any-language protocol: case JSON on stdin → `{"score", "passed"?, "reason"?}` on stdout |
+| `judge` | `{type: judge, url: ..., model: ..., rubric: "...", threshold: 0.7}` | LLM-as-judge via any OpenAI-compatible endpoint; calls go through the record/replay cache |
+| `trajectory` | `{type: trajectory, rules: [{must_call: search_kb, with: {...}}, ...]}` | agent-trace assertions; rule semantics are spec (docs/trajectory-spec.md), pair with `type: trace` targets |
 | `judge` | `{type: judge, url: ..., model: ..., rubric: "...", threshold: 0.7}` | LLM-as-judge via any OpenAI-compatible endpoint; verdict JSON `{"score", "reason"?}`; `passed = score >= threshold` (default 0.5) |
 
 ## Rules

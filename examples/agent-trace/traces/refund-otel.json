@@ -1,0 +1,41 @@
+{
+  "resourceSpans": [{"scopeSpans": [{"spans": [
+    {
+      "name": "chat gpt-4.1-mini",
+      "startTimeUnixNano": "1000000000",
+      "endTimeUnixNano": "2500000000",
+      "attributes": [
+        {"key": "gen_ai.usage.input_tokens", "value": {"intValue": "220"}},
+        {"key": "gen_ai.usage.output_tokens", "value": {"intValue": "48"}}
+      ]
+    },
+    {
+      "name": "execute_tool verify_identity",
+      "startTimeUnixNano": "3000000000",
+      "endTimeUnixNano": "3200000000",
+      "attributes": [
+        {"key": "gen_ai.tool.name", "value": {"stringValue": "verify_identity"}},
+        {"key": "gen_ai.tool.call.arguments", "value": {"stringValue": "{\"user\": \"u-123\"}"}}
+      ]
+    },
+    {
+      "name": "search_kb",
+      "startTimeUnixNano": "4000000000",
+      "endTimeUnixNano": "4600000000",
+      "attributes": [
+        {"key": "openinference.span.kind", "value": {"stringValue": "TOOL"}},
+        {"key": "tool.name", "value": {"stringValue": "search_kb"}},
+        {"key": "input.value", "value": {"stringValue": "{\"query\": \"refund policy time limits\"}"}}
+      ]
+    },
+    {
+      "name": "execute_tool issue_refund",
+      "startTimeUnixNano": "5000000000",
+      "endTimeUnixNano": "5400000000",
+      "attributes": [
+        {"key": "gen_ai.tool.name", "value": {"stringValue": "issue_refund"}},
+        {"key": "gen_ai.tool.call.arguments", "value": {"stringValue": "{\"order\": \"o-987\", \"amount\": 42.5}"}}
+      ]
+    }
+  ]}]}]
+}

@@ -52,6 +52,7 @@ pub fn build_target_with(
 ) -> anyhow::Result<Box<dyn Target>> {
     match config {
         TargetConfig::Shell { cmd } => Ok(Box::new(ShellTarget::new(cmd.clone()))),
+        TargetConfig::Trace {} => Ok(Box::new(TraceTarget)),
         TargetConfig::OpenaiCompatible {
             url,
             model,
@@ -131,6 +132,34 @@ impl Target for ShellTarget {
             tokens: None,
         })
     }
+}
+
+/// Ingests recorded agent traces instead of invoking anything: reads each
+/// case's `trace` file, normalizes it (native trajectory or OTel/
+/// OpenInference JSON export), and outputs canonical trajectory JSON for the
+/// `trajectory` scorer. Latency and token usage come from the trace itself.
+pub struct TraceTarget;
+
+#[async_trait]
+impl Target for TraceTarget {
+    async fn invoke(&self, case: &TestCase) -> anyhow::Result<TargetOutput> {
+        let path = case.trace.as_ref().with_context(|| {
+            format!(
+                "case {:?} has no `trace` field (required by trace targets)",
+                case.id
+            )
+        })?;
+        let raw = std::fs::read_to_string(path)
+            .with_context(|| format!("failed to read trace {}", path.display()))?;
+        let normalized = crate::trace::normalize_trace(&raw)
+            .with_context(|| format!("failed to normalize trace {}", path.display()))?;
+        Ok(TargetOutput {
+            text: serde_json::to_string(&normalized.trajectory)?,
+            latency_ms: normalized.latency_ms,
+            tokens: normalized.tokens,
+        })
+    }
+    // cache_identity stays None: traces are local files, never worth caching.
 }
 
 /// POSTs to `{url}/chat/completions` in the OpenAI wire format.
@@ -287,6 +316,7 @@ mod tests {
             id: "t".into(),
             input: input.into(),
             expected: None,
+            trace: None,
         }
     }
 

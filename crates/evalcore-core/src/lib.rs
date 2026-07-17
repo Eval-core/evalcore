@@ -8,6 +8,7 @@ pub mod baseline;
 pub mod dataset;
 pub mod engine;
 pub mod target;
+pub mod trace;
 pub mod types;
 
 pub use baseline::{compare, BaselineDiff, CaseRegression};
@@ -15,7 +16,9 @@ pub use dataset::load_jsonl;
 pub use engine::{run_suite, RunOptions};
 pub use target::{
     build_target, build_target_with, OpenAiCompatTarget, SecretPolicy, ShellTarget, Target,
+    TraceTarget,
 };
+pub use trace::{normalize_trace, parse_trajectory, TraceStep, Trajectory};
 pub use types::{
     CaseResult, CostRates, RunSummary, Score, Scorer, TargetOutput, TestCase, TokenUsage,
 };

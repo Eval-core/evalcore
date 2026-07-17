@@ -77,6 +77,7 @@ impl Scorer for JudgeScorer {
             id: format!("judge:{}", case.id),
             input: self.prompt(case, output),
             expected: None,
+            trace: None,
         };
         let response = self
             .target
@@ -116,6 +117,7 @@ mod tests {
             id: "t".into(),
             input: input.into(),
             expected: None,
+            trace: None,
         }
     }
 

@@ -7,12 +7,14 @@ mod exact;
 mod judge;
 mod pattern;
 mod subprocess;
+mod trajectory;
 
 pub use contains::ContainsScorer;
 pub use exact::ExactScorer;
 pub use judge::JudgeScorer;
 pub use pattern::RegexScorer;
 pub use subprocess::SubprocessScorer;
+pub use trajectory::TrajectoryScorer;
 
 use anyhow::{bail, Context};
 use evalcore_config::{ScorerConfig, TargetConfig};
@@ -51,6 +53,12 @@ where
                 }
                 ScorerConfig::Subprocess { cmd } => {
                     Ok(Box::new(SubprocessScorer::new(cmd.clone())))
+                }
+                ScorerConfig::Trajectory { rules } => {
+                    if rules.is_empty() {
+                        bail!("trajectory scorer has no rules");
+                    }
+                    Ok(Box::new(TrajectoryScorer::new(rules.clone())))
                 }
                 ScorerConfig::Judge {
                     url,

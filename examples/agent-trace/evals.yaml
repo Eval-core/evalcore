@@ -1,0 +1,21 @@
+# Agent trajectory evaluation: no invocation, no network — EvalCore ingests
+# recorded traces (native trajectory format or OTel/OpenInference JSON
+# export) and asserts on what the agent actually did.
+#
+# Run it:  evalcore run examples/agent-trace/evals.yaml
+targets:
+  support-agent:
+    type: trace
+
+datasets:
+  - file: cases.jsonl
+
+scorers:
+  - type: trajectory
+    rules:
+      - must_call: search_kb
+        with:
+          query: { contains: "refund" }
+      - must_not_call: issue_refund
+        before: verify_identity
+      - max_steps: 5

@@ -66,6 +66,7 @@ mod tests {
             id: "t".into(),
             input: String::new(),
             expected: None,
+            trace: None,
         }
     }
 
