@@ -75,6 +75,9 @@ where
                         model: model.clone(),
                         api_key_env: api_key_env.clone(),
                         max_retries: evalcore_config::DEFAULT_MAX_RETRIES,
+                        // Judges get the default timeout in v1 (no judge-level
+                        // knob); it flows to the call via build_judge_target.
+                        timeout_seconds: evalcore_config::DEFAULT_TIMEOUT_SECONDS,
                         cost: None,
                         system: None,
                         params: None,
@@ -132,6 +135,33 @@ mod tests {
             .err()
             .expect("threshold 1.5 must be a build error");
         assert!(err.to_string().contains("1.5"), "got: {err}");
+    }
+
+    #[test]
+    fn judge_target_inherits_default_timeout() {
+        // The judge maps to an openai-compatible target built by the injected
+        // closure; capture that config to prove the default timeout flows to
+        // judge calls (there is no judge-level timeout knob in v1).
+        use std::cell::Cell;
+        let seen: Cell<Option<u64>> = Cell::new(None);
+        let configs = vec![ScorerConfig::Judge {
+            url: "http://localhost:9/v1".into(),
+            model: "judge".into(),
+            rubric: "grounded?".into(),
+            api_key_env: None,
+            threshold: 0.5,
+        }];
+        build_scorers(&configs, |cfg| {
+            if let TargetConfig::OpenaiCompatible {
+                timeout_seconds, ..
+            } = cfg
+            {
+                seen.set(Some(*timeout_seconds));
+            }
+            build_target(cfg)
+        })
+        .unwrap();
+        assert_eq!(seen.get(), Some(evalcore_config::DEFAULT_TIMEOUT_SECONDS));
     }
 
     #[test]

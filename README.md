@@ -95,9 +95,9 @@ targets:
 
 `{{input}}` is substituted from each case: percent-encoded into `url`, verbatim into every string value of `body`. On a 2xx, `response_path` pulls the answer out of the JSON response (omit it to score the raw body text); non-2xx and transient failures are classified and retried just like the LLM target. **Keep credentials in `api_key_env`, never in `headers:`** — header values are hashed into the cache identity and stored in the committed `.evalcore/cache.db`, whereas the API key never enters the cache. The key is sent as `authorization: Bearer <key>` by default; for an `x-api-key` style header set both `auth_header: x-api-key` and `auth_prefix: ""`. The cache identity keys on the request shape (url/method/headers/body/response_path), never on the key, so `--cache replay` runs offline with no secret configured.
 
-## Retries, cost tracking, budgets
+## Retries, timeouts, cost tracking, budgets
 
-Transient failures (429, 5xx, network) retry automatically with exponential backoff, honoring `Retry-After`. Token usage is captured per case; declare your prices and EvalCore reports cost and enforces a budget:
+Transient failures (429, 5xx, network) retry automatically with exponential backoff, honoring `Retry-After`. Each attempt is also bounded by `timeout_seconds` (default 120, applied per attempt so every retry gets a fresh budget): when it elapses the attempt is aborted and treated as a transient failure — retried like any 429/5xx — so a hung endpoint can no longer pin a concurrency slot and wedge a run. Token usage is captured per case; declare your prices and EvalCore reports cost and enforces a budget:
 
 ```yaml
 targets:
@@ -107,6 +107,7 @@ targets:
     model: gpt-4.1-mini
     api_key_env: OPENAI_API_KEY
     max_retries: 3            # default 2
+    timeout_seconds: 60      # default 120; per attempt
     cost:                     # your provider's prices per 1M tokens
       input_per_1m: 0.40
       output_per_1m: 1.60

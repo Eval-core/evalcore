@@ -20,6 +20,13 @@ All notable changes to EvalCore. Format loosely follows
   identity keys on the request shape only, never on secrets, so `--cache
   replay` runs offline with no key configured. No cost/token accounting for
   `http` targets in v1 (generic APIs have no standard usage shape).
+- **Per-attempt request timeout** (`timeout_seconds`, default 120) on
+  `openai-compatible` and `http` targets: bounds the total time of each attempt
+  (connect + reading the response body) so a hung endpoint can no longer pin a
+  concurrency slot and wedge a run. Each retry gets a fresh budget; a timeout is
+  a transient failure, retried like a 429/5xx. Excluded from the cache identity,
+  so cassettes recorded before this change keep their keys. Judge calls inherit
+  the 120s default (no judge-level knob in v1).
 
 ## [0.4.0] — 2026-07-17
 

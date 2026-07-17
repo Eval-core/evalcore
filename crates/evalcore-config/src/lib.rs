@@ -86,7 +86,17 @@ impl EvalConfig {
         }
         for (name, target) in &self.targets {
             let cost = match target {
-                TargetConfig::OpenaiCompatible { cost, params, .. } => {
+                TargetConfig::OpenaiCompatible {
+                    cost,
+                    params,
+                    timeout_seconds,
+                    ..
+                } => {
+                    if *timeout_seconds == 0 {
+                        return Err(ConfigError::Invalid(format!(
+                            "target {name:?}: timeout_seconds must be at least 1"
+                        )));
+                    }
                     if let Some(params) = params {
                         for reserved in ["model", "messages", "stream"] {
                             if params.contains_key(reserved) {
@@ -111,8 +121,14 @@ impl EvalConfig {
                     auth_prefix,
                     body,
                     response_path,
+                    timeout_seconds,
                     ..
                 } => {
+                    if *timeout_seconds == 0 {
+                        return Err(ConfigError::Invalid(format!(
+                            "target {name:?}: timeout_seconds must be at least 1"
+                        )));
+                    }
                     validate_http_target(
                         name,
                         url,
@@ -255,6 +271,15 @@ fn default_max_retries() -> u32 {
     DEFAULT_MAX_RETRIES
 }
 
+/// Default per-attempt request timeout, in seconds, for HTTP-based targets.
+/// The budget covers a single attempt (connect + reading the response body);
+/// each retry gets a fresh budget.
+pub const DEFAULT_TIMEOUT_SECONDS: u64 = 120;
+
+fn default_timeout_seconds() -> u64 {
+    DEFAULT_TIMEOUT_SECONDS
+}
+
 /// USD prices per **1 million** tokens, as published by the provider. EvalCore
 /// deliberately ships no pricing table — prices change and differ per
 /// deployment, so they're config.
@@ -284,6 +309,10 @@ pub enum TargetConfig {
         /// backoff honoring `Retry-After`.
         #[serde(default = "default_max_retries")]
         max_retries: u32,
+        /// Per-attempt total time budget in seconds (connect + reading the
+        /// response body). Each retry gets a fresh budget. Must be at least 1.
+        #[serde(default = "default_timeout_seconds")]
+        timeout_seconds: u64,
         /// Token prices; enables per-case cost reporting and `run.budget_usd`.
         #[serde(default)]
         cost: Option<CostConfig>,
@@ -343,6 +372,10 @@ pub enum TargetConfig {
         /// backoff honoring `Retry-After`.
         #[serde(default = "default_max_retries")]
         max_retries: u32,
+        /// Per-attempt total time budget in seconds (connect + reading the
+        /// response body). Each retry gets a fresh budget. Must be at least 1.
+        #[serde(default = "default_timeout_seconds")]
+        timeout_seconds: u64,
         /// JSON request body template; `{{input}}` inside any string value is
         /// replaced with the case input. Omit to send no body.
         #[serde(default)]
@@ -473,6 +506,7 @@ targets:
     model: gpt-test
     api_key_env: OPENAI_API_KEY
     max_retries: 5
+    timeout_seconds: 90
     cost:
       input_per_1m: 0.15
       output_per_1m: 0.60
@@ -510,12 +544,14 @@ run:
         match config.targets.get("api") {
             Some(TargetConfig::OpenaiCompatible {
                 max_retries,
+                timeout_seconds,
                 cost,
                 system,
                 params,
                 ..
             }) => {
                 assert_eq!(*max_retries, 5);
+                assert_eq!(*timeout_seconds, 90);
                 assert_eq!(cost.unwrap().input_per_1m, 0.15);
                 assert_eq!(system.as_deref(), Some("You are a terse support agent."));
                 let params = params.as_ref().unwrap();
@@ -564,9 +600,13 @@ scorers: [{ type: exact }]
         let config = EvalConfig::from_yaml_str(yaml).unwrap();
         match config.targets.get("api") {
             Some(TargetConfig::OpenaiCompatible {
-                max_retries, cost, ..
+                max_retries,
+                timeout_seconds,
+                cost,
+                ..
             }) => {
                 assert_eq!(*max_retries, DEFAULT_MAX_RETRIES);
+                assert_eq!(*timeout_seconds, DEFAULT_TIMEOUT_SECONDS);
                 assert!(cost.is_none());
             }
             other => panic!("got {other:?}"),
@@ -610,6 +650,49 @@ scorers: [{{ type: exact }}]
             let err = EvalConfig::from_yaml_str(&yaml).unwrap_err();
             assert!(err.to_string().contains(reserved), "got: {err}");
         }
+    }
+
+    #[test]
+    fn rejects_zero_timeout_naming_the_target() {
+        // Both HTTP-based variants reject timeout_seconds: 0, naming the target.
+        let openai = r#"
+targets:
+  llm:
+    type: openai-compatible
+    url: "http://x/v1"
+    model: m
+    timeout_seconds: 0
+datasets: [{ file: cases.jsonl }]
+scorers: [{ type: exact }]
+"#;
+        let err = EvalConfig::from_yaml_str(openai).unwrap_err().to_string();
+        assert!(
+            err.contains("timeout_seconds must be at least 1"),
+            "got: {err}"
+        );
+        assert!(
+            err.contains("llm"),
+            "message must name the target, got: {err}"
+        );
+
+        let http = r#"
+targets:
+  rag:
+    type: http
+    url: "https://api.myapp.com/chat?q={{input}}"
+    timeout_seconds: 0
+datasets: [{ file: cases.jsonl }]
+scorers: [{ type: exact }]
+"#;
+        let err = EvalConfig::from_yaml_str(http).unwrap_err().to_string();
+        assert!(
+            err.contains("timeout_seconds must be at least 1"),
+            "got: {err}"
+        );
+        assert!(
+            err.contains("rag"),
+            "message must name the target, got: {err}"
+        );
     }
 
     #[test]
@@ -726,6 +809,7 @@ targets:
     auth_header: authorization
     auth_prefix: "Bearer "
     max_retries: 3
+    timeout_seconds: 30
     body:
       question: "{{input}}"
       session: eval
@@ -743,6 +827,7 @@ scorers: [{ type: exact }]
                 auth_header,
                 auth_prefix,
                 max_retries,
+                timeout_seconds,
                 body,
                 response_path,
             }) => {
@@ -756,6 +841,7 @@ scorers: [{ type: exact }]
                 assert_eq!(auth_header.as_deref(), Some("authorization"));
                 assert_eq!(auth_prefix.as_deref(), Some("Bearer "));
                 assert_eq!(*max_retries, 3);
+                assert_eq!(*timeout_seconds, 30);
                 let body = body.as_ref().unwrap();
                 assert_eq!(body["question"], serde_json::json!("{{input}}"));
                 assert_eq!(body["session"], serde_json::json!("eval"));
@@ -784,6 +870,7 @@ scorers: [{ type: exact }]
                 auth_header,
                 auth_prefix,
                 max_retries,
+                timeout_seconds,
                 body,
                 response_path,
                 ..
@@ -794,6 +881,7 @@ scorers: [{ type: exact }]
                 assert!(auth_header.is_none());
                 assert!(auth_prefix.is_none());
                 assert_eq!(*max_retries, DEFAULT_MAX_RETRIES);
+                assert_eq!(*timeout_seconds, DEFAULT_TIMEOUT_SECONDS);
                 assert!(body.is_none());
                 assert!(response_path.is_none());
             }

@@ -137,8 +137,13 @@ mod tests {
             })))
             .mount(server)
             .await;
-        let target =
-            OpenAiCompatTarget::new(format!("{}/v1", server.uri()), "judge-model".into(), None);
+        let target = OpenAiCompatTarget::new(
+            format!("{}/v1", server.uri()),
+            "judge-model".into(),
+            None,
+            120,
+        )
+        .unwrap();
         JudgeScorer::new(Box::new(target), "Is the answer grounded?".into(), 0.7)
     }
 
@@ -187,8 +192,13 @@ mod tests {
             .mount(&server)
             .await;
 
-        let target =
-            OpenAiCompatTarget::new(format!("{}/v1", server.uri()), "judge-model".into(), None);
+        let target = OpenAiCompatTarget::new(
+            format!("{}/v1", server.uri()),
+            "judge-model".into(),
+            None,
+            120,
+        )
+        .unwrap();
         let judge = JudgeScorer::new(Box::new(target), "Is the answer grounded?".into(), 0.5);
         judge
             .score(&case("what is the refund window"), &output("30 days"))

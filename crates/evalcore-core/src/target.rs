@@ -58,13 +58,14 @@ pub fn build_target_with(
             model,
             api_key_env,
             max_retries,
+            timeout_seconds,
             cost: _,
             system,
             params,
         } => {
             let api_key = resolve_api_key(api_key_env, secrets)?;
             Ok(Box::new(
-                OpenAiCompatTarget::new(url.clone(), model.clone(), api_key)
+                OpenAiCompatTarget::new(url.clone(), model.clone(), api_key, *timeout_seconds)?
                     .with_max_retries(*max_retries)
                     .with_system(system.clone())
                     .with_params(params.clone()),
@@ -78,6 +79,7 @@ pub fn build_target_with(
             auth_header,
             auth_prefix,
             max_retries,
+            timeout_seconds,
             body,
             response_path,
         } => {
@@ -85,7 +87,8 @@ pub fn build_target_with(
             let mut target = crate::http_target::HttpTarget::new(
                 url.clone(),
                 crate::http_target::parse_method(method)?,
-            )
+                *timeout_seconds,
+            )?
             .with_max_retries(*max_retries)
             .with_api_key(api_key)
             .with_body(body.clone())
@@ -202,6 +205,9 @@ pub struct OpenAiCompatTarget {
     model: String,
     api_key: Option<String>,
     max_retries: u32,
+    /// Per-attempt budget the `client` was built with; kept so a timeout error
+    /// can name it. Enforcement is the client's; this is only for the message.
+    timeout_seconds: u64,
     system: Option<String>,
     params: Option<serde_json::Map<String, serde_json::Value>>,
 }
@@ -250,6 +256,18 @@ where
     }
 }
 
+/// Build a pooled [`reqwest::Client`] with a per-attempt total timeout
+/// (connect + reading the response body). Shared by every HTTP-shaped target so
+/// timeout and pooling behavior can't drift between them. `reqwest::Client::new`
+/// panics on TLS init failure; building fallibly here lets factories fail fast
+/// with context instead of aborting the process.
+pub(crate) fn build_http_client(timeout_seconds: u64) -> anyhow::Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(timeout_seconds))
+        .build()
+        .context("failed to build the HTTP client")
+}
+
 /// Resolve an optional API key from the environment under the given policy.
 /// Shared by every factory that reads `api_key_env`.
 pub(crate) fn resolve_api_key(
@@ -268,16 +286,27 @@ pub(crate) fn resolve_api_key(
 }
 
 impl OpenAiCompatTarget {
-    pub fn new(base_url: String, model: String, api_key: Option<String>) -> Self {
-        Self {
-            client: reqwest::Client::new(),
+    /// Build a target with a per-attempt request timeout. Fallible because the
+    /// underlying [`reqwest::Client`] is constructed here (TLS init can fail);
+    /// the error propagates out of the factory ([`build_target_with`], which has
+    /// no target name) for the caller to contextualize (e.g. the CLI attaches
+    /// the target's config name; `build_scorers` labels judge targets).
+    pub fn new(
+        base_url: String,
+        model: String,
+        api_key: Option<String>,
+        timeout_seconds: u64,
+    ) -> anyhow::Result<Self> {
+        Ok(Self {
+            client: build_http_client(timeout_seconds)?,
             base_url,
             model,
             api_key,
             max_retries: evalcore_config::DEFAULT_MAX_RETRIES,
+            timeout_seconds,
             system: None,
             params: None,
-        }
+        })
     }
 
     pub fn with_max_retries(mut self, max_retries: u32) -> Self {
@@ -323,13 +352,19 @@ impl OpenAiCompatTarget {
             request = request.bearer_auth(key);
         }
 
-        let response = request
-            .send()
-            .await
-            .map_err(|err| AttemptError::Transient {
-                message: format!("request to {url} failed: {err}"),
+        let response = request.send().await.map_err(|err| {
+            // A timeout is transient like any transport error, but its message
+            // must name the budget so a wedged endpoint is obvious in reports.
+            let message = if err.is_timeout() {
+                format!("request to {url} timed out after {}s", self.timeout_seconds)
+            } else {
+                format!("request to {url} failed: {err}")
+            };
+            AttemptError::Transient {
+                message,
                 retry_after: None,
-            })?;
+            }
+        })?;
 
         let status = response.status();
         let retry_after = response
@@ -338,7 +373,22 @@ impl OpenAiCompatTarget {
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.parse::<u64>().ok())
             .map(Duration::from_secs);
-        let body = response.text().await.unwrap_or_default();
+        // The per-attempt budget also covers the body read: a server that sends
+        // 2xx headers promptly then stalls mid-body times out here, not in
+        // `send`. Classify that as transient (like the send path) so it retries
+        // and reports the budget, instead of being swallowed into an empty body.
+        let body = match response.text().await {
+            Ok(text) => text,
+            Err(err) if err.is_timeout() => {
+                return Err(AttemptError::Transient {
+                    message: format!("request to {url} timed out after {}s", self.timeout_seconds),
+                    retry_after: None,
+                });
+            }
+            // Other body-read errors stay lenient (prior behavior): treat as an
+            // empty body and let the parse below produce the failure reason.
+            Err(_) => String::new(),
+        };
 
         if !status.is_success() {
             let snippet: String = body.chars().take(200).collect();
@@ -456,6 +506,7 @@ mod tests {
             model: "m".into(),
             api_key_env: Some("EVALCORE_TEST_KEY_THAT_DOES_NOT_EXIST".into()),
             max_retries: 2,
+            timeout_seconds: evalcore_config::DEFAULT_TIMEOUT_SECONDS,
             cost: None,
             system: None,
             params: None,
@@ -470,7 +521,13 @@ mod tests {
 
     #[test]
     fn cache_identity_omits_unset_fields_and_includes_set_ones() {
-        let bare = OpenAiCompatTarget::new("http://x/v1".into(), "m".into(), None);
+        let bare = OpenAiCompatTarget::new(
+            "http://x/v1".into(),
+            "m".into(),
+            None,
+            evalcore_config::DEFAULT_TIMEOUT_SECONDS,
+        )
+        .unwrap();
         // Exact shape is load-bearing: adding keys for unset fields would
         // invalidate every cassette recorded before system/params existed.
         assert_eq!(
@@ -480,13 +537,38 @@ mod tests {
 
         let mut params = serde_json::Map::new();
         params.insert("temperature".into(), serde_json::json!(0));
-        let tuned = OpenAiCompatTarget::new("http://x/v1".into(), "m".into(), None)
-            .with_system(Some("be terse".into()))
-            .with_params(Some(params));
+        let tuned = OpenAiCompatTarget::new(
+            "http://x/v1".into(),
+            "m".into(),
+            None,
+            evalcore_config::DEFAULT_TIMEOUT_SECONDS,
+        )
+        .unwrap()
+        .with_system(Some("be terse".into()))
+        .with_params(Some(params));
         let identity = tuned.cache_identity().unwrap();
         assert_eq!(identity["system"], serde_json::json!("be terse"));
         assert_eq!(identity["params"]["temperature"], serde_json::json!(0));
         assert_ne!(identity, bare.cache_identity().unwrap());
+    }
+
+    #[test]
+    fn cache_identity_excludes_timeout() {
+        // timeout_seconds is an operational knob (like max_retries): it changes
+        // how we call, not what the model answers, so it must never enter the
+        // identity — cassettes recorded before this knob must keep their keys.
+        let default = OpenAiCompatTarget::new("http://x/v1".into(), "m".into(), None, 120).unwrap();
+        let custom = OpenAiCompatTarget::new("http://x/v1".into(), "m".into(), None, 5).unwrap();
+        assert_eq!(
+            default.cache_identity().unwrap(),
+            custom.cache_identity().unwrap(),
+            "changing timeout_seconds must not change the cache identity"
+        );
+        let serialized = serde_json::to_string(&custom.cache_identity().unwrap()).unwrap();
+        assert!(
+            !serialized.contains("timeout"),
+            "identity must not mention timeout, got: {serialized}"
+        );
     }
 
     #[test]
@@ -496,6 +578,7 @@ mod tests {
             model: "m".into(),
             api_key_env: Some("EVALCORE_TEST_KEY_THAT_DOES_NOT_EXIST".into()),
             max_retries: 2,
+            timeout_seconds: evalcore_config::DEFAULT_TIMEOUT_SECONDS,
             cost: None,
             system: None,
             params: None,

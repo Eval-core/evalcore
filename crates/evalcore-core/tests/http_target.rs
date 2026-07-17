@@ -1,11 +1,37 @@
 //! `http` target tests. Never hits a real API — everything runs against a
 //! local wiremock server.
 
+use std::io::{Read, Write};
+
 use evalcore_core::{HttpTarget, Target, TestCase};
 use reqwest::Method;
 use serde_json::json;
 use wiremock::matchers::{body_partial_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
+
+/// A loopback server that returns 2xx headers immediately, promises a large body
+/// via `Content-Length`, then sends only a fragment and stalls — forcing the
+/// client's total timeout to fire during the body read, not the send. wiremock's
+/// `set_delay` delays the whole response (headers included) and can't express
+/// headers-fast/body-slow, so this hand-rolled loopback server is used instead.
+/// Loopback only, no external network. Returns the base URL.
+fn spawn_body_stall_server() -> String {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    std::thread::spawn(move || {
+        if let Ok((mut stream, _)) = listener.accept() {
+            let mut buf = [0u8; 1024];
+            let _ = stream.read(&mut buf); // drain the request enough to reply
+            let _ = stream.write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\n{\"partial\":",
+            );
+            let _ = stream.flush();
+            // Hold open past the client's 1s budget without finishing the body.
+            std::thread::sleep(std::time::Duration::from_secs(2));
+        }
+    });
+    format!("http://{addr}")
+}
 
 fn case(input: &str) -> TestCase {
     TestCase {
@@ -35,7 +61,8 @@ async fn happy_path_extracts_response_path_and_sends_substituted_body() {
         .mount(&server)
         .await;
 
-    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST)
+    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST, 120)
+        .unwrap()
         .with_api_key(Some("sk-test".into()))
         .with_body(Some(json!({"question": "{{input}}", "session": "eval"})))
         .with_response_path(Some("/answer".into()));
@@ -56,7 +83,8 @@ async fn response_path_non_string_value_is_serialized_compactly() {
         .mount(&server)
         .await;
 
-    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST)
+    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST, 120)
+        .unwrap()
         .with_body(Some(json!({"q": "{{input}}"})))
         .with_response_path(Some("/answer".into()));
     let out = target.invoke(&case("hi")).await.unwrap();
@@ -73,7 +101,8 @@ async fn raw_body_mode_returns_the_response_text() {
         .mount(&server)
         .await;
 
-    let target = HttpTarget::new(format!("{}/echo", server.uri()), Method::POST)
+    let target = HttpTarget::new(format!("{}/echo", server.uri()), Method::POST, 120)
+        .unwrap()
         .with_body(Some(json!({"q": "{{input}}"})));
     let out = target.invoke(&case("hi")).await.unwrap();
     assert_eq!(out.text, "plain text answer");
@@ -90,7 +119,8 @@ async fn custom_auth_header_and_empty_prefix_send_the_raw_key() {
         .mount(&server)
         .await;
 
-    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST)
+    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST, 120)
+        .unwrap()
         .with_body(Some(json!({"q": "{{input}}"})))
         .with_api_key(Some("raw-key-123".into()))
         .with_auth_header("x-api-key".into())
@@ -109,7 +139,8 @@ async fn non_2xx_is_a_permanent_error_with_status_and_body() {
         .mount(&server)
         .await;
 
-    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST)
+    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST, 120)
+        .unwrap()
         .with_body(Some(json!({"q": "{{input}}"})))
         .with_max_retries(5);
     let err = target.invoke(&case("hi")).await.unwrap_err().to_string();
@@ -127,7 +158,8 @@ async fn malformed_json_with_response_path_errors_with_status() {
         .mount(&server)
         .await;
 
-    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST)
+    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST, 120)
+        .unwrap()
         .with_body(Some(json!({"q": "{{input}}"})))
         .with_response_path(Some("/answer".into()));
     let err = target.invoke(&case("hi")).await.unwrap_err().to_string();
@@ -145,7 +177,8 @@ async fn missing_pointer_names_the_pointer() {
         .mount(&server)
         .await;
 
-    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST)
+    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST, 120)
+        .unwrap()
         .with_body(Some(json!({"q": "{{input}}"})))
         .with_response_path(Some("/answer".into()));
     let err = target.invoke(&case("hi")).await.unwrap_err().to_string();
@@ -182,7 +215,8 @@ async fn retries_transient_429_then_succeeds() {
         .mount(&server)
         .await;
 
-    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST)
+    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST, 120)
+        .unwrap()
         .with_body(Some(json!({"q": "{{input}}"})))
         .with_response_path(Some("/answer".into()))
         .with_max_retries(1);
@@ -204,7 +238,7 @@ async fn get_percent_encodes_input_into_the_query() {
     // `{{input}}` in the query is percent-encoded so `&` and `=` can't alter
     // the query structure.
     let url = format!("{}/search?q={}", server.uri(), "{{input}}");
-    let target = HttpTarget::new(url, Method::GET);
+    let target = HttpTarget::new(url, Method::GET, 120).unwrap();
     let out = target.invoke(&case("a b&c=d")).await.unwrap();
     assert_eq!(out.text, "ok");
 
@@ -216,4 +250,45 @@ async fn get_percent_encodes_input_into_the_query() {
         "the raw query must be percent-encoded"
     );
     server.verify().await;
+}
+
+#[tokio::test]
+async fn request_timeout_fires_reported_and_is_transient() {
+    let server = MockServer::start().await;
+    // Delay far past the 1s budget; the attempt aborts before any bytes arrive,
+    // so wall time is ~1s (the timeout), not the 5s delay.
+    Mock::given(method("POST"))
+        .and(path("/chat"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_delay(std::time::Duration::from_secs(5))
+                .set_body_string("too late"),
+        )
+        .mount(&server)
+        .await;
+
+    let target = HttpTarget::new(format!("{}/chat", server.uri()), Method::POST, 1)
+        .unwrap()
+        .with_body(Some(json!({"q": "{{input}}"})))
+        .with_max_retries(0);
+    let err = target.invoke(&case("hi")).await.unwrap_err().to_string();
+    assert!(err.contains("timed out after 1s"), "got: {err}");
+    // Only a *transient* error picks up the retry loop's "(after N attempts)"
+    // suffix; this pins a timeout as transient (retryable) for the http target.
+    assert!(err.contains("after 1 attempts"), "got: {err}");
+}
+
+#[tokio::test]
+async fn body_read_timeout_is_transient_not_a_false_success() {
+    // Raw-body mode (no response_path): headers arrive fast, then the body
+    // stalls. Before the fix this returned Ok(TargetOutput{ text: "" }) — a
+    // false-successful empty answer. It must now surface the timeout instead.
+    let base = spawn_body_stall_server();
+    let target = HttpTarget::new(format!("{base}/chat"), Method::POST, 1)
+        .unwrap()
+        .with_body(Some(json!({"q": "{{input}}"})))
+        .with_max_retries(0);
+    let err = target.invoke(&case("hi")).await.unwrap_err().to_string();
+    assert!(err.contains("timed out after 1s"), "got: {err}");
+    assert!(err.contains("after 1 attempts"), "got: {err}");
 }

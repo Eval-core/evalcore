@@ -49,6 +49,9 @@ pub struct HttpTarget {
     auth_header: String,
     auth_prefix: String,
     max_retries: u32,
+    /// Per-attempt budget the `client` was built with; kept so a timeout error
+    /// can name it. Enforcement is the client's; this is only for the message.
+    timeout_seconds: u64,
     /// Pre-substitution JSON body template; the cache identity keys on this.
     body: Option<serde_json::Value>,
     response_path: Option<String>,
@@ -56,10 +59,14 @@ pub struct HttpTarget {
 
 impl HttpTarget {
     /// A POST/GET/… target against `url` with default auth conventions
-    /// (`authorization: Bearer <key>`) and the default retry budget.
-    pub fn new(url: String, method: Method) -> Self {
-        Self {
-            client: reqwest::Client::new(),
+    /// (`authorization: Bearer <key>`), the default retry budget, and a
+    /// per-attempt request timeout. Fallible because the [`reqwest::Client`] is
+    /// built here (TLS init can fail); the error propagates out of the factory
+    /// (which has no target name) for the caller to contextualize (e.g. the CLI
+    /// attaches the target's config name; `build_scorers` labels judge targets).
+    pub fn new(url: String, method: Method, timeout_seconds: u64) -> anyhow::Result<Self> {
+        Ok(Self {
+            client: crate::target::build_http_client(timeout_seconds)?,
             url_template: url,
             method,
             headers: BTreeMap::new(),
@@ -67,9 +74,10 @@ impl HttpTarget {
             auth_header: "authorization".into(),
             auth_prefix: "Bearer ".into(),
             max_retries: evalcore_config::DEFAULT_MAX_RETRIES,
+            timeout_seconds,
             body: None,
             response_path: None,
-        }
+        })
     }
 
     /// Static headers; names are lowercased so Content-Type detection and the
@@ -130,13 +138,19 @@ impl HttpTarget {
             request = request.body(body.to_vec());
         }
 
-        let response = request
-            .send()
-            .await
-            .map_err(|err| AttemptError::Transient {
-                message: format!("request to {url} failed: {err}"),
+        let response = request.send().await.map_err(|err| {
+            // A timeout is transient like any transport error, but its message
+            // must name the budget so a wedged endpoint is obvious in reports.
+            let message = if err.is_timeout() {
+                format!("request to {url} timed out after {}s", self.timeout_seconds)
+            } else {
+                format!("request to {url} failed: {err}")
+            };
+            AttemptError::Transient {
+                message,
                 retry_after: None,
-            })?;
+            }
+        })?;
 
         let status = response.status();
         let retry_after = response
@@ -145,7 +159,24 @@ impl HttpTarget {
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.parse::<u64>().ok())
             .map(Duration::from_secs);
-        let text = response.text().await.unwrap_or_default();
+        // The per-attempt budget also covers the body read: a server that sends
+        // 2xx headers promptly then stalls mid-body times out here, not in
+        // `send`. Classify that as transient (like the send path) so it retries
+        // and reports the budget — otherwise a raw-body request would return a
+        // false-successful empty answer, and a response_path one a bogus parse
+        // error.
+        let text = match response.text().await {
+            Ok(text) => text,
+            Err(err) if err.is_timeout() => {
+                return Err(AttemptError::Transient {
+                    message: format!("request to {url} timed out after {}s", self.timeout_seconds),
+                    retry_after: None,
+                });
+            }
+            // Other body-read errors stay lenient (prior behavior): treat as an
+            // empty body and let the logic below produce the failure reason.
+            Err(_) => String::new(),
+        };
 
         if !status.is_success() {
             let snippet: String = text.chars().take(200).collect();
@@ -305,7 +336,7 @@ mod tests {
     #[test]
     fn cache_identity_omits_unset_fields_and_pins_shape() {
         // Bare target: only url + method (method always present, normalized).
-        let bare = HttpTarget::new("https://api.myapp.com/chat".into(), Method::POST);
+        let bare = HttpTarget::new("https://api.myapp.com/chat".into(), Method::POST, 120).unwrap();
         assert_eq!(
             bare.cache_identity().unwrap(),
             serde_json::json!({
@@ -315,7 +346,8 @@ mod tests {
         );
 
         // Set fields appear; headers are lowercased and sorted.
-        let full = HttpTarget::new("https://api.myapp.com/chat".into(), Method::PUT)
+        let full = HttpTarget::new("https://api.myapp.com/chat".into(), Method::PUT, 120)
+            .unwrap()
             .with_headers(BTreeMap::from([("X-Tenant".into(), "acme".into())]))
             .with_body(Some(serde_json::json!({"question": "{{input}}"})))
             .with_response_path(Some("/answer".into()));
@@ -335,11 +367,16 @@ mod tests {
 
     #[test]
     fn cache_identity_never_leaks_auth_or_secrets() {
-        let target = HttpTarget::new("https://api.myapp.com/chat?q={{input}}".into(), Method::GET)
-            .with_api_key(Some("super-secret-value".into()))
-            .with_auth_header("x-api-key".into())
-            .with_auth_prefix("Token ".into())
-            .with_max_retries(9);
+        let target = HttpTarget::new(
+            "https://api.myapp.com/chat?q={{input}}".into(),
+            Method::GET,
+            7,
+        )
+        .unwrap()
+        .with_api_key(Some("super-secret-value".into()))
+        .with_auth_header("x-api-key".into())
+        .with_auth_prefix("Token ".into())
+        .with_max_retries(9);
         let identity = serde_json::to_string(&target.cache_identity().unwrap()).unwrap();
         for forbidden in [
             "super-secret-value",
@@ -349,6 +386,11 @@ mod tests {
             "auth",
             "max_retries",
             "9",
+            // timeout_seconds is an operational knob: excluded like max_retries,
+            // so a cassette recorded before this knob keeps its key. (7 = the
+            // custom budget above; it must not appear in the identity.)
+            "timeout",
+            "7",
         ] {
             assert!(
                 !identity.contains(forbidden),
