@@ -361,7 +361,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -380,7 +380,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore-config"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_yaml",
@@ -389,7 +389,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -405,7 +405,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore-report"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "evalcore-core",
@@ -415,7 +415,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore-scorers"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -430,7 +430,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore-store"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",

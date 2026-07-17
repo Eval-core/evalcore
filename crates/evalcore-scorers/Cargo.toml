@@ -1,11 +1,12 @@
 [package]
 name = "evalcore-scorers"
-description = "Built-in scorers (contains, exact, regex, subprocess) for EvalCore"
+description = "Built-in scorers (contains, exact, regex, subprocess, LLM judge) for EvalCore"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+readme = "README.md"
 
 [dependencies]
 evalcore-config = { workspace = true }
