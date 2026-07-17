@@ -168,3 +168,35 @@ async fn captures_token_usage_when_reported() {
         })
     );
 }
+
+#[tokio::test]
+async fn system_prompt_and_params_reach_the_wire() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .and(body_partial_json(serde_json::json!({
+            "model": "m",
+            "messages": [
+                {"role": "system", "content": "You are terse."},
+                {"role": "user", "content": "hi"},
+            ],
+            "temperature": 0,
+            "max_tokens": 128,
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "choices": [{"message": {"role": "assistant", "content": "ok"}}],
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let mut params = serde_json::Map::new();
+    params.insert("temperature".into(), serde_json::json!(0));
+    params.insert("max_tokens".into(), serde_json::json!(128));
+    let target = OpenAiCompatTarget::new(format!("{}/v1", server.uri()), "m".into(), None)
+        .with_system(Some("You are terse.".into()))
+        .with_params(Some(params));
+
+    target.invoke(&case("hi")).await.unwrap();
+    server.verify().await;
+}

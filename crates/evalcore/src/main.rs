@@ -225,7 +225,8 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
     let cost_rates = match target_config {
         TargetConfig::OpenaiCompatible {
             cost: Some(cost), ..
-        } => Some(CostRates {
+        }
+        | TargetConfig::Trace { cost: Some(cost) } => Some(CostRates {
             input_per_1m: cost.input_per_1m,
             output_per_1m: cost.output_per_1m,
         }),

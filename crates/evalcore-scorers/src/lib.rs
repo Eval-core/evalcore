@@ -76,6 +76,8 @@ where
                         api_key_env: api_key_env.clone(),
                         max_retries: evalcore_config::DEFAULT_MAX_RETRIES,
                         cost: None,
+                        system: None,
+                        params: None,
                     };
                     let target = build_judge_target(&target_config)
                         .context("failed to build judge target")?;

@@ -10,6 +10,9 @@ targets:
     cost: # verify against current OpenAI pricing; prices are yours to declare
       input_per_1m: 0.40
       output_per_1m: 1.60
+    system: "You are a support agent for an online store. Answer in one sentence."
+    params:
+      temperature: 0
 
 datasets:
   - file: cases.jsonl

@@ -89,6 +89,10 @@ targets:
     cost:                     # your provider's prices per 1M tokens
       input_per_1m: 0.40
       output_per_1m: 1.60
+    system: "You are a support agent. Be concise."
+    params:                   # passed through verbatim — any provider knob
+      temperature: 0
+      max_tokens: 512
 run:
   budget_usd: 5.0             # stop dispatching new cases past this spend
 ```

@@ -6,6 +6,9 @@
 targets:
   support-agent:
     type: trace
+    cost: # prices the token usage found in the trace spans
+      input_per_1m: 0.40
+      output_per_1m: 1.60
 
 datasets:
   - file: cases.jsonl

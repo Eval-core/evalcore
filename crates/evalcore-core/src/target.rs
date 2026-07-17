@@ -52,13 +52,15 @@ pub fn build_target_with(
 ) -> anyhow::Result<Box<dyn Target>> {
     match config {
         TargetConfig::Shell { cmd } => Ok(Box::new(ShellTarget::new(cmd.clone()))),
-        TargetConfig::Trace {} => Ok(Box::new(TraceTarget)),
+        TargetConfig::Trace { cost: _ } => Ok(Box::new(TraceTarget)),
         TargetConfig::OpenaiCompatible {
             url,
             model,
             api_key_env,
             max_retries,
             cost: _,
+            system,
+            params,
         } => {
             let api_key = match (api_key_env, secrets) {
                 (Some(var), SecretPolicy::Require) => Some(
@@ -70,7 +72,9 @@ pub fn build_target_with(
             };
             Ok(Box::new(
                 OpenAiCompatTarget::new(url.clone(), model.clone(), api_key)
-                    .with_max_retries(*max_retries),
+                    .with_max_retries(*max_retries)
+                    .with_system(system.clone())
+                    .with_params(params.clone()),
             ))
         }
     }
@@ -174,6 +178,8 @@ pub struct OpenAiCompatTarget {
     model: String,
     api_key: Option<String>,
     max_retries: u32,
+    system: Option<String>,
+    params: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 /// Outcome of one attempt, classified for the retry loop.
@@ -195,6 +201,8 @@ impl OpenAiCompatTarget {
             model,
             api_key,
             max_retries: evalcore_config::DEFAULT_MAX_RETRIES,
+            system: None,
+            params: None,
         }
     }
 
@@ -203,12 +211,40 @@ impl OpenAiCompatTarget {
         self
     }
 
+    pub fn with_system(mut self, system: Option<String>) -> Self {
+        self.system = system;
+        self
+    }
+
+    pub fn with_params(
+        mut self,
+        params: Option<serde_json::Map<String, serde_json::Value>>,
+    ) -> Self {
+        self.params = params;
+        self
+    }
+
+    fn request_body(&self, case: &TestCase) -> serde_json::Value {
+        let mut messages = Vec::new();
+        if let Some(system) = &self.system {
+            messages.push(serde_json::json!({"role": "system", "content": system}));
+        }
+        messages.push(serde_json::json!({"role": "user", "content": case.input}));
+
+        let mut body = serde_json::Map::new();
+        body.insert("model".into(), serde_json::json!(self.model));
+        body.insert("messages".into(), serde_json::json!(messages));
+        if let Some(params) = &self.params {
+            // Validation rejects reserved keys, so params can't clobber the
+            // fields above.
+            body.extend(params.clone());
+        }
+        serde_json::Value::Object(body)
+    }
+
     async fn attempt(&self, url: &str, case: &TestCase) -> Result<TargetOutput, AttemptError> {
         let start = Instant::now();
-        let mut request = self.client.post(url).json(&serde_json::json!({
-            "model": self.model,
-            "messages": [{"role": "user", "content": case.input}],
-        }));
+        let mut request = self.client.post(url).json(&self.request_body(case));
         if let Some(key) = &self.api_key {
             request = request.bearer_auth(key);
         }
@@ -297,13 +333,24 @@ impl Target for OpenAiCompatTarget {
     }
 
     fn cache_identity(&self) -> Option<serde_json::Value> {
-        // max_retries and cost rates deliberately excluded: they change how we
-        // call and account, not what the model would answer.
-        Some(serde_json::json!({
-            "type": "openai-compatible",
-            "url": self.base_url,
-            "model": self.model,
-        }))
+        // Everything that changes the request must be here (system, params) —
+        // a temperature change must never replay a stale answer. max_retries
+        // and cost rates stay excluded: they change how we call and account,
+        // not what the model would answer. Unset fields are OMITTED (not
+        // null) so pre-existing cassettes keep their keys.
+        let mut identity = serde_json::Map::new();
+        identity.insert("type".into(), serde_json::json!("openai-compatible"));
+        identity.insert("url".into(), serde_json::json!(self.base_url));
+        identity.insert("model".into(), serde_json::json!(self.model));
+        if let Some(system) = &self.system {
+            identity.insert("system".into(), serde_json::json!(system));
+        }
+        if let Some(params) = &self.params {
+            if !params.is_empty() {
+                identity.insert("params".into(), serde_json::Value::Object(params.clone()));
+            }
+        }
+        Some(serde_json::Value::Object(identity))
     }
 }
 
@@ -352,6 +399,8 @@ mod tests {
             api_key_env: Some("EVALCORE_TEST_KEY_THAT_DOES_NOT_EXIST".into()),
             max_retries: 2,
             cost: None,
+            system: None,
+            params: None,
         };
         let err = build_target(&config)
             .err()
@@ -362,6 +411,27 @@ mod tests {
     }
 
     #[test]
+    fn cache_identity_omits_unset_fields_and_includes_set_ones() {
+        let bare = OpenAiCompatTarget::new("http://x/v1".into(), "m".into(), None);
+        // Exact shape is load-bearing: adding keys for unset fields would
+        // invalidate every cassette recorded before system/params existed.
+        assert_eq!(
+            bare.cache_identity().unwrap(),
+            serde_json::json!({"model": "m", "type": "openai-compatible", "url": "http://x/v1"})
+        );
+
+        let mut params = serde_json::Map::new();
+        params.insert("temperature".into(), serde_json::json!(0));
+        let tuned = OpenAiCompatTarget::new("http://x/v1".into(), "m".into(), None)
+            .with_system(Some("be terse".into()))
+            .with_params(Some(params));
+        let identity = tuned.cache_identity().unwrap();
+        assert_eq!(identity["system"], serde_json::json!("be terse"));
+        assert_eq!(identity["params"]["temperature"], serde_json::json!(0));
+        assert_ne!(identity, bare.cache_identity().unwrap());
+    }
+
+    #[test]
     fn optional_secret_policy_tolerates_missing_env_var() {
         let config = TargetConfig::OpenaiCompatible {
             url: "http://localhost:9999/v1".into(),
@@ -369,6 +439,8 @@ mod tests {
             api_key_env: Some("EVALCORE_TEST_KEY_THAT_DOES_NOT_EXIST".into()),
             max_retries: 2,
             cost: None,
+            system: None,
+            params: None,
         };
         assert!(
             build_target_with(&config, SecretPolicy::Optional).is_ok(),

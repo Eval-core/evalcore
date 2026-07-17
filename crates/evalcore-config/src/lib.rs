@@ -85,10 +85,25 @@ impl EvalConfig {
             }
         }
         for (name, target) in &self.targets {
-            if let TargetConfig::OpenaiCompatible {
-                cost: Some(cost), ..
-            } = target
-            {
+            let cost = match target {
+                TargetConfig::OpenaiCompatible { cost, params, .. } => {
+                    if let Some(params) = params {
+                        for reserved in ["model", "messages", "stream"] {
+                            if params.contains_key(reserved) {
+                                return Err(ConfigError::Invalid(format!(
+                                    "target {name:?}: params may not set {reserved:?} \
+                                     (model/messages are managed by EvalCore; streaming \
+                                     responses are unsupported)"
+                                )));
+                            }
+                        }
+                    }
+                    cost
+                }
+                TargetConfig::Trace { cost } => cost,
+                TargetConfig::Shell { .. } => &None,
+            };
+            if let Some(cost) = cost {
                 if cost.input_per_1m < 0.0 || cost.output_per_1m < 0.0 {
                     return Err(ConfigError::Invalid(format!(
                         "target {name:?} has negative cost rates"
@@ -165,12 +180,26 @@ pub enum TargetConfig {
         /// Token prices; enables per-case cost reporting and `run.budget_usd`.
         #[serde(default)]
         cost: Option<CostConfig>,
+        /// System prompt sent before each case's input.
+        #[serde(default)]
+        system: Option<String>,
+        /// Extra request-body fields passed through verbatim (temperature,
+        /// max_tokens, top_p, …). EvalCore doesn't enumerate provider params —
+        /// protocols over SDKs. `model`, `messages`, and `stream` are
+        /// reserved and rejected at validation.
+        #[serde(default)]
+        params: Option<serde_json::Map<String, serde_json::Value>>,
     },
     /// Ingest recorded agent traces instead of invoking anything: each case
     /// names a trace file (`{"id": ..., "trace": "traces/run1.json"}`), in
     /// EvalCore's native trajectory format or OTel/OpenInference JSON export.
     /// Pair with the `trajectory` scorer.
-    Trace {},
+    Trace {
+        /// Token prices applied to usage extracted from trace spans; enables
+        /// cost reporting and `run.budget_usd` for trace runs.
+        #[serde(default)]
+        cost: Option<CostConfig>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -289,6 +318,10 @@ targets:
     cost:
       input_per_1m: 0.15
       output_per_1m: 0.60
+    system: "You are a terse support agent."
+    params:
+      temperature: 0
+      max_tokens: 256
 datasets:
   - file: cases.jsonl
 scorers:
@@ -318,10 +351,18 @@ run:
         assert_eq!(config.run.budget_usd, Some(5.0));
         match config.targets.get("api") {
             Some(TargetConfig::OpenaiCompatible {
-                max_retries, cost, ..
+                max_retries,
+                cost,
+                system,
+                params,
+                ..
             }) => {
                 assert_eq!(*max_retries, 5);
                 assert_eq!(cost.unwrap().input_per_1m, 0.15);
+                assert_eq!(system.as_deref(), Some("You are a terse support agent."));
+                let params = params.as_ref().unwrap();
+                assert_eq!(params["temperature"], serde_json::json!(0));
+                assert_eq!(params["max_tokens"], serde_json::json!(256));
             }
             other => panic!("expected openai-compatible target, got {other:?}"),
         }
@@ -393,6 +434,27 @@ scorers:
     }
 
     #[test]
+    fn rejects_reserved_param_keys() {
+        for reserved in ["model", "messages", "stream"] {
+            let yaml = format!(
+                r#"
+targets:
+  api:
+    type: openai-compatible
+    url: "http://x/v1"
+    model: m
+    params:
+      {reserved}: whatever
+datasets: [{{ file: cases.jsonl }}]
+scorers: [{{ type: exact }}]
+"#
+            );
+            let err = EvalConfig::from_yaml_str(&yaml).unwrap_err();
+            assert!(err.to_string().contains(reserved), "got: {err}");
+        }
+    }
+
+    #[test]
     fn parses_trace_target_and_trajectory_scorer() {
         let yaml = r#"
 targets:
@@ -412,7 +474,7 @@ scorers:
         let config = EvalConfig::from_yaml_str(yaml).unwrap();
         assert!(matches!(
             config.targets.get("agent"),
-            Some(TargetConfig::Trace {})
+            Some(TargetConfig::Trace { .. })
         ));
         match &config.scorers[0] {
             ScorerConfig::Trajectory { rules } => {

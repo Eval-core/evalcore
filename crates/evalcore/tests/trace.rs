@@ -20,8 +20,10 @@ fn agent_trace_example_passes_for_native_and_otel() {
         .success()
         .stdout(predicate::str::contains("PASS refund-flow-native"))
         .stdout(predicate::str::contains("PASS refund-flow-otel"))
-        // OTel trace carries token usage; totals must surface in the summary.
-        .stdout(predicate::str::contains("268 tokens"));
+        // OTel trace carries token usage; with cost rates declared on the
+        // trace target, both totals must surface in the summary.
+        .stdout(predicate::str::contains("268 tokens"))
+        .stdout(predicate::str::contains("$0.0"));
 }
 
 #[test]
