@@ -101,8 +101,19 @@ impl Target for ShellTarget {
 
         {
             let mut stdin = child.stdin.take().context("shell target has no stdin")?;
-            stdin.write_all(case.input.as_bytes()).await?;
-            stdin.shutdown().await?;
+            // A command that exits without reading stdin (or without reading
+            // all of it) is legitimate — EPIPE here must not mask the child's
+            // real exit status/stderr. Any other write error still propagates.
+            let write_result = async {
+                stdin.write_all(case.input.as_bytes()).await?;
+                stdin.shutdown().await
+            }
+            .await;
+            if let Err(err) = write_result {
+                if err.kind() != std::io::ErrorKind::BrokenPipe {
+                    return Err(err).context("failed writing input to shell target");
+                }
+            }
         }
 
         let output = child.wait_with_output().await?;
@@ -284,6 +295,15 @@ mod tests {
         let target = ShellTarget::new("tr 'a-z' 'A-Z'".into());
         let out = target.invoke(&case("hello")).await.unwrap();
         assert_eq!(out.text, "HELLO");
+    }
+
+    #[tokio::test]
+    async fn shell_target_tolerates_commands_that_ignore_stdin() {
+        // `echo` never reads stdin; on Linux the child can exit before the
+        // input write finishes, producing EPIPE. That must not fail the case.
+        let target = ShellTarget::new("echo ok".into());
+        let out = target.invoke(&case("ignored input")).await.unwrap();
+        assert_eq!(out.text.trim(), "ok");
     }
 
     #[tokio::test]
