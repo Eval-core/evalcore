@@ -18,8 +18,15 @@ pub fn terminal(summary: &RunSummary) -> String {
             }
         }
     }
+    let mut totals = String::new();
+    if let Some(tokens) = summary.total_tokens() {
+        totals.push_str(&format!(" · {} tokens", tokens.total()));
+    }
+    if let Some(cost) = summary.total_cost_usd() {
+        totals.push_str(&format!(" · ${cost:.4}"));
+    }
     out.push_str(&format!(
-        "\n{} passed, {} failed, {} total\n",
+        "\n{} passed, {} failed, {} total{totals}\n",
         summary.passed(),
         summary.failed(),
         summary.total()
@@ -69,9 +76,10 @@ fn xml_escape(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use evalcore_core::{CaseResult, Score, TargetOutput};
+    use evalcore_core::{CaseResult, Score, TargetOutput, TokenUsage};
 
-    /// Fixture with fixed latencies so every reporter output is deterministic.
+    /// Fixture with fixed latencies/tokens so every reporter output is
+    /// deterministic.
     fn fixture() -> RunSummary {
         RunSummary {
             results: vec![
@@ -80,6 +88,10 @@ mod tests {
                     output: Some(TargetOutput {
                         text: "refund issued".into(),
                         latency_ms: 12,
+                        tokens: Some(TokenUsage {
+                            input: 100,
+                            output: 20,
+                        }),
                     }),
                     error: None,
                     scores: vec![Score {
@@ -88,12 +100,17 @@ mod tests {
                         passed: true,
                         reason: None,
                     }],
+                    cost_usd: Some(0.0012),
                 },
                 CaseResult {
                     case_id: "refund-2".into(),
                     output: Some(TargetOutput {
                         text: "cannot help".into(),
                         latency_ms: 40,
+                        tokens: Some(TokenUsage {
+                            input: 80,
+                            output: 10,
+                        }),
                     }),
                     error: None,
                     scores: vec![Score {
@@ -102,12 +119,14 @@ mod tests {
                         passed: false,
                         reason: Some("expected output to contain \"refund\" & <more>".into()),
                     }],
+                    cost_usd: Some(0.0008),
                 },
                 CaseResult {
                     case_id: "boom".into(),
                     output: None,
                     error: Some("target error: connection refused".into()),
                     scores: vec![],
+                    cost_usd: None,
                 },
             ],
         }

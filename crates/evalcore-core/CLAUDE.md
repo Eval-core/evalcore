@@ -6,8 +6,8 @@ Domain types (`TestCase`, `TargetOutput`, `Score`, `CaseResult`, `RunSummary`), 
 
 - `types.rs` — domain types + the `Scorer` trait (trait here, implementations in `evalcore-scorers`, so there's no dependency cycle).
 - `dataset.rs` — JSONL loading. Errors must cite `file:line`.
-- `target.rs` — `Target` trait, `ShellTarget`, `OpenAiCompatTarget`, and the `build_target` factory (env-var secrets resolve here, fail-fast).
-- `engine.rs` — `run_suite`: concurrent execution via `buffered(n)`, which **preserves dataset order** in results. That ordering is load-bearing (stable reports, future baseline diffs) — don't switch to `buffer_unordered` without re-sorting.
+- `target.rs` — `Target` trait, `ShellTarget`, `OpenAiCompatTarget`, and the `build_target`/`build_target_with` factories (env-var secrets resolve here; `SecretPolicy::Optional` exists only for replay runs). The OpenAI target retries transient failures (429/5xx/transport) with deterministic backoff honoring `Retry-After`, and captures `usage` into `TokenUsage`. Retry/cost settings stay **out** of `cache_identity` — they change how we call, not what the model answers.
+- `engine.rs` — `run_suite(target, cases, scorers, RunOptions)`: concurrent execution via `buffered(n)`, which **preserves dataset order** in results. That ordering is load-bearing (stable reports, future baseline diffs) — don't switch to `buffer_unordered` without re-sorting. Costs each case from `RunOptions::cost_rates`; `budget_usd` turns over-budget cases into failed-with-reason results, never a mid-run abort.
 
 ## Rules
 

@@ -182,6 +182,7 @@ mod tests {
             Ok(TargetOutput {
                 text: format!("call-{n}"),
                 latency_ms: 5,
+                tokens: None,
             })
         }
 
@@ -230,6 +231,7 @@ mod tests {
         let output = TargetOutput {
             text: "hello".into(),
             latency_ms: 42,
+            tokens: None,
         };
 
         assert!(store.get("k1").unwrap().is_none());

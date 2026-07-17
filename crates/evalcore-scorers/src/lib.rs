@@ -66,6 +66,8 @@ where
                         url: url.clone(),
                         model: model.clone(),
                         api_key_env: api_key_env.clone(),
+                        max_retries: evalcore_config::DEFAULT_MAX_RETRIES,
+                        cost: None,
                     };
                     let target = build_judge_target(&target_config)
                         .context("failed to build judge target")?;

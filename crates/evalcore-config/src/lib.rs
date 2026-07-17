@@ -77,6 +77,25 @@ impl EvalConfig {
                 "run.concurrency must be at least 1".into(),
             ));
         }
+        if let Some(budget) = self.run.budget_usd {
+            if budget <= 0.0 {
+                return Err(ConfigError::Invalid(format!(
+                    "run.budget_usd must be positive, got {budget}"
+                )));
+            }
+        }
+        for (name, target) in &self.targets {
+            if let TargetConfig::OpenaiCompatible {
+                cost: Some(cost), ..
+            } = target
+            {
+                if cost.input_per_1m < 0.0 || cost.output_per_1m < 0.0 {
+                    return Err(ConfigError::Invalid(format!(
+                        "target {name:?} has negative cost rates"
+                    )));
+                }
+            }
+        }
         Ok(())
     }
 }
@@ -87,18 +106,41 @@ pub struct RunConfig {
     /// Maximum in-flight cases.
     #[serde(default = "default_concurrency")]
     pub concurrency: usize,
+    /// Abort scheduling new cases once accumulated cost reaches this (USD).
+    /// Requires the target to declare `cost` rates; costed from token usage,
+    /// so replayed runs count their recorded (virtual) cost too.
+    #[serde(default)]
+    pub budget_usd: Option<f64>,
 }
 
 impl Default for RunConfig {
     fn default() -> Self {
         Self {
             concurrency: default_concurrency(),
+            budget_usd: None,
         }
     }
 }
 
 fn default_concurrency() -> usize {
     4
+}
+
+/// Default number of retries for transient HTTP failures (429/5xx/transport).
+pub const DEFAULT_MAX_RETRIES: u32 = 2;
+
+fn default_max_retries() -> u32 {
+    DEFAULT_MAX_RETRIES
+}
+
+/// USD prices per **1 million** tokens, as published by the provider. EvalCore
+/// deliberately ships no pricing table — prices change and differ per
+/// deployment, so they're config.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CostConfig {
+    pub input_per_1m: f64,
+    pub output_per_1m: f64,
 }
 
 /// The thing being evaluated.
@@ -116,6 +158,13 @@ pub enum TargetConfig {
         /// never written into the YAML itself.
         #[serde(default)]
         api_key_env: Option<String>,
+        /// Retries on transient failures (429/5xx/network), with exponential
+        /// backoff honoring `Retry-After`.
+        #[serde(default = "default_max_retries")]
+        max_retries: u32,
+        /// Token prices; enables per-case cost reporting and `run.budget_usd`.
+        #[serde(default)]
+        cost: Option<CostConfig>,
     },
 }
 
@@ -188,6 +237,10 @@ targets:
     url: https://api.openai.com/v1
     model: gpt-test
     api_key_env: OPENAI_API_KEY
+    max_retries: 5
+    cost:
+      input_per_1m: 0.15
+      output_per_1m: 0.60
 datasets:
   - file: cases.jsonl
 scorers:
@@ -205,6 +258,7 @@ scorers:
     api_key_env: OPENAI_API_KEY
 run:
   concurrency: 8
+  budget_usd: 5.0
 "#;
 
     #[test]
@@ -213,6 +267,20 @@ run:
         assert_eq!(config.targets.len(), 2);
         assert_eq!(config.scorers.len(), 5);
         assert_eq!(config.run.concurrency, 8);
+        assert_eq!(config.run.budget_usd, Some(5.0));
+        match config.targets.get("api") {
+            Some(TargetConfig::OpenaiCompatible {
+                max_retries, cost, ..
+            }) => {
+                assert_eq!(*max_retries, 5);
+                assert_eq!(cost.unwrap().input_per_1m, 0.15);
+            }
+            other => panic!("expected openai-compatible target, got {other:?}"),
+        }
+        match config.targets.get("echo") {
+            Some(TargetConfig::Shell { .. }) => {}
+            other => panic!("expected shell target, got {other:?}"),
+        }
         assert!(matches!(
             config.targets.get("echo"),
             Some(TargetConfig::Shell { cmd }) if cmd == "cat"
@@ -236,6 +304,30 @@ run:
             }
             other => panic!("expected judge scorer, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn retry_default_applies_and_bad_budget_rejected() {
+        let yaml = r#"
+targets:
+  api: { type: openai-compatible, url: "http://x/v1", model: m }
+datasets: [{ file: cases.jsonl }]
+scorers: [{ type: exact }]
+"#;
+        let config = EvalConfig::from_yaml_str(yaml).unwrap();
+        match config.targets.get("api") {
+            Some(TargetConfig::OpenaiCompatible {
+                max_retries, cost, ..
+            }) => {
+                assert_eq!(*max_retries, DEFAULT_MAX_RETRIES);
+                assert!(cost.is_none());
+            }
+            other => panic!("got {other:?}"),
+        }
+
+        let bad = format!("{yaml}run: {{ budget_usd: 0 }}\n");
+        let err = EvalConfig::from_yaml_str(&bad).unwrap_err();
+        assert!(err.to_string().contains("budget_usd"), "got: {err}");
     }
 
     #[test]

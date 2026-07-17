@@ -1,7 +1,7 @@
 //! HTTP target tests. Never hits a real API — everything runs against a
 //! local wiremock server.
 
-use evalcore_core::{OpenAiCompatTarget, Target, TestCase};
+use evalcore_core::{OpenAiCompatTarget, Target, TestCase, TokenUsage};
 use wiremock::matchers::{body_partial_json, header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -71,5 +71,99 @@ async fn rejects_bodies_missing_message_content() {
     assert!(
         err.to_string().contains("choices[0].message.content"),
         "got: {err}"
+    );
+}
+
+#[tokio::test]
+async fn retries_transient_429_then_succeeds() {
+    let server = MockServer::start().await;
+    // First attempt: 429 with an immediate retry-after; second attempt: 200.
+    // Mocks match in mount order; the 429 exhausts after one use.
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(
+            ResponseTemplate::new(429)
+                .insert_header("retry-after", "0")
+                .set_body_string(r#"{"error": "rate limited"}"#),
+        )
+        .up_to_n_times(1)
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "choices": [{"message": {"role": "assistant", "content": "recovered"}}],
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let target = OpenAiCompatTarget::new(format!("{}/v1", server.uri()), "m".into(), None)
+        .with_max_retries(1);
+    let out = target.invoke(&case("hi")).await.unwrap();
+    assert_eq!(out.text, "recovered");
+    server.verify().await;
+}
+
+#[tokio::test]
+async fn exhausted_retries_report_attempt_count() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(
+            ResponseTemplate::new(503)
+                .insert_header("retry-after", "0")
+                .set_body_string("overloaded"),
+        )
+        .expect(2)
+        .mount(&server)
+        .await;
+
+    let target = OpenAiCompatTarget::new(format!("{}/v1", server.uri()), "m".into(), None)
+        .with_max_retries(1);
+    let err = target.invoke(&case("hi")).await.unwrap_err();
+    let msg = err.to_string();
+    assert!(msg.contains("after 2 attempts"), "got: {msg}");
+    server.verify().await;
+}
+
+#[tokio::test]
+async fn client_errors_are_not_retried() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(ResponseTemplate::new(401).set_body_string("bad key"))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let target = OpenAiCompatTarget::new(format!("{}/v1", server.uri()), "m".into(), None)
+        .with_max_retries(5);
+    let err = target.invoke(&case("hi")).await.unwrap_err();
+    assert!(err.to_string().contains("401"), "got: {err}");
+    server.verify().await;
+}
+
+#[tokio::test]
+async fn captures_token_usage_when_reported() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/v1/chat/completions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "choices": [{"message": {"role": "assistant", "content": "hi"}}],
+            "usage": {"prompt_tokens": 42, "completion_tokens": 7, "total_tokens": 49},
+        })))
+        .mount(&server)
+        .await;
+
+    let target = OpenAiCompatTarget::new(format!("{}/v1", server.uri()), "m".into(), None);
+    let out = target.invoke(&case("hi")).await.unwrap();
+    assert_eq!(
+        out.tokens,
+        Some(TokenUsage {
+            input: 42,
+            output: 7
+        })
     );
 }

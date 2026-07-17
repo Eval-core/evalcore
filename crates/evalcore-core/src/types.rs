@@ -14,11 +14,42 @@ pub struct TestCase {
     pub expected: Option<serde_json::Value>,
 }
 
+/// Token counts reported by the provider for one call.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TokenUsage {
+    pub input: u64,
+    pub output: u64,
+}
+
+impl TokenUsage {
+    pub fn total(&self) -> u64 {
+        self.input + self.output
+    }
+}
+
+/// USD prices per 1M tokens (mirrors the config's `cost` block).
+#[derive(Debug, Clone, Copy)]
+pub struct CostRates {
+    pub input_per_1m: f64,
+    pub output_per_1m: f64,
+}
+
+impl CostRates {
+    pub fn cost_of(&self, tokens: TokenUsage) -> f64 {
+        (tokens.input as f64 * self.input_per_1m + tokens.output as f64 * self.output_per_1m)
+            / 1_000_000.0
+    }
+}
+
 /// What a target produced for one case.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TargetOutput {
     pub text: String,
     pub latency_ms: u64,
+    /// Provider-reported usage, when available. Cached recordings replay the
+    /// recorded usage, so cost accounting stays consistent offline.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens: Option<TokenUsage>,
 }
 
 /// One scorer's verdict on one output.
@@ -43,6 +74,9 @@ pub struct CaseResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     pub scores: Vec<Score>,
+    /// USD cost of this case's target call, when the target declares rates.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost_usd: Option<f64>,
 }
 
 impl CaseResult {
@@ -87,6 +121,29 @@ impl RunSummary {
 
     pub fn all_passed(&self) -> bool {
         self.failed() == 0
+    }
+
+    /// Sum of provider-reported tokens across cases; `None` when no case
+    /// reported usage (e.g. shell targets).
+    pub fn total_tokens(&self) -> Option<TokenUsage> {
+        let mut any = false;
+        let mut total = TokenUsage::default();
+        for tokens in self
+            .results
+            .iter()
+            .filter_map(|r| r.output.as_ref().and_then(|o| o.tokens))
+        {
+            any = true;
+            total.input += tokens.input;
+            total.output += tokens.output;
+        }
+        any.then_some(total)
+    }
+
+    /// Sum of per-case costs; `None` when no case was costed.
+    pub fn total_cost_usd(&self) -> Option<f64> {
+        let costs: Vec<f64> = self.results.iter().filter_map(|r| r.cost_usd).collect();
+        (!costs.is_empty()).then(|| costs.iter().sum())
     }
 }
 

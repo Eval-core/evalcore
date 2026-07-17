@@ -5,14 +5,14 @@
 //! zero new code here.
 
 use std::process::Stdio;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context};
 use async_trait::async_trait;
 use evalcore_config::TargetConfig;
 use tokio::io::AsyncWriteExt;
 
-use crate::types::{TargetOutput, TestCase};
+use crate::types::{TargetOutput, TestCase, TokenUsage};
 
 #[async_trait]
 pub trait Target: Send + Sync {
@@ -56,6 +56,8 @@ pub fn build_target_with(
             url,
             model,
             api_key_env,
+            max_retries,
+            cost: _,
         } => {
             let api_key = match (api_key_env, secrets) {
                 (Some(var), SecretPolicy::Require) => Some(
@@ -65,11 +67,10 @@ pub fn build_target_with(
                 (Some(var), SecretPolicy::Optional) => std::env::var(var).ok(),
                 (None, _) => None,
             };
-            Ok(Box::new(OpenAiCompatTarget::new(
-                url.clone(),
-                model.clone(),
-                api_key,
-            )))
+            Ok(Box::new(
+                OpenAiCompatTarget::new(url.clone(), model.clone(), api_key)
+                    .with_max_retries(*max_retries),
+            ))
         }
     }
 }
@@ -116,16 +117,34 @@ impl Target for ShellTarget {
         Ok(TargetOutput {
             text: String::from_utf8_lossy(&output.stdout).into_owned(),
             latency_ms: start.elapsed().as_millis() as u64,
+            tokens: None,
         })
     }
 }
 
 /// POSTs to `{url}/chat/completions` in the OpenAI wire format.
+///
+/// Transient failures (429, 5xx, transport errors) are retried with
+/// exponential backoff, honoring `Retry-After` when the server sends one.
+/// Non-transient failures (4xx other than 429, unparseable 200 bodies) are
+/// never retried.
 pub struct OpenAiCompatTarget {
     client: reqwest::Client,
     base_url: String,
     model: String,
     api_key: Option<String>,
+    max_retries: u32,
+}
+
+/// Outcome of one attempt, classified for the retry loop.
+enum AttemptError {
+    /// 429/5xx/transport — worth retrying.
+    Transient {
+        message: String,
+        retry_after: Option<Duration>,
+    },
+    /// Anything else — retrying would just repeat the failure.
+    Permanent(anyhow::Error),
 }
 
 impl OpenAiCompatTarget {
@@ -135,17 +154,18 @@ impl OpenAiCompatTarget {
             base_url,
             model,
             api_key,
+            max_retries: evalcore_config::DEFAULT_MAX_RETRIES,
         }
     }
-}
 
-#[async_trait]
-impl Target for OpenAiCompatTarget {
-    async fn invoke(&self, case: &TestCase) -> anyhow::Result<TargetOutput> {
+    pub fn with_max_retries(mut self, max_retries: u32) -> Self {
+        self.max_retries = max_retries;
+        self
+    }
+
+    async fn attempt(&self, url: &str, case: &TestCase) -> Result<TargetOutput, AttemptError> {
         let start = Instant::now();
-        let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
-
-        let mut request = self.client.post(&url).json(&serde_json::json!({
+        let mut request = self.client.post(url).json(&serde_json::json!({
             "model": self.model,
             "messages": [{"role": "user", "content": case.input}],
         }));
@@ -156,29 +176,89 @@ impl Target for OpenAiCompatTarget {
         let response = request
             .send()
             .await
-            .with_context(|| format!("request to {url} failed"))?;
+            .map_err(|err| AttemptError::Transient {
+                message: format!("request to {url} failed: {err}"),
+                retry_after: None,
+            })?;
 
         let status = response.status();
+        let retry_after = response
+            .headers()
+            .get("retry-after")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.parse::<u64>().ok())
+            .map(Duration::from_secs);
         let body = response.text().await.unwrap_or_default();
+
         if !status.is_success() {
             let snippet: String = body.chars().take(200).collect();
-            bail!("{url} returned {status}: {snippet}");
+            let message = format!("{url} returned {status}: {snippet}");
+            return if status.as_u16() == 429 || status.is_server_error() {
+                Err(AttemptError::Transient {
+                    message,
+                    retry_after,
+                })
+            } else {
+                Err(AttemptError::Permanent(anyhow::anyhow!(message)))
+            };
         }
 
-        let parsed: serde_json::Value =
-            serde_json::from_str(&body).with_context(|| format!("{url} returned non-JSON body"))?;
-        let text = parsed["choices"][0]["message"]["content"]
-            .as_str()
-            .with_context(|| format!("{url} response missing choices[0].message.content"))?
-            .to_string();
+        let parse = || -> anyhow::Result<TargetOutput> {
+            let parsed: serde_json::Value = serde_json::from_str(&body)
+                .with_context(|| format!("{url} returned non-JSON body"))?;
+            let text = parsed["choices"][0]["message"]["content"]
+                .as_str()
+                .with_context(|| format!("{url} response missing choices[0].message.content"))?
+                .to_string();
+            let tokens = parsed.get("usage").and_then(|usage| {
+                Some(TokenUsage {
+                    input: usage.get("prompt_tokens")?.as_u64()?,
+                    output: usage.get("completion_tokens").and_then(|v| v.as_u64())?,
+                })
+            });
+            Ok(TargetOutput {
+                text,
+                latency_ms: start.elapsed().as_millis() as u64,
+                tokens,
+            })
+        };
+        parse().map_err(AttemptError::Permanent)
+    }
+}
 
-        Ok(TargetOutput {
-            text,
-            latency_ms: start.elapsed().as_millis() as u64,
-        })
+/// Deterministic backoff: 500ms, 1s, 2s, … capped at 10s. No jitter — a
+/// reproducible schedule matters more here than herd avoidance.
+fn backoff(attempt: u32) -> Duration {
+    let ms = 500u64.saturating_mul(1 << attempt.min(8));
+    Duration::from_millis(ms.min(10_000))
+}
+
+#[async_trait]
+impl Target for OpenAiCompatTarget {
+    async fn invoke(&self, case: &TestCase) -> anyhow::Result<TargetOutput> {
+        let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
+        let mut attempt = 0;
+        loop {
+            match self.attempt(&url, case).await {
+                Ok(output) => return Ok(output),
+                Err(AttemptError::Permanent(err)) => return Err(err),
+                Err(AttemptError::Transient {
+                    message,
+                    retry_after,
+                }) => {
+                    if attempt >= self.max_retries {
+                        bail!("{message} (after {} attempts)", attempt + 1);
+                    }
+                    tokio::time::sleep(retry_after.unwrap_or_else(|| backoff(attempt))).await;
+                    attempt += 1;
+                }
+            }
+        }
     }
 
     fn cache_identity(&self) -> Option<serde_json::Value> {
+        // max_retries and cost rates deliberately excluded: they change how we
+        // call and account, not what the model would answer.
         Some(serde_json::json!({
             "type": "openai-compatible",
             "url": self.base_url,
@@ -220,6 +300,8 @@ mod tests {
             url: "http://localhost:9999/v1".into(),
             model: "m".into(),
             api_key_env: Some("EVALCORE_TEST_KEY_THAT_DOES_NOT_EXIST".into()),
+            max_retries: 2,
+            cost: None,
         };
         let err = build_target(&config)
             .err()
@@ -235,6 +317,8 @@ mod tests {
             url: "http://localhost:9999/v1".into(),
             model: "m".into(),
             api_key_env: Some("EVALCORE_TEST_KEY_THAT_DOES_NOT_EXIST".into()),
+            max_retries: 2,
+            cost: None,
         };
         assert!(
             build_target_with(&config, SecretPolicy::Optional).is_ok(),

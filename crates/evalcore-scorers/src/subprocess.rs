@@ -120,6 +120,7 @@ mod tests {
         TargetOutput {
             text: text.into(),
             latency_ms: 0,
+            tokens: None,
         }
     }
 

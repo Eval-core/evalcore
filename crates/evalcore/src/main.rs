@@ -8,8 +8,10 @@ use std::sync::Arc;
 
 use anyhow::{bail, Context};
 use clap::{Parser, Subcommand, ValueEnum};
-use evalcore_config::{EvalConfig, ScorerConfig};
-use evalcore_core::{build_target_with, load_jsonl, run_suite, SecretPolicy, Target, TestCase};
+use evalcore_config::{EvalConfig, ScorerConfig, TargetConfig};
+use evalcore_core::{
+    build_target_with, load_jsonl, run_suite, CostRates, RunOptions, SecretPolicy, Target, TestCase,
+};
 use evalcore_scorers::build_scorers;
 use evalcore_store::{CacheMode, CachedTarget, Store};
 
@@ -190,7 +192,21 @@ async fn run(
         bail!("datasets contain no test cases");
     }
 
-    let summary = run_suite(target.as_ref(), cases, &scorers, config.run.concurrency).await;
+    let cost_rates = match target_config {
+        TargetConfig::OpenaiCompatible {
+            cost: Some(cost), ..
+        } => Some(CostRates {
+            input_per_1m: cost.input_per_1m,
+            output_per_1m: cost.output_per_1m,
+        }),
+        _ => None,
+    };
+    let options = RunOptions {
+        concurrency: config.run.concurrency,
+        budget_usd: config.run.budget_usd,
+        cost_rates,
+    };
+    let summary = run_suite(target.as_ref(), cases, &scorers, options).await;
 
     let rendered = match reporter {
         Reporter::Terminal => evalcore_report::terminal(&summary),

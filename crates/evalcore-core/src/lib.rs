@@ -10,8 +10,10 @@ pub mod target;
 pub mod types;
 
 pub use dataset::load_jsonl;
-pub use engine::run_suite;
+pub use engine::{run_suite, RunOptions};
 pub use target::{
     build_target, build_target_with, OpenAiCompatTarget, SecretPolicy, ShellTarget, Target,
 };
-pub use types::{CaseResult, RunSummary, Score, Scorer, TargetOutput, TestCase};
+pub use types::{
+    CaseResult, CostRates, RunSummary, Score, Scorer, TargetOutput, TestCase, TokenUsage,
+};

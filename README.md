@@ -57,6 +57,27 @@ evalcore run evals.yaml --cache off      # bypass
 
 Treat the cache file like VCR cassettes: commit it, and CI runs `--cache replay` with zero LLM spend and zero flakiness. Changing the model, URL, or a case's input changes the key, so stale hits don't lie to you. Shell targets are never cached — they run your local code, whose behavior can change without the config changing.
 
+## Retries, cost tracking, budgets
+
+Transient failures (429, 5xx, network) retry automatically with exponential backoff, honoring `Retry-After`. Token usage is captured per case; declare your prices and EvalCore reports cost and enforces a budget:
+
+```yaml
+targets:
+  openai:
+    type: openai-compatible
+    url: https://api.openai.com/v1
+    model: gpt-4.1-mini
+    api_key_env: OPENAI_API_KEY
+    max_retries: 3            # default 2
+    cost:                     # your provider's prices per 1M tokens
+      input_per_1m: 0.40
+      output_per_1m: 1.60
+run:
+  budget_usd: 5.0             # stop dispatching new cases past this spend
+```
+
+Cases skipped by the budget are reported as failures with a reason — the run completes and exits 1 rather than aborting. The terminal summary shows totals: `12 passed, 0 failed, 12 total · 48210 tokens · $0.0341`.
+
 ## Design principles
 
 1. **Protocols over SDKs** — targets speak HTTP or shell, custom scorers speak JSON over stdin/stdout (any language), judges are any OpenAI-compatible endpoint. Rust is the engine, never a requirement.
