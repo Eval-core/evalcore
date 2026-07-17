@@ -1,0 +1,194 @@
+---
+title: CLI reference
+description: The evalcore command — validate and run, every flag, the exit-code contract, output destinations, and env-var handling.
+---
+
+The `evalcore` binary has two subcommands: `validate` (parse-check a config) and
+`run` (execute a suite). Both take the config path as their first positional
+argument.
+
+```sh
+evalcore validate examples/quickstart/evals.yaml
+evalcore run examples/quickstart/evals.yaml --reporter junit --output results.xml
+```
+
+Relative paths inside a config (dataset files, trace paths) resolve against the
+**config file's directory**, never the current working directory, so a suite
+runs identically from any directory (CI, editors, make).
+
+## `evalcore validate <config>`
+
+Parses and validates the config without executing anything — no target or scorer
+is ever run.
+
+| Argument | Description |
+|---|---|
+| `<config>` | Path to the `evals.yaml` file. |
+
+On success it prints a one-line summary and exits `0`:
+
+```
+OK: 2 target(s), 1 dataset(s), 5 scorer(s)
+```
+
+On any parse or validation error it exits non-zero with the error message. See
+the [Configuration reference](../configuration/) for every validation rule.
+
+## `evalcore run <config>`
+
+Runs a suite: builds the selected target, loads datasets, runs every case
+through every scorer, renders a report, and returns an exit code.
+
+| Argument | Description |
+|---|---|
+| `<config>` | Path to the `evals.yaml` file. |
+
+### Flags
+
+| Flag | Value | Default | Description |
+|---|---|---|---|
+| `--target` | name | — | Target to run. May be omitted only when exactly one target is defined; with several, omitting it is an error naming the available targets. |
+| `--reporter` | `terminal` \| `json` \| `junit` | `terminal` | Report format. See [Reporters](#reporters). |
+| `--output` | path | — | Write the report to a file instead of stdout. |
+| `--html` | path | — | Also write a self-contained HTML report to this path, in addition to the primary `--reporter` output. Since v0.5.0. |
+| `--cache` | `auto` \| `replay` \| `live` \| `off` | `auto` | Record/replay cache mode for cacheable targets. See [Cache modes](#cache-modes). |
+| `--baseline` | label | — | Gate on regressions against a stored baseline instead of absolute pass/fail. |
+| `--save-baseline` | label | — | Save this run's results as a named baseline. |
+
+### Target selection
+
+`--target <name>` picks a target from the config's `targets` map. A name that
+isn't defined is an error listing the available targets. With exactly one target
+the flag may be omitted; with more than one, omitting it fails with `multiple
+targets defined; pass --target <name> (available: …)`.
+
+### Reporters
+
+`--reporter` selects the primary report format. All three are pure functions of
+the run summary, so identical runs render byte-identical reports (see
+[Reporter formats](#reporter-formats)).
+
+| Value | Output |
+|---|---|
+| `terminal` | Human-readable `PASS`/`FAIL` lines, a summary line with totals (and tokens/cost when available), then one `GATE` line per configured gate. |
+| `json` | The full `RunSummary` as pretty JSON (includes the `gates` array when gates are configured). |
+| `junit` | JUnit XML (`<testsuites>`) for CI systems. One `<testcase>` per case; failures carry a `<failure message="…">`. |
+
+### Output destination
+
+- Without `--output`, the report is printed to **stdout**.
+- With `--output <file>`, the report is written to the file and a one-line
+  summary goes to **stderr**: `<p> passed, <f> failed, <t> total — report
+  written to <path>`.
+- `--html <path>` always writes an additional HTML file; it never replaces the
+  primary reporter's output. It composes with every reporter and embeds the
+  baseline diff when `--baseline` is used.
+
+### Cache modes
+
+`--cache` controls how the record/replay cache participates for cacheable
+targets (LLM APIs, `http` targets, and judge scorers). Uncacheable targets
+(`shell`, `trace`) bypass the cache in every mode. See [Cache &
+determinism](../cache-and-determinism/) for the full model.
+
+| Mode | Behavior |
+|---|---|
+| `auto` (default) | Replay hits; on a miss, call live and record the result. |
+| `replay` | Cache only — a miss is a case failure, never a live call. Use in CI for deterministic, zero-cost reruns. |
+| `live` | Always call live and overwrite the recording. |
+| `off` | Bypass the cache entirely. |
+
+### Baselines
+
+`--save-baseline <label>` stores this run's per-case results under a label.
+`--baseline <label>` loads the newest baseline with that label and compares,
+flipping the exit contract from "all passed" to "no regressions". Used together,
+they give rolling baselines: the run is compared against the stored baseline and
+then this run is saved (after comparison). A `--baseline` label with no stored
+baseline is an error: `no baseline "<label>" found — record one with
+--save-baseline <label>`. Baselines are stored in the same `.evalcore/cache.db`
+file as the cache; the store is opened even for `shell` targets when a baseline
+flag is present. See [Cache & determinism](../cache-and-determinism/#baselines).
+
+Baseline results print after the primary report as a diff section
+(`baseline "<label>": p/t passed -> current: p/t passed`, then `REGRESSED`,
+`NEW FAIL`, `FIXED`, `REMOVED` lines). For the `terminal` reporter writing to
+stdout the diff goes to **stdout**; for machine reporters (or any `--output`
+run) it goes to **stderr**, keeping the machine reporter's stdout pure.
+
+## Exit-code contract
+
+`evalcore run` exits `0` when the run passed and `1` otherwise. Gate CI on it.
+
+- **Default** (no `--baseline`): exit `0` iff every case passed.
+- **With `--baseline`**: the gate becomes "no regressions" — exit `0` iff no
+  case regressed and no previously-passing case newly fails. Failures already
+  accepted into the baseline are tolerated.
+- **Suite gates are additive.** Regardless of the above, if any configured
+  `run.gates` floor is not met, the run exits `1`. With `--baseline`, an
+  accepted baseline failure stays tolerated per-case yet can still sink a
+  `pass_rate` gate it drops the run below. See
+  [Gates](../configuration/#gates).
+
+`validate` exits `0` on a valid config and non-zero on any error.
+
+## Environment variables and secrets
+
+Secrets are never inline in YAML: a target or judge references an environment
+variable by name (`api_key_env`), resolved at build time.
+
+- In modes that may call the network (`auto`, `live`, `off`), a referenced but
+  unset variable is a **build error** — the run fails fast before any case runs:
+  `environment variable <VAR> is not set`.
+- In `--cache replay`, secrets are **optional**: a missing variable resolves to
+  no key. Replay-only runs never call the live target, which is what lets CI
+  replay a committed cache with no API keys configured at all.
+
+## Reporter formats
+
+The three reporters are pure `&RunSummary -> String` functions with fixed,
+snapshot-tested layouts.
+
+### terminal
+
+```
+PASS refund-1 (12ms)
+FAIL refund-2
+     contains: expected output to contain "refund"
+
+2 passed, 1 failed, 3 total · 210 tokens · $0.0020
+GATE PASS pass_rate >= 0.95 (actual 1.00)
+```
+
+Each passing case is `PASS <id> (<latency>ms)`; each failing case is `FAIL <id>`
+followed by indented failure reasons. The summary line always shows
+`<p> passed, <f> failed, <t> total`, with ` · <n> tokens` and ` · $<cost>`
+appended only when the run reported usage/cost. Gate lines
+(`GATE PASS|FAIL <gate> (actual <n>)`, with an indented reason when present)
+follow, and are absent entirely when no gates are configured.
+
+### json
+
+`serde_json::to_string_pretty` of the full `RunSummary`: `results` (one object
+per case with `output`, `error`, `scores`, `cost_usd`) and `gates`. The `gates`
+array is omitted entirely when no gates are configured, and absent optional
+fields are omitted, so a gate-free run's JSON is byte-identical to before gates
+existed.
+
+### junit
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="3" failures="1">
+  <testsuite name="evalcore" tests="3" failures="1">
+    <testcase name="refund-1" time="0.012"/>
+    <testcase name="refund-2" time="0.040">
+      <failure message="contains: expected output to contain &quot;refund&quot;"/>
+    </testcase>
+  </testsuite>
+</testsuites>
+```
+
+Times are latency in seconds (three decimals). Failure messages join a case's
+reasons with `; `. Every user-controlled value is XML-escaped. JUnit output does
+not include gate outcomes — the exit code carries the gate result.

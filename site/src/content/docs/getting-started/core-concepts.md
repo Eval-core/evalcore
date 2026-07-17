@@ -1,6 +1,6 @@
 ---
 title: Core concepts
-description: The EvalCore mental model — targets, datasets, scorers, runs, the exit-code contract, and failures-as-data.
+description: The EvalCore mental model — the run pipeline, targets, datasets, scorers, gates, reporters, the exit-code contract, failures-as-data, and determinism.
 ---
 
 An EvalCore suite has four moving parts, declared in one `evals.yaml`: **targets**
@@ -8,10 +8,51 @@ produce outputs, **datasets** supply inputs, **scorers** judge the outputs, and 
 **run** block ties it together with concurrency, budgets, and gates. Everything a
 feature does starts as config surface — the YAML file is the interface.
 
+## The run pipeline
+
+Every run flows through the same stages, in order. Cases move through the middle
+in dataset order and results come back in that same order — position is
+load-bearing.
+
+```text
+  evals.yaml + dataset (JSONL)
+            │
+            ▼
+   ┌──────────────────┐     per case, concurrently (run.concurrency)
+   │     DATASET      │     ┌───────────────────────────────────────┐
+   │  ordered cases   │────▶│  TARGET          SCORERS              │
+   └──────────────────┘     │  produce  ────▶  judge the output    │
+                            │  an output       (contains, judge,   │
+                            │  (cache: replay  regex, subprocess,  │
+                            │  or record)      trajectory, …)      │
+                            └───────────────────────────────────────┘
+                                          │
+                                          ▼
+                              ┌───────────────────────┐
+                              │   RunSummary (ordered) │
+                              └───────────────────────┘
+                                          │
+                        ┌─────────────────┼─────────────────┐
+                        ▼                 ▼                 ▼
+                     GATES            REPORTERS         EXIT CODE
+                 pass_rate,       terminal / json /   0 = passed
+                 mean_score       junit / --html      1 = anything else
+                 (+ baseline diff)                    (+ gates, + baseline)
+```
+
+- The **target** runs once per case; cacheable targets consult the cassette
+  first (see [Record / replay](/evalcore/guides/record-replay/)).
+- Every **scorer** runs on every case's output.
+- **Gates** and the **baseline** diff are computed over the whole `RunSummary`
+  after the last case finishes.
+- **Reporters** are pure functions of the summary; the **exit code** folds the
+  per-case, baseline, and gate verdicts together.
+
 ## Targets — what's evaluated
 
 A target is the thing under test. You select one per run (with `--target <name>`
-when a suite defines several). There are four types:
+when a suite defines several; with one target it is implicit). There are four
+types:
 
 | Type | What it does |
 |---|---|
@@ -30,18 +71,20 @@ targets:
 ```
 
 Secrets never live in the YAML: `api_key_env` names an environment variable,
-resolved at run time.
+resolved at run time. Full field-by-field docs are in the
+[configuration reference](/evalcore/reference/configuration/).
 
 ## Datasets — the inputs
 
 Datasets are JSONL files, one test case per line, merged in listed order. Each
-case has an `id` and, depending on the target, an `input` or a `trace`:
+case has an `id` and, depending on the target, an `input` (and optionally an
+`expected`, used by `exact` and passed to `subprocess`/`judge` scorers):
 
 ```jsonl
 {"id": "refund-1", "input": "How do I get a refund for my order?"}
 ```
 
-For `trace` targets, each case names a trace file instead:
+For `trace` targets, each case names a trace file instead of an input:
 
 ```jsonl
 {"id": "refund-flow", "trace": "traces/run1.json"}
@@ -61,12 +104,15 @@ to fully custom:
   `{"input", "output", "expected"}` as JSON on stdin and prints
   `{"score": 0.0..=1.0, "passed"?: bool, "reason"?: string}` on stdout. Write
   scorers in Python, Node, Go — anything that reads stdin and writes stdout.
+  See [Custom scorers](/evalcore/guides/custom-scorers/).
 - **`judge`** — LLM-as-judge. Grades the output against a `rubric` using any
   OpenAI-compatible endpoint, with a configurable pass `threshold`. Judge calls
   go through the record/replay cache, so replayed verdicts are deterministic —
-  which is what makes LLM-graded suites usable as CI gates.
+  which is what makes LLM-graded suites usable as CI gates. See
+  [LLM-as-judge](/evalcore/guides/llm-as-judge/).
 - **`trajectory`** — asserts on an agent's path (tool calls, ordering, step
-  budget). Requires a `trace` target.
+  budget). Requires a `trace` target. See
+  [Agents and traces](/evalcore/guides/agents-and-traces/).
 
 ```yaml
 scorers:
@@ -98,30 +144,65 @@ run:
       min: 0.8
 ```
 
-- **`concurrency`** bounds how many cases run at once (default 4).
+- **`concurrency`** bounds how many cases run at once (default 4). It never
+  changes results — order is preserved regardless.
 - **`budget_usd`** stops dispatching new cases once accumulated cost reaches the
   cap (requires the target to declare `cost` rates). Skipped cases are reported
-  as failures with a reason — the run completes rather than aborting.
+  as failures with a reason — the run completes rather than aborting. See
+  [Cost and budgets](/evalcore/guides/cost-and-budgets/).
 - **`gates`** are absolute floors over the whole run — `pass_rate` (fraction of
   cases passing every scorer, in `[0,1]`) and `mean_score` (mean scorer value,
-  optionally restricted to one `scorer`). They are additive to the per-case
-  contract. See [Running in CI](/evalcore/guides/running-in-ci/).
+  optionally restricted to one `scorer`). See
+  [Gates and baselines](/evalcore/guides/gates-and-baselines/).
 
 ## The exit-code contract
 
-`evalcore run` exits **`0` when every case passes** and **`1` otherwise**. With
-`--baseline`, the contract flips to "no regressions" (accepted failures are
-tolerated). `run.gates` are additive on top: dropping below any floor also
-exits `1`. Users gate CI on this exit code — nothing else.
+`evalcore run` exits **`0` when every case passes** and **`1` otherwise**. Two
+mechanisms extend that contract additively:
+
+- With `--baseline`, the contract flips to "no regressions" — failures already
+  accepted into the baseline are tolerated, but a regression or a new failing
+  case exits `1`.
+- `run.gates` add absolute floors — dropping below any floor also exits `1`,
+  even when it is not a per-case failure or a regression.
+
+Users gate CI on this exit code — nothing else. The full truth table is in
+[Gates and baselines](/evalcore/guides/gates-and-baselines/).
 
 ## Failures are data
 
-A run never panics and one bad case never aborts the suite:
+A run never panics and one bad case never aborts the suite. Errors are captured
+and reported, not thrown:
 
-- A **target error** (a 500, a timeout, a budget skip) becomes a failed case
-  with a reason.
+- A **target error** (a 500, a timeout, a budget skip, a replay cache miss)
+  becomes a failed case with the error as its reason and no scores:
+
+  ```text
+  FAIL new
+       target error: cache miss for case "new" in replay mode — record it first with --cache auto (or live)
+  ```
+
 - A **scorer error** (a subprocess that crashes, an un-parseable judge verdict)
-  becomes a failing score with a reason.
+  becomes a *failing score* with a reason — the other scorers on that case still
+  run.
 
-The run always finishes, reports every case in order, and lets the exit code
-carry the verdict. That is why an eval suite is safe to run unattended in CI.
+The run always finishes, reports every case in dataset order, and lets the exit
+code carry the verdict. That is why an eval suite is safe to run unattended in
+CI: a flaky endpoint produces a red build with an explanation, never a hang or a
+stack trace.
+
+## Determinism is the product
+
+Identical inputs produce identical outputs everywhere. This is not a nice-to-have
+— it is what makes an eval suite a *test* rather than a dashboard:
+
+- Results stay in **dataset order**, no matter the concurrency.
+- Reporters are **pure functions** of the run summary — the same summary renders
+  byte-for-byte identical terminal, JSON, JUnit, and HTML output.
+- Nothing user-visible reads the clock except latency measurement.
+- The **record/replay cache** is built on this: cache keys hash the canonical
+  request, so the *same* request always replays the *same* recorded response.
+  Change the model, prompt, params, or input and the key changes — a stale
+  recording can never masquerade as a fresh one. See
+  [Record / replay](/evalcore/guides/record-replay/) and the
+  [cache and determinism reference](/evalcore/reference/cache-and-determinism/).

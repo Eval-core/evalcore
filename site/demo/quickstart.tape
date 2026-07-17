@@ -1,54 +1,63 @@
-# EvalCore quickstart demo — charmbracelet VHS tape.
+# Rendered with: vhs site/demo/quickstart.tape   (run from the repo root)
 #
-# This is the source of truth for the hero terminal demo. VHS is NOT installed
-# in the docs build; render it locally and commit the resulting GIF:
+# Hero terminal demo for the EvalCore docs site. Every frame is REAL output
+# from the release binary (target/release/evalcore) run against the shipped,
+# offline examples — no network, no API keys, no faked output.
 #
-#     vhs site/demo/quickstart.tape
-#
-# It runs the shipped, keyless quickstart suite twice: a live record run, then
-# the instant $0 replay from the committed cassette.
-#
+# Prereq:  cargo build --release -p evalcore   (repo root)
 # Install VHS: https://github.com/charmbracelet/vhs
 
-Output quickstart.gif
+Output site/public/casts/quickstart.gif
+Output site/public/casts/quickstart.webm
 
-Set FontSize 18
-Set Width 1200
-Set Height 640
-Set Padding 24
-Set Theme "Dracula"
-Set TypingSpeed 60ms
+Set Shell "bash"
+Set FontSize 16
+Set Width 1000
+Set Height 700
+Set Padding 20
+Set Theme "Catppuccin Mocha"
+Set TypingSpeed 38ms
+Set Framerate 24
 Set PlaybackSpeed 1.0
 
-# --- First run: record live ---
-Type "# First run: record every LLM call into a local cassette"
+# Pin `evalcore` to the freshly built release binary and use a clean prompt,
+# without showing the plumbing on screen. Aliasing the absolute path (rather
+# than prepending PATH) guarantees a missing build errors loudly instead of
+# silently falling through to a stale globally-installed evalcore.
+Hide
+Type 'export PS1="$ "'
 Enter
-Sleep 800ms
-Type "evalcore run evals.yaml --cache live"
+Type 'alias evalcore="$PWD/target/release/evalcore"'
 Enter
-Sleep 2s
-
-# (Output, illustrative)
-# PASS refund-1 (612ms)
-# PASS refund-2 (588ms)
-#
-# 2 passed, 0 failed, 2 total · 1240 tokens · $0.0006
-
-Sleep 2s
+Type "clear"
 Enter
+Show
 
-# --- Second run: replay, offline, $0 ---
-Type "# Second run: replay from the cassette — offline, deterministic, $0"
+Sleep 500ms
+Type "# A suite is one YAML file: a target, a dataset, and scorers."
 Enter
-Sleep 800ms
-Type "evalcore run evals.yaml --cache replay"
+Sleep 400ms
+Type "cat examples/quickstart/evals.yaml"
 Enter
-Sleep 1500ms
-
-# (Output, illustrative)
-# PASS refund-1 (0ms)
-# PASS refund-2 (0ms)
-#
-# 2 passed, 0 failed, 2 total · 1240 tokens · $0.0000
-
 Sleep 3s
+
+Type "# Run it — the shell (cat) target needs no network and no keys."
+Enter
+Sleep 400ms
+Type "evalcore run examples/quickstart/evals.yaml"
+Enter
+Sleep 3s
+
+Type "# Same command, applied to a recorded agent: grade the answer AND the path."
+Enter
+Sleep 400ms
+Type "evalcore run examples/agent-trace/evals.yaml"
+Enter
+Sleep 3.5s
+
+Type "# Exit 0 = everything passed. Gate CI on it."
+Enter
+Sleep 400ms
+Type "echo $?"
+Enter
+Sleep 2.5s

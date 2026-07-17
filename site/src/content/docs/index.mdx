@@ -1,14 +1,21 @@
 ---
 title: Snapshot testing for AI behavior
-description: Deterministic AI evals in CI — record/replay caching, any language, agent traces. A single-binary, config-first eval runner for LLM apps and agents.
+description: Deterministic AI evals in CI — record/replay cassettes for $0 offline runs, any language, agent trajectories from OTel traces, gates & baselines, and self-contained HTML reports. A single-binary, config-first eval runner.
 template: splash
 hero:
-  tagline: Deterministic AI evals in CI — record/replay caching, any language, agent traces.
+  image:
+    file: ../../assets/logo.svg
+    alt: EvalCore
+  tagline: Record your LLM and agent evals once, then replay them byte-for-byte in CI — deterministic, offline, and $0. One binary, config-first, any language.
   actions:
     - text: Get started
       link: getting-started/quickstart/
       icon: right-arrow
       variant: primary
+    - text: Install
+      link: getting-started/installation/
+      icon: down-caret
+      variant: secondary
     - text: GitHub
       link: https://github.com/eval-core/evalcore
       icon: external
@@ -17,56 +24,135 @@ hero:
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-An eval suite is a YAML file plus a JSONL dataset. This one evaluates a `cat`
-echo target, so it runs with no network and no API keys:
+<figure class="ec-cast">
+	<img
+		src="/evalcore/casts/quickstart.gif"
+		alt="Terminal recording: evalcore records an eval suite to a local cassette, then replays it instantly at $0."
+		width="920"
+		height="575"
+		loading="lazy"
+	/>
+	<figcaption>Record once, then replay forever — the same run, offline and free.</figcaption>
+</figure>
 
-```sh
-# Install
-cargo install evalcore
+## How it works
 
-# Run the shipped example (no API keys, no network)
-evalcore run examples/quickstart/evals.yaml
-```
+Three steps: describe the suite as data, run it once against the real model, then
+replay the recorded cassette in CI forever.
+
+### 1 · Describe the suite in YAML
+
+An eval is a YAML file plus a JSONL dataset — no SDK, no test harness to write.
+Point a target at your app, list the datasets, and stack scorers. Here a `contains`
+check and an [LLM-as-judge](/evalcore/guides/llm-as-judge/) grade every case:
 
 ```yaml
 # evals.yaml
 targets:
-  echo:
-    type: shell
-    cmd: "cat"
+  support-bot:
+    type: openai-compatible
+    url: https://api.openai.com/v1
+    model: gpt-4.1-mini
+    api_key_env: OPENAI_API_KEY
 datasets:
   - file: cases.jsonl
 scorers:
   - type: contains
-    value: "refund"
+    value: refund
     case_sensitive: false
+  - type: judge
+    url: https://api.openai.com/v1
+    model: gpt-4.1
+    rubric: Is the answer grounded in the retrieved context?
+    api_key_env: OPENAI_API_KEY
+    threshold: 0.7
 ```
 
-`evalcore run` exits `0` when every case passes and `1` otherwise — it drops
-straight into CI.
+### 2 · Run it once, live
 
-<CardGrid stagger>
-	<Card title="Deterministic in CI" icon="approve-check">
-		Every LLM call is recorded to a local SQLite cassette and replayed
-		byte-for-byte. Commit the cassette; CI runs `--cache replay` at **$0**,
-		offline, with no flaky judges and no API keys.
+`--cache record` calls the model for real and writes every request/response to a
+local SQLite cassette. Token usage and cost come back per case when the target
+declares `cost` rates:
+
+```ansi
+$ evalcore run evals.yaml --cache record
+support-bot · refund-1  ✓ contains  ✓ judge 0.86    1,204 tok   $0.0021
+support-bot · refund-2  ✓ contains  ✓ judge 0.79      998 tok   $0.0017
+
+2 passed · 0 failed · 2,202 tokens · $0.0038
+cassette → .evalcore/cache.db
+```
+
+### 3 · Replay forever in CI — $0, offline, deterministic
+
+Commit the cassette. Now CI runs `--cache replay`: every call is served from the
+recording, so there is no network, no API key, and no flaky judge. `--baseline main`
+fails only on regressions, not on accepted failures. `evalcore run` exits `0` when
+everything passes and `1` otherwise, so CI gates on it directly:
+
+```yaml
+# .github/workflows/evals.yml
+name: evals
+on: pull_request
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: eval-core/evalcore@v0.5.0
+      - run: evalcore run evals.yaml --cache replay --baseline main
+```
+
+## Everything you need
+
+<CardGrid>
+	<Card title="Record / replay cassettes" icon="approve-check">
+		Every model call is recorded to a local SQLite cassette keyed on a hash of
+		the canonical request. Commit it and CI runs `--cache replay` byte-for-byte
+		at **$0**, offline, with no API keys and no flaky judges.
 	</Card>
 	<Card title="Any language" icon="seti:shell">
-		Targets speak HTTP or shell; custom scorers speak JSON over stdin/stdout;
-		judges are any OpenAI-compatible endpoint. Rust is the engine, never the
-		interface — you never write Rust.
+		Protocols over SDKs. Targets speak `openai-compatible`, `http`, or `shell`;
+		custom scorers speak JSON over stdin/stdout; judges are any OpenAI-compatible
+		endpoint. Rust is the engine — you never write Rust.
 	</Card>
 	<Card title="Agent trajectories" icon="random">
-		Ingest recorded OTel/OpenInference traces and grade **the answer and the
-		path** in one suite: `must_call` / `must_not_call` ordering rules, step
-		budgets, and final-answer grading.
+		Feed recorded OTel / OpenInference traces to a `trace` target and grade the
+		path with a `trajectory` scorer: `must_call` / `must_not_call` ordering,
+		`max_steps` budgets, plus final-answer grading in the same suite.
 	</Card>
 	<Card title="Gates & baselines" icon="rocket">
-		Block regressions, not imperfection. `--baseline` tolerates accepted
-		failures and fails only on regressions; `run.gates` adds pass-rate and
-		mean-score floors over the whole run.
+		Block regressions, not imperfection. `--baseline` tolerates accepted failures
+		and fails only on new ones; `run.gates` adds `pass_rate` and `mean_score`
+		floors across the whole run.
+	</Card>
+	<Card title="Cost tracking & budgets" icon="setting">
+		Declare `cost` input/output rates and get per-case tokens and dollars.
+		`run.budget_usd` stops scheduling new cases once the run hits its cap —
+		replayed runs count their recorded virtual cost too.
+	</Card>
+	<Card title="HTML reports" icon="document">
+		Emit a single self-contained HTML file — every case, score, and diff inline,
+		no assets to host. Drop it into CI artifacts and open the run in a browser.
 	</Card>
 </CardGrid>
 
-**No telemetry. No signup. Local SQLite.** Results live in `.evalcore/` next to
-your repo — there is no server and nothing to sign up for.
+## Works with your stack
+
+<ul class="ec-stack">
+	<li>OpenAI</li>
+	<li>vLLM</li>
+	<li>Ollama</li>
+	<li>Any OpenAI-compatible gateway</li>
+	<li>Your own REST APIs</li>
+	<li>Shell commands</li>
+	<li>OTel / OpenInference traces</li>
+</ul>
+
+<div class="ec-closing">
+	<p>
+		<strong>No telemetry. No signup. No server.</strong> One binary, with results
+		in SQLite next to your repo — nothing to host and nothing to sign up for.
+	</p>
+	<code>cargo install evalcore</code>
+</div>
