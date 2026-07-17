@@ -1,0 +1,83 @@
+# GitHub Action: run an EvalCore suite and gate CI on the result.
+#
+#   - uses: eval-core/evalcore@v0.3.0
+#     with:
+#       config: evals/evals.yaml
+#       args: --cache replay --baseline main
+#
+# Installs a prebuilt release binary (Linux x64, macOS x64/arm64), falling
+# back to `cargo install` on other runners or when no release matches. The
+# terminal report lands in the job's step summary; the run's exit code
+# (0 = gate passed) is the action's exit code.
+name: "EvalCore"
+description: "Snapshot testing for AI behavior — run an eval suite and gate CI on regressions"
+branding:
+  icon: check-circle
+  color: purple
+
+inputs:
+  config:
+    description: "Path to the evals.yaml suite"
+    required: true
+  args:
+    description: "Extra arguments for `evalcore run` (e.g. --cache replay --baseline main)"
+    required: false
+    default: ""
+  version:
+    description: "EvalCore release tag to install (e.g. v0.3.0), or 'latest'"
+    required: false
+    default: "latest"
+
+runs:
+  using: composite
+  steps:
+    - name: Install evalcore
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        if command -v evalcore >/dev/null 2>&1; then
+          echo "evalcore already on PATH: $(evalcore --version)"
+          exit 0
+        fi
+
+        TAG="${{ inputs.version }}"
+        if [ "$TAG" = "latest" ]; then
+          TAG=$(gh release view --repo eval-core/evalcore --json tagName --jq .tagName 2>/dev/null || echo "")
+        fi
+        case "${{ runner.os }}-${{ runner.arch }}" in
+          Linux-X64)   TARGET="x86_64-unknown-linux-gnu" ;;
+          macOS-ARM64) TARGET="aarch64-apple-darwin" ;;
+          macOS-X64)   TARGET="x86_64-apple-darwin" ;;
+          *)           TARGET="" ;;
+        esac
+
+        BIN_DIR="$RUNNER_TEMP/evalcore-bin"
+        mkdir -p "$BIN_DIR"
+        if [ -n "$TAG" ] && [ -n "$TARGET" ] && \
+           curl -fsSL "https://github.com/eval-core/evalcore/releases/download/$TAG/evalcore-$TAG-$TARGET.tar.gz" \
+             -o "$RUNNER_TEMP/evalcore.tar.gz"; then
+          tar xzf "$RUNNER_TEMP/evalcore.tar.gz" -C "$BIN_DIR"
+          echo "installed evalcore $TAG ($TARGET) from release binary"
+        else
+          echo "no release binary available (tag: '$TAG', target: '$TARGET'); building via cargo install"
+          cargo install evalcore --locked --root "$RUNNER_TEMP/evalcore-install"
+          cp "$RUNNER_TEMP/evalcore-install/bin/evalcore" "$BIN_DIR/"
+        fi
+        echo "$BIN_DIR" >> "$GITHUB_PATH"
+
+    - name: Run eval suite
+      shell: bash
+      run: |
+        set +e
+        evalcore run "${{ inputs.config }}" ${{ inputs.args }} | tee "$RUNNER_TEMP/evalcore-report.txt"
+        code=${PIPESTATUS[0]}
+        {
+          echo "## EvalCore"
+          echo ""
+          echo '```'
+          cat "$RUNNER_TEMP/evalcore-report.txt"
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+        exit "$code"

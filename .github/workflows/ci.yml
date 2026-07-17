@@ -49,3 +49,19 @@ jobs:
           name: junit-results
           path: target/nextest/ci/junit.xml
           if-no-files-found: ignore
+
+  action-smoke:
+    name: GitHub Action smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Dogfood the composite action against the quickstart (no network).
+      # Falls back to `cargo install` until a release binary exists.
+      - uses: ./
+        with:
+          config: examples/quickstart/evals.yaml
+
+      - uses: ./
+        with:
+          config: examples/agent-trace/evals.yaml

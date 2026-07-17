@@ -4,6 +4,23 @@
 
 > Status: early scaffold (pre-0.1). See [PRD.md](PRD.md) for the full product plan.
 
+## Install
+
+```sh
+cargo install evalcore                 # from crates.io
+# or grab a prebuilt binary (Linux x64, macOS x64/arm64):
+#   https://github.com/eval-core/evalcore/releases
+```
+
+In GitHub Actions, one step runs a suite and gates the job (report lands in the step summary):
+
+```yaml
+- uses: eval-core/evalcore@v0.3.0
+  with:
+    config: evals/evals.yaml
+    args: --cache replay --baseline main
+```
+
 ## Quickstart
 
 ```sh
