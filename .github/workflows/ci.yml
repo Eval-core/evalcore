@@ -56,8 +56,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Dogfood the composite action against the quickstart (no network).
-      # Falls back to `cargo install` until a release binary exists.
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Build THIS commit's binary onto PATH so the action smoke-tests the
+      # repo's own code (the action skips install when evalcore is present).
+      # Released binaries are what external users exercise.
+      - name: Build local evalcore
+        run: cargo install --path crates/evalcore --locked
+
       - uses: ./
         with:
           config: examples/quickstart/evals.yaml
