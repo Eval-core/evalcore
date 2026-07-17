@@ -294,6 +294,7 @@ mod tests {
                 scores: vec![],
                 cost_usd: None,
             }],
+            gates: Vec::new(),
         };
         let newer = RunSummary {
             results: vec![evalcore_core::CaseResult {
@@ -303,6 +304,7 @@ mod tests {
                 scores: vec![],
                 cost_usd: None,
             }],
+            gates: Vec::new(),
         };
         store.save_baseline("main", &older).unwrap();
         store.save_baseline("main", &newer).unwrap();

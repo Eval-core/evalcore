@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::gates::GateResult;
 use crate::trace::Trajectory;
 
 /// One test case from a dataset.
@@ -120,6 +121,13 @@ impl CaseResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunSummary {
     pub results: Vec<CaseResult>,
+    /// Suite-level gate outcomes, populated by the CLI before reporting.
+    /// Empty (and omitted from JSON) for runs without gates, so pre-existing
+    /// baseline rows — which persist `RunSummary` JSON — still deserialize
+    /// (→ empty) and re-serialize byte-identically. Baseline comparison
+    /// ignores this field; it compares per-case results only.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub gates: Vec<GateResult>,
 }
 
 impl RunSummary {
@@ -202,6 +210,26 @@ mod tests {
         assert_eq!(
             reserialized, old_shape,
             "None trajectory must not add bytes to the recorded shape"
+        );
+    }
+
+    #[test]
+    fn run_summary_gates_is_baseline_backcompat() {
+        // Baseline rows persist RunSummary JSON and predate the `gates` field:
+        // old rows must deserialize (→ empty vec), and an empty `gates` must
+        // serialize to the SAME bytes as before the field existed — otherwise
+        // stored baselines would silently stop round-tripping.
+        let old_shape = r#"{"results":[]}"#;
+        let summary: RunSummary = serde_json::from_str(old_shape).unwrap();
+        assert!(
+            summary.gates.is_empty(),
+            "absent field deserializes to empty"
+        );
+
+        let reserialized = serde_json::to_string(&summary).unwrap();
+        assert_eq!(
+            reserialized, old_shape,
+            "empty gates must not add bytes to the recorded shape"
         );
     }
 }

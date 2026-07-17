@@ -151,6 +151,34 @@ impl EvalConfig {
                 }
             }
         }
+        for gate in &self.run.gates {
+            match gate {
+                GateConfig::PassRate { min } => {
+                    if !min.is_finite() || *min < 0.0 || *min > 1.0 {
+                        return Err(ConfigError::Invalid(format!(
+                            "run.gates: pass_rate min must be within [0, 1], got {min}"
+                        )));
+                    }
+                }
+                GateConfig::MeanScore { scorer, min } => {
+                    if !min.is_finite() {
+                        return Err(ConfigError::Invalid(format!(
+                            "run.gates: mean_score min must be finite, got {min}"
+                        )));
+                    }
+                    // A scorer name that no configured scorer produces is a
+                    // typo — fail fast rather than silently gating on nothing.
+                    if let Some(scorer) = scorer {
+                        if !self.scorers.iter().any(|s| s.type_name() == scorer) {
+                            return Err(ConfigError::Invalid(format!(
+                                "run.gates: mean_score scorer {scorer:?} is not among the \
+                                 configured scorers"
+                            )));
+                        }
+                    }
+                }
+            }
+        }
         Ok(())
     }
 }
@@ -249,6 +277,14 @@ pub struct RunConfig {
     /// so replayed runs count their recorded (virtual) cost too.
     #[serde(default)]
     pub budget_usd: Option<f64>,
+    /// Suite-level aggregate gates — absolute floors on the whole run, checked
+    /// after every case runs. They are additive to the per-case and baseline
+    /// contracts: a run exits non-zero if any case fails (or, with
+    /// `--baseline`, regresses) *or* any gate falls below its floor. Empty by
+    /// default. Evaluated in list order. JUnit output is unchanged in v1 — the
+    /// exit code carries the gate outcome for CI.
+    #[serde(default)]
+    pub gates: Vec<GateConfig>,
 }
 
 impl Default for RunConfig {
@@ -256,8 +292,37 @@ impl Default for RunConfig {
         Self {
             concurrency: default_concurrency(),
             budget_usd: None,
+            gates: Vec::new(),
         }
     }
+}
+
+/// One suite-level aggregate gate. Gates express CI acceptance criteria over
+/// the whole run rather than per case, e.g. "at least 95% of cases pass" or
+/// "the judge's mean score is at least 0.8". Floors compare with a `1e-9`
+/// absolute tolerance, so a run that exactly meets its floor is not failed by
+/// floating-point rounding.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum GateConfig {
+    /// Fraction of cases passing every scorer must be at least `min`
+    /// (`min` in `[0, 1]`). Target-error cases count in the denominator —
+    /// failures are data — so an error storm sinks this gate.
+    PassRate { min: f64 },
+    /// Mean of scorer `Score.value` must be at least `min` (`min` any finite
+    /// `f64`; subprocess scorers may use arbitrary scales). With `scorer` set,
+    /// only that scorer type's scores are averaged; omitted, all scores are.
+    ///
+    /// Cases whose target errored produce no scores, so they contribute
+    /// nothing to the mean — pair a `mean_score` gate with a `pass_rate` gate
+    /// to catch error storms that would otherwise leave a high mean intact.
+    MeanScore {
+        /// Scorer type to restrict the mean to (a config `type:` tag, e.g.
+        /// `judge`, `contains`). Omitted: average across all scorers.
+        #[serde(default)]
+        scorer: Option<String>,
+        min: f64,
+    },
 }
 
 fn default_concurrency() -> usize {
@@ -441,6 +506,22 @@ pub enum ScorerConfig {
         #[serde(default = "default_judge_threshold")]
         threshold: f64,
     },
+}
+
+impl ScorerConfig {
+    /// The config `type:` tag for this scorer (e.g. `"contains"`, `"judge"`).
+    /// This is the name that appears in `Score.scorer` and that a
+    /// `mean_score` gate's `scorer` field references.
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            ScorerConfig::Contains { .. } => "contains",
+            ScorerConfig::Regex { .. } => "regex",
+            ScorerConfig::Exact { .. } => "exact",
+            ScorerConfig::Subprocess { .. } => "subprocess",
+            ScorerConfig::Trajectory { .. } => "trajectory",
+            ScorerConfig::Judge { .. } => "judge",
+        }
+    }
 }
 
 fn default_true() -> bool {
@@ -740,6 +821,98 @@ scorers:
                 ));
             }
             other => panic!("expected trajectory scorer, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn gates_default_to_empty() {
+        let yaml = r#"
+targets:
+  echo: { type: shell, cmd: "cat" }
+datasets: [{ file: cases.jsonl }]
+scorers: [{ type: exact }]
+"#;
+        let config = EvalConfig::from_yaml_str(yaml).unwrap();
+        assert!(config.run.gates.is_empty());
+    }
+
+    #[test]
+    fn parses_both_gate_types() {
+        let yaml = r#"
+targets:
+  echo: { type: shell, cmd: "cat" }
+datasets: [{ file: cases.jsonl }]
+scorers:
+  - type: contains
+    value: refund
+  - type: judge
+    url: https://api.openai.com/v1
+    model: judge-model
+    rubric: "grounded?"
+run:
+  gates:
+    - type: pass_rate
+      min: 0.95
+    - type: mean_score
+      min: 0.5
+    - type: mean_score
+      scorer: judge
+      min: 0.8
+"#;
+        let config = EvalConfig::from_yaml_str(yaml).unwrap();
+        assert_eq!(config.run.gates.len(), 3);
+        assert!(matches!(
+            config.run.gates[0],
+            GateConfig::PassRate { min } if min == 0.95
+        ));
+        assert!(matches!(
+            &config.run.gates[1],
+            GateConfig::MeanScore { scorer: None, min } if *min == 0.5
+        ));
+        assert!(matches!(
+            &config.run.gates[2],
+            GateConfig::MeanScore { scorer: Some(s), min } if s == "judge" && *min == 0.8
+        ));
+    }
+
+    #[test]
+    fn rejects_invalid_gates() {
+        // (run.gates block, fragment the error must mention)
+        let cases = [
+            (
+                r#"    - type: pass_rate
+      min: 1.5"#,
+                "pass_rate min must be within [0, 1]",
+            ),
+            (
+                r#"    - type: pass_rate
+      min: -0.1"#,
+                "pass_rate min must be within [0, 1]",
+            ),
+            (
+                r#"    - type: mean_score
+      min: .nan"#,
+                "mean_score min must be finite",
+            ),
+            (
+                r#"    - type: mean_score
+      scorer: telepathy
+      min: 0.8"#,
+                "not among the configured scorers",
+            ),
+        ];
+        for (block, fragment) in cases {
+            let yaml = format!(
+                "targets:\n  echo: {{ type: shell, cmd: \"cat\" }}\n\
+                 datasets: [{{ file: cases.jsonl }}]\n\
+                 scorers: [{{ type: exact }}]\n\
+                 run:\n  gates:\n{block}\n"
+            );
+            let err = EvalConfig::from_yaml_str(&yaml).unwrap_err().to_string();
+            assert!(
+                err.contains(fragment),
+                "block {block:?} should be rejected mentioning {fragment:?}, got: {err}"
+            );
         }
     }
 

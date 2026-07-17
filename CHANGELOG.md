@@ -7,6 +7,17 @@ All notable changes to EvalCore. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- **Suite-level aggregate gates**: `run.gates` declares absolute floors over a
+  whole run as CI acceptance criteria — `pass_rate` (fraction of cases passing
+  every scorer, in `[0,1]`) and `mean_score` (mean of scorer values, optionally
+  restricted to one `scorer`). Gates are additive to the existing contract: a
+  run exits `1` if any case fails (or, with `--baseline`, regresses) *or* any
+  gate falls below its floor — so an accepted baseline failure stays tolerated
+  per-case yet still sinks a `pass_rate` gate it drops below. Target-error cases
+  count in `pass_rate`'s denominator but add no scores to `mean_score` (pair the
+  two to catch error storms). Outcomes print after the summary (`GATE PASS
+  pass_rate >= 0.95 (actual 1.00)`) and ride along in the JSON report; JUnit is
+  unchanged (the exit code carries the gate result).
 - **Final-answer extraction from agent traces**: a `trace` target now grades
   the agent's actual answer, not the trajectory JSON. The native format gains an
   optional top-level `final_output` string, and OTel exports extract the final

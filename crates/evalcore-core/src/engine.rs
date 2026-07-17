@@ -63,7 +63,11 @@ pub async fn run_suite(
         .buffered(options.concurrency.max(1))
         .collect()
         .await;
-    RunSummary { results }
+    // Gates are evaluated by the CLI after the run; the engine leaves them empty.
+    RunSummary {
+        results,
+        gates: Vec::new(),
+    }
 }
 
 async fn run_case(target: &dyn Target, scorers: &[Box<dyn Scorer>], case: TestCase) -> CaseResult {

@@ -237,7 +237,14 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         budget_usd: config.run.budget_usd,
         cost_rates,
     };
-    let summary = run_suite(target.as_ref(), cases, &scorers, options).await;
+    let mut summary = run_suite(target.as_ref(), cases, &scorers, options).await;
+    // Suite-level gates are evaluated in the core (wiring stays wiring): the
+    // pure function computes the outcomes, which ride along in the summary for
+    // reporting and, below, fold into the exit code.
+    summary.gates = evalcore_core::evaluate_gates(&config.run.gates, &summary);
+    // Capture the gate verdict now: the summary's gates are cleared before it
+    // is persisted as a baseline (baselines are pure per-case snapshots).
+    let gates_passed = summary.gates.iter().all(|g| g.passed);
 
     let rendered = match reporter {
         Reporter::Terminal => evalcore_report::terminal(&summary),
@@ -263,7 +270,9 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
     // failures already accepted into the baseline don't fail CI.
     let mut gate_passed = summary.all_passed();
     if let Some(label) = baseline {
-        let store = store.as_ref().expect("store opened for baseline");
+        let store = store
+            .as_ref()
+            .context("--baseline requires the history store, which was not opened")?;
         let baseline_run = store.load_baseline(label)?.with_context(|| {
             format!("no baseline {label:?} found — record one with --save-baseline {label}")
         })?;
@@ -277,13 +286,26 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         gate_passed = !diff.gate_failed();
     }
     if let Some(label) = save_baseline {
-        let store = store.as_ref().expect("store opened for baseline");
+        let store = store
+            .as_ref()
+            .context("--save-baseline requires the history store, which was not opened")?;
+        // A baseline is a pure per-case snapshot; gate results are run-scoped
+        // acceptance criteria, not case data, so they never enter stored
+        // history (and old rows have no gates field — kept byte-compatible).
+        summary.gates = Vec::new();
         store.save_baseline(label, &summary)?;
         eprintln!(
             "saved baseline {label:?} ({}/{} passed)",
             summary.passed(),
             summary.total()
         );
+    }
+
+    // Suite gates are absolute floors, additive to whichever contract applied
+    // above: with --baseline, accepted failures stay tolerated, but slipping
+    // below a gate floor still fails the run even when it isn't a regression.
+    if !gates_passed {
+        gate_passed = false;
     }
 
     Ok(if gate_passed {

@@ -31,6 +31,18 @@ pub fn terminal(summary: &RunSummary) -> String {
         summary.failed(),
         summary.total()
     ));
+    // Suite-level gate outcomes, one line each. Absent when no gates are
+    // configured, so gate-free runs render byte-identically to before.
+    for gate in &summary.gates {
+        let status = if gate.passed { "PASS" } else { "FAIL" };
+        out.push_str(&format!(
+            "GATE {status} {} (actual {:.2})\n",
+            gate.gate, gate.actual
+        ));
+        if let Some(reason) = &gate.reason {
+            out.push_str(&format!("     {reason}\n"));
+        }
+    }
     out
 }
 
@@ -113,7 +125,7 @@ fn xml_escape(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use evalcore_core::{CaseResult, Score, TargetOutput, TokenUsage};
+    use evalcore_core::{CaseResult, GateResult, Score, TargetOutput, TokenUsage};
 
     /// Fixture with fixed latencies/tokens so every reporter output is
     /// deterministic.
@@ -168,12 +180,74 @@ mod tests {
                     cost_usd: None,
                 },
             ],
+            gates: Vec::new(),
         }
+    }
+
+    /// The fixture plus a passing and a failing gate, for the gates section.
+    fn fixture_with_gates() -> RunSummary {
+        let mut summary = fixture();
+        summary.gates = vec![
+            GateResult {
+                gate: "pass_rate >= 0.3".into(),
+                actual: 0.333_333_333_333_333_3,
+                passed: true,
+                reason: None,
+            },
+            GateResult {
+                gate: "mean_score(contains) >= 0.8".into(),
+                actual: 0.5,
+                passed: false,
+                reason: None,
+            },
+            // A gate that could not be measured carries a reason line, pinning
+            // the indented reason rendering.
+            GateResult {
+                gate: "mean_score(judge) >= 0.7".into(),
+                actual: 0.0,
+                passed: false,
+                reason: Some("no scores from scorer \"judge\"".into()),
+            },
+        ];
+        summary
     }
 
     #[test]
     fn terminal_report_snapshot() {
         insta::assert_snapshot!(terminal(&fixture()));
+    }
+
+    #[test]
+    fn terminal_report_with_gates_snapshot() {
+        insta::assert_snapshot!(terminal(&fixture_with_gates()));
+    }
+
+    #[test]
+    fn json_includes_gates_when_present() {
+        let rendered = json(&fixture_with_gates()).unwrap();
+        assert!(
+            rendered.contains("\"gates\""),
+            "gates array must ride along"
+        );
+        let parsed: RunSummary = serde_json::from_str(&rendered).unwrap();
+        assert_eq!(parsed.gates.len(), 3);
+        assert_eq!(parsed.gates[0].gate, "pass_rate >= 0.3");
+        assert!(parsed.gates[0].passed);
+        assert!(!parsed.gates[1].passed);
+        assert_eq!(
+            parsed.gates[2].reason.as_deref(),
+            Some("no scores from scorer \"judge\"")
+        );
+    }
+
+    #[test]
+    fn json_omits_gates_when_empty() {
+        // Byte-level guarantee: a gate-free summary must not gain a "gates" key.
+        let rendered = json(&fixture()).unwrap();
+        assert!(
+            !rendered.contains("\"gates\""),
+            "empty gates must be omitted"
+        );
     }
 
     #[test]
@@ -220,6 +294,7 @@ mod tests {
                     cost_usd: None,
                 },
             ],
+            gates: Vec::new(),
         };
         let diff = evalcore_core::compare(&baseline_run, &fixture());
         insta::assert_snapshot!(baseline(&diff, "main"));

@@ -143,6 +143,23 @@ baseline gate: FAIL (1 regressed, 0 new failing)
 
 Combine both flags for a rolling baseline (`--baseline main --save-baseline main`): compare first, then re-record. Baselines live in the same `.evalcore` store as the cache — commit it and CI gates offline.
 
+## Suite gates: floors, not per-case checks
+
+Baselines and per-case scorers ask "did any single case fail?" Enterprises also want a floor over the *whole* run — "at least 95% of cases pass", "the judge's mean score is at least 0.8". Declare aggregate gates under `run`:
+
+```yaml
+run:
+  concurrency: 4
+  gates:
+    - type: pass_rate
+      min: 0.95                # fraction of cases passing all scorers, in [0,1]
+    - type: mean_score
+      scorer: judge            # optional: restrict to that scorer's score; omitted = all scores
+      min: 0.8                 # any finite number (subprocess scorers may use arbitrary scales)
+```
+
+Floors compare with a `1e-9` tolerance to absorb floating-point rounding, so a run that exactly meets its floor passes. Gates are *additive absolute floors*: the run exits `1` if the existing contract fails (any case failed, or with `--baseline` a regression) **or** any gate falls below its floor — so with `--baseline`, an accepted failure stays tolerated per-case, yet still sinks a `pass_rate` gate it drops below. Target-error cases count in `pass_rate`'s denominator but contribute no scores to `mean_score`, so pair a `mean_score` gate with a `pass_rate` gate to catch error storms. Gate outcomes print after the summary (`GATE PASS pass_rate >= 0.95 (actual 1.00)`) and ride along in the JSON report; JUnit is unchanged — the exit code carries the gate result for CI.
+
 ## Agent trajectories: evaluate what the agent *did*
 
 Agents aren't judged by their final answer alone — but the answer still matters. EvalCore ingests **recorded traces** — its own [native trajectory format](docs/trajectory-spec.md) or an OTel/OpenInference JSON export your framework already emits — and grades **the answer and the path in one suite**. No SDK, no integration, any language:

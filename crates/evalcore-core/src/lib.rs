@@ -7,6 +7,7 @@
 pub mod baseline;
 pub mod dataset;
 pub mod engine;
+pub mod gates;
 pub mod http_target;
 pub mod target;
 pub mod trace;
@@ -15,6 +16,7 @@ pub mod types;
 pub use baseline::{compare, BaselineDiff, CaseRegression};
 pub use dataset::load_jsonl;
 pub use engine::{run_suite, RunOptions};
+pub use gates::{evaluate_gates, GateResult};
 pub use http_target::HttpTarget;
 pub use target::{
     build_target, build_target_with, OpenAiCompatTarget, SecretPolicy, ShellTarget, Target,
