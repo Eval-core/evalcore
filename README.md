@@ -78,6 +78,26 @@ run:
 
 Cases skipped by the budget are reported as failures with a reason — the run completes and exits 1 rather than aborting. The terminal summary shows totals: `12 passed, 0 failed, 12 total · 48210 tokens · $0.0341`.
 
+## Baselines: gate on regressions, not perfection
+
+Real eval suites are rarely 100% green — what you actually want to block in CI is *getting worse*. Save an accepted state, then gate against it:
+
+```sh
+evalcore run evals.yaml --save-baseline main     # record the accepted state
+evalcore run evals.yaml --baseline main          # exit 0 iff NO regressions
+```
+
+With `--baseline`, the exit contract changes: failures already present in the baseline are tolerated; a case that regresses (passed → failing) or a new failing case exits 1, with a diff:
+
+```
+baseline "main": 11/12 passed -> current: 10/12 passed
+REGRESSED refund-2
+     judge: answer no longer cites the policy
+baseline gate: FAIL (1 regressed, 0 new failing)
+```
+
+Combine both flags for a rolling baseline (`--baseline main --save-baseline main`): compare first, then re-record. Baselines live in the same `.evalcore` store as the cache — commit it and CI gates offline.
+
 ## Design principles
 
 1. **Protocols over SDKs** — targets speak HTTP or shell, custom scorers speak JSON over stdin/stdout (any language), judges are any OpenAI-compatible endpoint. Rust is the engine, never a requirement.

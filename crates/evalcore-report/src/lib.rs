@@ -65,6 +65,43 @@ pub fn junit(summary: &RunSummary) -> String {
     )
 }
 
+/// Baseline comparison section, appended after the main report (stdout for
+/// terminal runs, stderr when a machine reporter owns stdout).
+pub fn baseline(diff: &evalcore_core::BaselineDiff, label: &str) -> String {
+    let mut out = format!(
+        "\nbaseline {label:?}: {}/{} passed -> current: {}/{} passed\n",
+        diff.baseline_passed, diff.baseline_total, diff.current_passed, diff.current_total
+    );
+    for regression in &diff.regressions {
+        out.push_str(&format!("REGRESSED {}\n", regression.case_id));
+        for reason in &regression.reasons {
+            out.push_str(&format!("     {reason}\n"));
+        }
+    }
+    for new_failing in &diff.new_failing {
+        out.push_str(&format!("NEW FAIL  {}\n", new_failing.case_id));
+        for reason in &new_failing.reasons {
+            out.push_str(&format!("     {reason}\n"));
+        }
+    }
+    for fixed in &diff.fixed {
+        out.push_str(&format!("FIXED     {fixed}\n"));
+    }
+    for removed in &diff.removed {
+        out.push_str(&format!("REMOVED   {removed}\n"));
+    }
+    if diff.gate_failed() {
+        out.push_str(&format!(
+            "baseline gate: FAIL ({} regressed, {} new failing)\n",
+            diff.regressions.len(),
+            diff.new_failing.len()
+        ));
+    } else {
+        out.push_str("baseline gate: OK — no regressions\n");
+    }
+    out
+}
+
 fn xml_escape(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
@@ -151,6 +188,39 @@ mod tests {
             "angle brackets must be escaped"
         );
         assert!(!xml.contains("<more>"), "no unescaped payload in XML");
+    }
+
+    #[test]
+    fn baseline_section_snapshot() {
+        // Baseline: refund-2 passed and boom didn't exist; current run (the
+        // fixture) fails refund-2 (regression) and adds failing boom.
+        let baseline_run = RunSummary {
+            results: vec![
+                CaseResult {
+                    case_id: "refund-1".into(),
+                    output: None,
+                    error: None,
+                    scores: vec![],
+                    cost_usd: None,
+                },
+                CaseResult {
+                    case_id: "refund-2".into(),
+                    output: None,
+                    error: None,
+                    scores: vec![],
+                    cost_usd: None,
+                },
+                CaseResult {
+                    case_id: "retired".into(),
+                    output: None,
+                    error: Some("was failing".into()),
+                    scores: vec![],
+                    cost_usd: None,
+                },
+            ],
+        };
+        let diff = evalcore_core::compare(&baseline_run, &fixture());
+        insta::assert_snapshot!(baseline(&diff, "main"));
     }
 
     #[test]

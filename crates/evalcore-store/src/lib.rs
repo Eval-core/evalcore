@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
-use evalcore_core::{Target, TargetOutput, TestCase};
+use evalcore_core::{RunSummary, Target, TargetOutput, TestCase};
 use rusqlite::OptionalExtension;
 use sha2::{Digest, Sha256};
 
@@ -67,6 +67,12 @@ impl Store {
                 request    TEXT NOT NULL,
                 response   TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS runs (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                label      TEXT NOT NULL,
+                summary    TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
             );",
         )?;
         Ok(Self {
@@ -102,6 +108,35 @@ impl Store {
             rusqlite::params![key, canonical_request, response],
         )?;
         Ok(())
+    }
+
+    /// Persist a run's full results under a baseline label. Labels are not
+    /// unique — each save appends, and `load_baseline` returns the newest.
+    pub fn save_baseline(&self, label: &str, summary: &RunSummary) -> anyhow::Result<()> {
+        let json = serde_json::to_string(summary)?;
+        let conn = self.conn.lock().expect("store mutex poisoned");
+        conn.execute(
+            "INSERT INTO runs (label, summary) VALUES (?1, ?2)",
+            rusqlite::params![label, json],
+        )?;
+        Ok(())
+    }
+
+    /// Load the most recently saved baseline with this label.
+    pub fn load_baseline(&self, label: &str) -> anyhow::Result<Option<RunSummary>> {
+        let conn = self.conn.lock().expect("store mutex poisoned");
+        let row: Option<String> = conn
+            .query_row(
+                "SELECT summary FROM runs WHERE label = ?1 ORDER BY id DESC LIMIT 1",
+                [label],
+                |r| r.get(0),
+            )
+            .optional()?;
+        row.map(|json| {
+            serde_json::from_str(&json)
+                .context("corrupt baseline entry — delete the .evalcore store file")
+        })
+        .transpose()
     }
 }
 
@@ -239,6 +274,41 @@ mod tests {
         let hit = store.get("k1").unwrap().unwrap();
         assert_eq!(hit.text, "hello");
         assert_eq!(hit.latency_ms, 42, "replay returns recorded latency");
+    }
+
+    #[test]
+    fn baselines_roundtrip_and_newest_wins() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = temp_store(&dir);
+
+        assert!(store.load_baseline("main").unwrap().is_none());
+
+        let older = RunSummary {
+            results: vec![evalcore_core::CaseResult {
+                case_id: "old".into(),
+                output: None,
+                error: None,
+                scores: vec![],
+                cost_usd: None,
+            }],
+        };
+        let newer = RunSummary {
+            results: vec![evalcore_core::CaseResult {
+                case_id: "new".into(),
+                output: None,
+                error: None,
+                scores: vec![],
+                cost_usd: None,
+            }],
+        };
+        store.save_baseline("main", &older).unwrap();
+        store.save_baseline("main", &newer).unwrap();
+        store.save_baseline("other", &older).unwrap();
+
+        let loaded = store.load_baseline("main").unwrap().unwrap();
+        assert_eq!(loaded.results[0].case_id, "new", "newest save wins");
+        let other = store.load_baseline("other").unwrap().unwrap();
+        assert_eq!(other.results[0].case_id, "old", "labels are independent");
     }
 
     #[test]

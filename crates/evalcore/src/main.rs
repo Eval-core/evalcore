@@ -42,6 +42,15 @@ enum Commands {
         /// live: always call and re-record. off: bypass entirely.
         #[arg(long, value_enum, default_value_t = CacheArg::Auto)]
         cache: CacheArg,
+        /// Gate on regressions against a stored baseline instead of absolute
+        /// pass/fail: exit 0 iff no case regressed and no new case fails,
+        /// tolerating failures already present in the baseline.
+        #[arg(long)]
+        baseline: Option<String>,
+        /// Save this run's results as a named baseline (after comparison,
+        /// when --baseline is also given — enabling rolling baselines).
+        #[arg(long)]
+        save_baseline: Option<String>,
     },
 }
 
@@ -90,26 +99,43 @@ async fn main() -> anyhow::Result<ExitCode> {
             reporter,
             output,
             cache,
+            baseline,
+            save_baseline,
         } => {
-            run(
-                &config,
-                target.as_deref(),
+            run(RunArgs {
+                config_path: &config,
+                target_name: target.as_deref(),
                 reporter,
-                output.as_deref(),
+                output_path: output.as_deref(),
                 cache,
-            )
+                baseline: baseline.as_deref(),
+                save_baseline: save_baseline.as_deref(),
+            })
             .await
         }
     }
 }
 
-async fn run(
-    config_path: &Path,
-    target_name: Option<&str>,
+struct RunArgs<'a> {
+    config_path: &'a Path,
+    target_name: Option<&'a str>,
     reporter: Reporter,
-    output_path: Option<&Path>,
+    output_path: Option<&'a Path>,
     cache: CacheArg,
-) -> anyhow::Result<ExitCode> {
+    baseline: Option<&'a str>,
+    save_baseline: Option<&'a str>,
+}
+
+async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
+    let RunArgs {
+        config_path,
+        target_name,
+        reporter,
+        output_path,
+        cache,
+        baseline,
+        save_baseline,
+    } = args;
     let config = EvalConfig::from_path(config_path)?;
     // Paths inside the config resolve relative to the config file itself, so
     // suites run identically from any working directory (CI, editors, make).
@@ -165,10 +191,14 @@ async fn run(
         .scorers
         .iter()
         .any(|s| matches!(s, ScorerConfig::Judge { .. }));
+    // Baseline history lives in the same store file, so baseline flags also
+    // force it open — even for shell targets that never touch the cache.
+    let needs_history = baseline.is_some() || save_baseline.is_some();
     let store: Option<Arc<Store>> = match cache_mode {
-        Some(_) if target.cache_identity().is_some() || judge_configured => {
+        Some(_) if target.cache_identity().is_some() || judge_configured || needs_history => {
             Some(Arc::new(Store::open(&base_dir.join(".evalcore/cache.db"))?))
         }
+        None if needs_history => Some(Arc::new(Store::open(&base_dir.join(".evalcore/cache.db"))?)),
         _ => None,
     };
     let wrap = |t: Box<dyn Target>| -> Box<dyn Target> {
@@ -228,7 +258,34 @@ async fn run(
         None => print!("{rendered}"),
     }
 
-    Ok(if summary.all_passed() {
+    // With --baseline the gate is "no regressions" instead of "all passed":
+    // failures already accepted into the baseline don't fail CI.
+    let mut gate_passed = summary.all_passed();
+    if let Some(label) = baseline {
+        let store = store.as_ref().expect("store opened for baseline");
+        let baseline_run = store.load_baseline(label)?.with_context(|| {
+            format!("no baseline {label:?} found — record one with --save-baseline {label}")
+        })?;
+        let diff = evalcore_core::compare(&baseline_run, &summary);
+        let section = evalcore_report::baseline(&diff, label);
+        // Keep machine reporters' stdout pure; the diff goes to stderr there.
+        match (reporter, output_path) {
+            (Reporter::Terminal, None) => print!("{section}"),
+            _ => eprint!("{section}"),
+        }
+        gate_passed = !diff.gate_failed();
+    }
+    if let Some(label) = save_baseline {
+        let store = store.as_ref().expect("store opened for baseline");
+        store.save_baseline(label, &summary)?;
+        eprintln!(
+            "saved baseline {label:?} ({}/{} passed)",
+            summary.passed(),
+            summary.total()
+        );
+    }
+
+    Ok(if gate_passed {
         ExitCode::SUCCESS
     } else {
         ExitCode::from(1)
