@@ -10,9 +10,10 @@ Built-in scorer implementations. The `Scorer` trait lives in `evalcore-core`; th
 | `exact` | `{type: exact}` or `{type: exact, value: "yes"}` | equals inline `value`, else the case's `expected` |
 | `regex` | `{type: regex, pattern: "^[A-Z]"}` | pattern match; compiled at build time (fail-fast) |
 | `subprocess` | `{type: subprocess, cmd: "python3 my_scorer.py"}` | any-language protocol: case JSON on stdin (`input`, `output`, `expected`, and `context` array when the case has one) → `{"score", "passed"?, "reason"?}` on stdout |
-| `judge` | `{type: judge, url: ..., model: ..., rubric: "...", threshold: 0.7}` | LLM-as-judge via any OpenAI-compatible endpoint; calls go through the record/replay cache |
+| `judge` | `{type: judge, url: ..., model: ..., rubric: "...", threshold: 0.7}` | LLM-as-judge via any OpenAI-compatible endpoint; verdict JSON `{"score", "reason"?}`; `passed = score >= threshold` (default 0.5); calls go through the record/replay cache |
 | `trajectory` | `{type: trajectory, rules: [{must_call: search_kb, with: {...}}, ...]}` | agent-trace assertions; rule semantics are spec (docs/trajectory-spec.md), pair with `type: trace` targets |
-| `judge` | `{type: judge, url: ..., model: ..., rubric: "...", threshold: 0.7}` | LLM-as-judge via any OpenAI-compatible endpoint; verdict JSON `{"score", "reason"?}`; `passed = score >= threshold` (default 0.5) |
+| `json-schema` | `{type: json-schema, schema: schemas/reply.json}` | output must parse as JSON and validate against a draft 2020-12 schema; non-JSON is a failing score; schema read+compiled in `build_scorers` (fail-fast); remote `$ref` compiled out (offline, no network) |
+| `similarity` | `{type: similarity, url: ..., model: ..., api_key_env: ..., threshold: 0.8}` | embedding cosine similarity between the case's `expected` and the output via an OpenAI-compatible `/embeddings` endpoint; `passed = cosine >= threshold` (default 0.8, raw value in `[-1,1]`); injected `Box<dyn Target>` (like judge) so calls ride the record/replay cache; no `expected` is a failing score |
 
 ## Rules
 

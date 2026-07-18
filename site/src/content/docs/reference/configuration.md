@@ -22,7 +22,7 @@ run:       # optional run options (concurrency, budget, gates)
 | `targets` | map of name to [target](#targets) | yes | Named things to evaluate. `evalcore run --target <name>` selects one; with exactly one target the flag may be omitted. |
 | `datasets` | list of [dataset](#datasets) | yes | JSONL files of test cases, merged in list order. |
 | `scorers` | list of [scorer](#scorers) | yes | Applied to every case's output. |
-| `run` | [run block](#run-block) | no | Concurrency, budget, and gates. Defaults apply when omitted. |
+| `run` | [run block](#run-block) | no | Concurrency, budget, gates, and trials. Defaults apply when omitted. |
 
 Validation rejects an empty `targets`, `datasets`, or `scorers` section with
 `at least one target/dataset/scorer is required`.
@@ -419,6 +419,73 @@ scorers:
     threshold: 0.7
 ```
 
+### `json-schema`
+
+Since v0.7.0 (unreleased). Passes iff the output parses as JSON **and** validates
+against a JSON Schema (draft 2020-12). Non-JSON output is a failing score with a
+reason, never an error. The schema file is read and compiled once in the factory,
+so a bad or unreadable schema fails the whole run before any case executes (the
+error names the file).
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | `"json-schema"` | yes | Selects this scorer. |
+| `schema` | path | yes | Path to the JSON Schema file, resolved relative to the config file. Must be non-empty. |
+
+```yaml
+scorers:
+  - type: json-schema
+    schema: schemas/reply.json
+```
+
+A failing score names up to three violations by their JSON pointer, in a
+deterministic (sorted) order, e.g. `/age: -1 is less than the minimum of 0;
+/name: 42 is not of type "string"`.
+
+**Offline by design.** Remote `$ref` resolution is compiled out — validation
+never touches the network. An external `$ref` (`http(s)://…`) is unresolvable
+and fails at construction time, not per case and never over the wire, so
+validation stays deterministic and air-gapped.
+
+**Validation rules:** an empty `schema` path is rejected with `json-schema
+scorer: schema path must be non-empty`. File existence and schema compilation
+are checked in the factory (a missing file, non-JSON schema, invalid schema, or
+unresolvable remote `$ref` each fails the run, naming the file).
+
+### `similarity`
+
+Since v0.7.0 (unreleased). Embeds the case's `expected` answer and the output
+through an OpenAI-compatible `/embeddings` endpoint and passes iff their **cosine
+similarity** is at least `threshold`. Embedding calls go through the
+record/replay cache, so replayed scores are deterministic, offline, and keyless.
+See the [Semantic similarity guide](../../guides/semantic-similarity/).
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `type` | `"similarity"` | yes | — | Selects this scorer. |
+| `url` | string | yes | — | Base URL of the OpenAI-compatible embeddings API, e.g. `https://api.openai.com/v1`. `/embeddings` is appended. Must be non-empty. |
+| `model` | string | yes | — | Embedding model name, e.g. `text-embedding-3-small`. |
+| `api_key_env` | string | no | none | Name of the environment variable holding the API key. Secrets never appear inline in YAML; the key never enters the cache. |
+| `threshold` | number | no | `0.8` | Minimum cosine similarity to pass. A finite value in `[-1, 1]`. |
+
+```yaml
+scorers:
+  - type: similarity
+    url: https://api.openai.com/v1
+    model: text-embedding-3-small
+    api_key_env: OPENAI_API_KEY
+    threshold: 0.8
+```
+
+The reported `value` is the raw cosine similarity in `[-1, 1]` (it may be
+negative and is not clamped); `passed` is `value >= threshold` with a `1e-9`
+tolerance. A case with no `expected` is a failing score with a reason (the
+scorer needs a reference to embed against), never an error.
+
+**Validation rules:** an empty `url` is rejected with `similarity scorer: url
+must be non-empty`. A `threshold` that is not finite or falls outside `[-1, 1]`
+is rejected: `similarity scorer: threshold must be within [-1, 1], got <n>`.
+
 ## Run block
 
 The `run` block is optional; every field has a default.
@@ -428,11 +495,13 @@ The `run` block is optional; every field has a default.
 | `concurrency` | integer | no | `4` | Maximum in-flight cases. Must be at least 1. |
 | `budget_usd` | number | no | none | Abort scheduling new cases once accumulated cost reaches this (USD). Requires the target to declare `cost` rates. Must be positive. |
 | `gates` | list of [gate](#gates) | no | `[]` | Suite-level aggregate acceptance criteria. Evaluated in list order. |
+| `trials` | integer or [trials block](#trials) | no | `1` | Run each case N times and aggregate. Since v0.7.0 (unreleased). |
 
 ```yaml
 run:
   concurrency: 8
   budget_usd: 5.0
+  trials: 3
   gates:
     - type: pass_rate
       min: 0.95
@@ -450,6 +519,39 @@ run:
   <n>`. Costing is done from token usage, so replayed runs count their recorded
   (virtual) cost too. When the budget is exhausted, remaining cases fail with a
   reason rather than aborting the run mid-flight.
+- `trials` count must be at least 1, else `run.trials count must be at least 1`.
+
+### Trials
+
+Since v0.7.0 (unreleased). Runs every case `count` times and folds the per-trial
+verdicts into one case verdict. Accepts an **integer shorthand** (`trials: 3`,
+meaning `require: all`) or the full `{ count, require }` map. Absent, or
+`trials: 1`, means one trial with `require: all` — byte-identical to a run with
+no trials configured. See the [Trials and statistics
+guide](../../guides/trials-and-statistics/) for aggregation and cache semantics.
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `count` | integer | yes | — | Number of trials per case. Must be at least 1. |
+| `require` | string | no | `all` | Fold policy from per-trial verdicts to the case verdict: `all` (every trial passes), `majority` (strictly more than half pass), or `any` (at least one passes). |
+
+```yaml
+run:
+  trials: 3                # shorthand: 3 trials, require: all
+# — or the full form —
+run:
+  trials:
+    count: 5
+    require: majority
+```
+
+A trial passes when every scorer passes for that trial. The case-level score for
+each scorer is the **mean** of that scorer's value across the trials (what
+`mean_score` gates and baselines see), the case latency is the trial mean, and
+the cost is the sum of every trial (counting toward `budget_usd`). An unknown
+`require` value is a parse error. Trial 0 keeps the pre-trials cache key so
+existing cassettes replay; trials 1..N re-key with the trial index, and judge
+and similarity calls re-key per trial the same way.
 
 ### Gates
 

@@ -47,7 +47,7 @@ scorers:
     value: "refund"
 ```
 
-Scorers range from deterministic checks (`contains`, `exact`, `regex`), through an any-language escape hatch (`subprocess`: JSON on stdin → `{"score": ...}` on stdout), to LLM-as-judge:
+Scorers range from deterministic checks (`contains`, `exact`, `regex`, and `json-schema` for structured output), through an any-language escape hatch (`subprocess`: JSON on stdin → `{"score": ...}` on stdout), to LLM-backed grading — LLM-as-judge and `similarity` (semantic closeness by embedding cosine):
 
 ```yaml
   - type: judge
@@ -58,7 +58,7 @@ Scorers range from deterministic checks (`contains`, `exact`, `regex`), through 
     threshold: 0.7
 ```
 
-Judge calls go through the record/replay cache too — replayed judge verdicts are deterministic, which is what makes LLM-graded suites usable as CI gates.
+Judge calls go through the record/replay cache too — replayed judge verdicts are deterministic, which is what makes LLM-graded suites usable as CI gates. (`json-schema` and `similarity` are unreleased — available on `main` ahead of the next tag; embedding calls cache and replay just like the judge.)
 
 ```jsonl
 {"id": "refund-1", "input": "How do I get a refund for my order?"}
@@ -82,6 +82,17 @@ evalcore run evals.yaml --cache off      # bypass
 ```
 
 Treat the cache file like VCR cassettes: commit it, and CI runs `--cache replay` with zero LLM spend and zero flakiness. Changing the model, URL, or a case's input changes the key, so stale hits don't lie to you. Shell targets are never cached — they run your local code, whose behavior can change without the config changing.
+
+## Trials: measure, don't sample
+
+*Unreleased (on `main`).* An LLM is stochastic — one run samples its behavior once, so a green suite might just be a lucky roll. `run.trials` runs every case N times and aggregates, so you can gate on how *often* a case passes:
+
+```yaml
+run:
+  trials: 3            # shorthand; or { count: 5, require: majority }  —  all | majority | any
+```
+
+A trial passes when every scorer passes; the case verdict follows `require` (default `all`; `majority` is strictly more than half). The per-scorer case score is the mean across trials (what `mean_score` gates and baselines see), latency is the trial mean, and every trial's cost counts toward `budget_usd`. Determinism holds: trial 0 keeps the pre-trials cache key so existing cassettes replay, while trials 1..N — and their judge/similarity calls — re-key per trial. The terminal report tags multi-trial cases, `PASS greeting (6ms) [3/3 trials]`; single-trial output is unchanged.
 
 ## Evaluate your deployed app's own REST endpoint
 
