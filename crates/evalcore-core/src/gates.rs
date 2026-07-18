@@ -126,6 +126,7 @@ mod tests {
             scores,
             cost_usd: None,
             context: None,
+            trials: None,
         }
     }
 

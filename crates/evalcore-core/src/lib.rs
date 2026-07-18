@@ -6,6 +6,7 @@
 
 pub mod baseline;
 pub mod dataset;
+pub mod embeddings;
 pub mod engine;
 pub mod gates;
 pub mod http_target;

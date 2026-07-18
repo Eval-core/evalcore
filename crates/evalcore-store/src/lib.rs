@@ -163,11 +163,25 @@ impl Target for CachedTarget {
             return self.inner.invoke(case).await;
         };
         // serde_json::Value objects serialize with sorted keys → canonical.
-        let canonical = serde_json::json!({
-            "identity": identity,
-            "input": case.input,
-        })
-        .to_string();
+        // Trial 0 (the only trial for single-trial and non-trial runs) uses the
+        // pre-trials key shape UNCHANGED, so existing cassettes replay as trial
+        // 0. Trials i > 0 add a `"trial": i` salt (BTreeMap key order:
+        // identity, input, trial) so each trial re-keys and measures fresh.
+        let trial = evalcore_core::engine::current_trial();
+        let canonical = if trial == 0 {
+            serde_json::json!({
+                "identity": identity,
+                "input": case.input,
+            })
+            .to_string()
+        } else {
+            serde_json::json!({
+                "identity": identity,
+                "input": case.input,
+                "trial": trial,
+            })
+            .to_string()
+        };
         let key = cache_key(&canonical);
 
         match self.mode {
@@ -295,6 +309,7 @@ mod tests {
                 scores: vec![],
                 cost_usd: None,
                 context: None,
+                trials: None,
             }],
             gates: Vec::new(),
         };
@@ -306,6 +321,7 @@ mod tests {
                 scores: vec![],
                 cost_usd: None,
                 context: None,
+                trials: None,
             }],
             gates: Vec::new(),
         };
@@ -408,6 +424,84 @@ mod tests {
             assert_eq!(second.text, "call-2", "no caching without an identity");
             assert_eq!(calls.load(Ordering::SeqCst), 2);
         }
+    }
+
+    /// Read the single stored canonical request straight from the DB file, for
+    /// byte-level cache-key pinning.
+    fn stored_request(path: &std::path::Path) -> String {
+        let conn = rusqlite::Connection::open(path).unwrap();
+        conn.query_row("SELECT request FROM llm_cache", [], |r| r.get(0))
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn trial_zero_cache_key_bytes_are_unchanged() {
+        // HARD back-compat: with no trial scope active (trial 0), the canonical
+        // request must be byte-identical to the pre-trials shape, so committed
+        // cassettes keep replaying. This literal is the pin.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cache.db");
+        let (target, _) = cached(
+            model_identity(),
+            Store::open(&path).unwrap(),
+            CacheMode::Auto,
+        );
+        target.invoke(&case("a", "hi")).await.unwrap();
+        assert_eq!(
+            stored_request(&path),
+            r#"{"identity":{"model":"m1","type":"test"},"input":"hi"}"#,
+            "trial 0 must not add a trial salt to the canonical request"
+        );
+    }
+
+    #[tokio::test]
+    async fn higher_trials_rekey_the_cache() {
+        use evalcore_core::engine::with_trial;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cache.db");
+
+        // Record trial 0.
+        let (t0, _) = cached(
+            model_identity(),
+            Store::open(&path).unwrap(),
+            CacheMode::Auto,
+        );
+        t0.invoke(&case("a", "hi")).await.unwrap();
+
+        // Trial 1 re-keys, so replay-mode MISSES the trial-0 recording.
+        let (replay, _) = cached(
+            model_identity(),
+            Store::open(&path).unwrap(),
+            CacheMode::Replay,
+        );
+        let err = with_trial(1, replay.invoke(&case("a", "hi")))
+            .await
+            .unwrap_err();
+        assert!(err.to_string().contains("cache miss"), "got: {err}");
+
+        // Record and replay at trial 2; it stays deterministic under replay.
+        let (t2, calls2) = cached(
+            model_identity(),
+            Store::open(&path).unwrap(),
+            CacheMode::Auto,
+        );
+        let first = with_trial(2, t2.invoke(&case("a", "hi"))).await.unwrap();
+        let second = with_trial(2, t2.invoke(&case("a", "hi"))).await.unwrap();
+        assert_eq!(first.text, second.text, "trial 2 replays its own recording");
+        assert_eq!(calls2.load(Ordering::SeqCst), 1, "trial 2 recorded once");
+
+        // The stored trial-2 request carries the `trial` salt (sorted keys:
+        // identity, input, trial).
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM llm_cache WHERE request = ?1",
+                [r#"{"identity":{"model":"m1","type":"test"},"input":"hi","trial":2}"#],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1, "trial 2 request is salted with the trial index");
     }
 
     #[tokio::test]

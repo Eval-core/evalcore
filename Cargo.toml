@@ -29,6 +29,11 @@ anyhow = "1"
 async-trait = "0.1"
 clap = { version = "4", features = ["derive"] }
 futures = "0.3"
+# json-schema scorer. default-features = false drops resolve-http/resolve-file
+# (and their reqwest+rustls tree): remote and file:// $ref resolution stay OFF,
+# which the scorer requires for determinism and no-network. Draft 2020-12
+# validation lives in the crate core and needs no feature flag.
+jsonschema = { version = "0.48", default-features = false }
 percent-encoding = "2"
 regex = "1"
 reqwest = { version = "0.12", features = ["json"] }

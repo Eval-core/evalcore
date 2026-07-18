@@ -107,6 +107,7 @@ mod tests {
             }],
             cost_usd: None,
             context: None,
+            trials: None,
         }
     }
 

@@ -4,6 +4,38 @@ All notable changes to EvalCore. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com); versions follow semver
 (pre-1.0: minor bumps may break APIs and config).
 
+## [Unreleased]
+
+### Added
+- **Trials — statistical evals** (`run.trials`): run every case N times and
+  aggregate. `trials: 3` shorthand or `trials: {count: 5, require: majority}`
+  (`all` | `majority` | `any`; default `all`). A trial passes when every scorer
+  passes; the case verdict follows `require`; the per-scorer case score is the
+  mean across trials (what gates and baselines see) and case latency is the
+  trial mean, while cost sums every trial and counts toward `budget_usd`.
+  Replays stay deterministic: trial 0 keeps the exact pre-trials cache key, so
+  every existing cassette still replays; trials 1..N re-key with a `trial`
+  index — and judge calls re-key per trial the same way. The terminal report
+  tags multi-trial cases with `[k/N trials]` (single-trial output is
+  byte-identical to before); JSON and HTML carry the full per-trial detail.
+- **`json-schema` scorer**: `{type: json-schema, schema: path.json}` validates
+  the output as JSON against a draft 2020-12 schema (path relative to the
+  config file). Failing reasons name up to three violations by JSON pointer,
+  deterministically ordered. Remote `$ref` resolution is compiled out —
+  validation never touches the network.
+- **`similarity` scorer**: `{type: similarity, url, model, api_key_env,
+  threshold}` grades semantic closeness between the output and the case's
+  `expected` via any OpenAI-compatible `/embeddings` endpoint — score is the
+  raw cosine similarity, passing at `threshold` (default 0.8). Embedding calls
+  ride the record/replay cache like judge calls (with an identity that can
+  never collide with a chat target), so replayed similarity scores are free,
+  offline, and deterministic.
+
+### Known gaps
+- With `run.trials` > 1, the terminal/HTML token totals reflect one trial per
+  case (cost totals are correct — they sum every trial). Tracked for a
+  follow-up alongside judge-call cost attribution.
+
 ## [0.6.0] — 2026-07-18
 
 ### Added

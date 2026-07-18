@@ -5,8 +5,10 @@
 //! as a config surface — the YAML file is the product's primary interface.
 
 use std::collections::BTreeMap;
+use std::fmt;
 use std::path::{Path, PathBuf};
 
+use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, thiserror::Error)]
@@ -75,6 +77,11 @@ impl EvalConfig {
         if self.run.concurrency == 0 {
             return Err(ConfigError::Invalid(
                 "run.concurrency must be at least 1".into(),
+            ));
+        }
+        if self.run.trials.count < 1 {
+            return Err(ConfigError::Invalid(
+                "run.trials count must be at least 1".into(),
             ));
         }
         if let Some(budget) = self.run.budget_usd {
@@ -149,6 +156,30 @@ impl EvalConfig {
                         "target {name:?} has negative cost rates"
                     )));
                 }
+            }
+        }
+        for scorer in &self.scorers {
+            match scorer {
+                ScorerConfig::JsonSchema { schema } => {
+                    if schema.as_os_str().is_empty() {
+                        return Err(ConfigError::Invalid(
+                            "json-schema scorer: schema path must be non-empty".into(),
+                        ));
+                    }
+                }
+                ScorerConfig::Similarity { url, threshold, .. } => {
+                    if url.is_empty() {
+                        return Err(ConfigError::Invalid(
+                            "similarity scorer: url must be non-empty".into(),
+                        ));
+                    }
+                    if !threshold.is_finite() || *threshold < -1.0 || *threshold > 1.0 {
+                        return Err(ConfigError::Invalid(format!(
+                            "similarity scorer: threshold must be within [-1, 1], got {threshold}"
+                        )));
+                    }
+                }
+                _ => {}
             }
         }
         for gate in &self.run.gates {
@@ -285,6 +316,12 @@ pub struct RunConfig {
     /// exit code carries the gate outcome for CI.
     #[serde(default)]
     pub gates: Vec<GateConfig>,
+    /// Repeated executions per case for statistical evals. Accepts an integer
+    /// shorthand (`trials: 3`, meaning `require: all`) or the full
+    /// `{ count, require }` map. Absent: one trial with `require: all`, which
+    /// is byte-identical to a run with no trials configured.
+    #[serde(default = "default_trials", deserialize_with = "deserialize_trials")]
+    pub trials: TrialsConfig,
 }
 
 impl Default for RunConfig {
@@ -293,8 +330,106 @@ impl Default for RunConfig {
             concurrency: default_concurrency(),
             budget_usd: None,
             gates: Vec::new(),
+            trials: default_trials(),
         }
     }
+}
+
+/// How many times each case runs and how per-trial verdicts fold into the
+/// case verdict. `count` is at least 1; `count: 1` with `require: all` is the
+/// default and behaves exactly like a run with no trials.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct TrialsConfig {
+    /// Number of trials executed per case (indices `0..count`); at least 1.
+    pub count: u32,
+    /// Policy folding per-trial pass/fail into the case verdict.
+    pub require: TrialRequire,
+}
+
+/// Fold policy from per-trial verdicts to the case verdict. A trial passes iff
+/// every scorer passes for that trial.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TrialRequire {
+    /// The case passes only if every trial passes.
+    #[default]
+    All,
+    /// The case passes if strictly more than half the trials pass.
+    Majority,
+    /// The case passes if at least one trial passes.
+    Any,
+}
+
+fn default_trials() -> TrialsConfig {
+    TrialsConfig {
+        count: 1,
+        require: TrialRequire::All,
+    }
+}
+
+/// Accept either the integer shorthand (`trials: 3`) or the full
+/// `{ count, require }` map, mirroring the `context` deserializer in
+/// `evalcore-core`. A bare integer sets `count` with `require: all`.
+fn deserialize_trials<'de, D>(deserializer: D) -> Result<TrialsConfig, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    /// The full-form shape; `deny_unknown_fields` rejects typo'd keys.
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct TrialsForm {
+        count: u32,
+        #[serde(default)]
+        require: TrialRequire,
+    }
+
+    struct TrialsVisitor;
+
+    impl<'de> Visitor<'de> for TrialsVisitor {
+        type Value = TrialsConfig;
+
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("a positive integer or a { count, require } map")
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            let count = u32::try_from(value)
+                .map_err(|_| E::custom(format!("trials count {value} is too large")))?;
+            Ok(TrialsConfig {
+                count,
+                require: TrialRequire::All,
+            })
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            let count = u32::try_from(value).map_err(|_| {
+                E::custom(format!("trials count {value} must be a positive integer"))
+            })?;
+            Ok(TrialsConfig {
+                count,
+                require: TrialRequire::All,
+            })
+        }
+
+        fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+        where
+            A: MapAccess<'de>,
+        {
+            let form = TrialsForm::deserialize(de::value::MapAccessDeserializer::new(map))?;
+            Ok(TrialsConfig {
+                count: form.count,
+                require: form.require,
+            })
+        }
+    }
+
+    deserializer.deserialize_any(TrialsVisitor)
 }
 
 /// One suite-level aggregate gate. Gates express CI acceptance criteria over
@@ -506,6 +641,33 @@ pub enum ScorerConfig {
         #[serde(default = "default_judge_threshold")]
         threshold: f64,
     },
+    /// Validate the output against a JSON Schema (draft 2020-12). Passes iff
+    /// the output parses as JSON and validates; non-JSON output is a failing
+    /// score, not an error. The schema file is read and compiled in the
+    /// factory.
+    JsonSchema {
+        /// Path to the JSON Schema file, relative to the config file. Must be
+        /// non-empty; existence and compilation are checked in the factory.
+        schema: PathBuf,
+    },
+    /// Embedding cosine-similarity scorer: embeds the case's `expected` and the
+    /// output via an OpenAI-compatible `/embeddings` endpoint and passes iff
+    /// their cosine similarity is at least `threshold`. Embedding calls go
+    /// through the record/replay cache, so replayed scores are deterministic.
+    Similarity {
+        /// Base URL of the OpenAI-compatible embeddings API, e.g.
+        /// `https://api.openai.com/v1`. Must be non-empty.
+        url: String,
+        /// Embedding model name, e.g. `text-embedding-3-small`.
+        model: String,
+        /// Name of the environment variable holding the API key. Secrets are
+        /// never written into the YAML itself.
+        #[serde(default)]
+        api_key_env: Option<String>,
+        /// Minimum cosine similarity to pass; a finite value in `[-1, 1]`.
+        #[serde(default = "default_similarity_threshold")]
+        threshold: f64,
+    },
 }
 
 impl ScorerConfig {
@@ -520,6 +682,8 @@ impl ScorerConfig {
             ScorerConfig::Subprocess { .. } => "subprocess",
             ScorerConfig::Trajectory { .. } => "trajectory",
             ScorerConfig::Judge { .. } => "judge",
+            ScorerConfig::JsonSchema { .. } => "json-schema",
+            ScorerConfig::Similarity { .. } => "similarity",
         }
     }
 }
@@ -530,6 +694,11 @@ fn default_true() -> bool {
 
 fn default_judge_threshold() -> f64 {
     0.5
+}
+
+/// Default cosine-similarity pass threshold for the `similarity` scorer.
+fn default_similarity_threshold() -> f64 {
+    0.8
 }
 
 /// One trajectory assertion. Untagged: the distinctive required key
@@ -1131,5 +1300,170 @@ scorers: [{ type: exact }]
                 "block {block:?} should be rejected mentioning {fragment:?}, got: {err}"
             );
         }
+    }
+
+    /// A minimal valid config with an optional trailing `run:` block appended.
+    fn config_with_run(run: &str) -> String {
+        format!(
+            "targets:\n  echo: {{ type: shell, cmd: \"cat\" }}\n\
+             datasets: [{{ file: cases.jsonl }}]\n\
+             scorers: [{{ type: exact }}]\n{run}"
+        )
+    }
+
+    #[test]
+    fn trials_defaults_to_one_all_when_absent() {
+        let config = EvalConfig::from_yaml_str(&config_with_run("")).unwrap();
+        assert_eq!(config.run.trials.count, 1);
+        assert_eq!(config.run.trials.require, TrialRequire::All);
+    }
+
+    #[test]
+    fn trials_int_shorthand_parses() {
+        let config = EvalConfig::from_yaml_str(&config_with_run("run:\n  trials: 3\n")).unwrap();
+        assert_eq!(config.run.trials.count, 3);
+        assert_eq!(
+            config.run.trials.require,
+            TrialRequire::All,
+            "int shorthand implies require: all"
+        );
+    }
+
+    #[test]
+    fn trials_full_form_parses() {
+        let config = EvalConfig::from_yaml_str(&config_with_run(
+            "run:\n  trials:\n    count: 5\n    require: majority\n",
+        ))
+        .unwrap();
+        assert_eq!(config.run.trials.count, 5);
+        assert_eq!(config.run.trials.require, TrialRequire::Majority);
+
+        // require defaults to all when the map omits it.
+        let config =
+            EvalConfig::from_yaml_str(&config_with_run("run:\n  trials:\n    count: 2\n")).unwrap();
+        assert_eq!(config.run.trials.count, 2);
+        assert_eq!(config.run.trials.require, TrialRequire::All);
+    }
+
+    #[test]
+    fn rejects_zero_trials() {
+        let err = EvalConfig::from_yaml_str(&config_with_run("run:\n  trials: 0\n"))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("run.trials"), "got: {err}");
+    }
+
+    #[test]
+    fn rejects_unknown_trials_require() {
+        let err = EvalConfig::from_yaml_str(&config_with_run(
+            "run:\n  trials:\n    count: 5\n    require: most\n",
+        ))
+        .unwrap_err();
+        assert!(matches!(err, ConfigError::Yaml(_)), "got: {err}");
+    }
+
+    #[test]
+    fn default_trials_round_trips_through_serialization() {
+        // trials: 1 (the default) must survive a serialize -> parse round-trip
+        // unchanged. RunConfig serializes concurrency unconditionally, so the
+        // full trials form is emitted; re-parsing must recover count 1 / all.
+        let config = EvalConfig::from_yaml_str(&config_with_run("run:\n  trials: 1\n")).unwrap();
+        let yaml = serde_yaml::to_string(&config).unwrap();
+        let reparsed = EvalConfig::from_yaml_str(&yaml).unwrap();
+        assert_eq!(reparsed.run.trials.count, 1);
+        assert_eq!(reparsed.run.trials.require, TrialRequire::All);
+        assert_eq!(reparsed.run.trials, default_trials());
+    }
+
+    #[test]
+    fn parses_json_schema_scorer() {
+        let yaml = r#"
+targets:
+  echo: { type: shell, cmd: "cat" }
+datasets: [{ file: cases.jsonl }]
+scorers:
+  - type: json-schema
+    schema: schemas/reply.json
+"#;
+        let config = EvalConfig::from_yaml_str(yaml).unwrap();
+        match &config.scorers[0] {
+            ScorerConfig::JsonSchema { schema } => {
+                assert_eq!(schema, &PathBuf::from("schemas/reply.json"));
+            }
+            other => panic!("expected json-schema scorer, got {other:?}"),
+        }
+        assert_eq!(config.scorers[0].type_name(), "json-schema");
+    }
+
+    #[test]
+    fn parses_similarity_scorer_with_and_without_optionals() {
+        let full = r#"
+targets:
+  echo: { type: shell, cmd: "cat" }
+datasets: [{ file: cases.jsonl }]
+scorers:
+  - type: similarity
+    url: https://api.openai.com/v1
+    model: text-embedding-3-small
+    api_key_env: OPENAI_API_KEY
+    threshold: 0.9
+"#;
+        let config = EvalConfig::from_yaml_str(full).unwrap();
+        match &config.scorers[0] {
+            ScorerConfig::Similarity {
+                url,
+                model,
+                api_key_env,
+                threshold,
+            } => {
+                assert_eq!(url, "https://api.openai.com/v1");
+                assert_eq!(model, "text-embedding-3-small");
+                assert_eq!(api_key_env.as_deref(), Some("OPENAI_API_KEY"));
+                assert_eq!(*threshold, 0.9);
+            }
+            other => panic!("expected similarity scorer, got {other:?}"),
+        }
+        assert_eq!(config.scorers[0].type_name(), "similarity");
+
+        let minimal = r#"
+targets:
+  echo: { type: shell, cmd: "cat" }
+datasets: [{ file: cases.jsonl }]
+scorers:
+  - type: similarity
+    url: https://api.openai.com/v1
+    model: text-embedding-3-small
+"#;
+        let config = EvalConfig::from_yaml_str(minimal).unwrap();
+        match &config.scorers[0] {
+            ScorerConfig::Similarity {
+                api_key_env,
+                threshold,
+                ..
+            } => {
+                assert!(api_key_env.is_none());
+                assert_eq!(*threshold, 0.8, "threshold defaults to 0.8");
+            }
+            other => panic!("expected similarity scorer, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_similarity_threshold_out_of_range() {
+        let yaml = r#"
+targets:
+  echo: { type: shell, cmd: "cat" }
+datasets: [{ file: cases.jsonl }]
+scorers:
+  - type: similarity
+    url: https://api.openai.com/v1
+    model: text-embedding-3-small
+    threshold: 2.0
+"#;
+        let err = EvalConfig::from_yaml_str(yaml).unwrap_err().to_string();
+        assert!(
+            err.contains("threshold must be within [-1, 1]"),
+            "got: {err}"
+        );
     }
 }

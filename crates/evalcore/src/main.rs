@@ -219,8 +219,13 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         t
     };
     let target = wrap(target);
-    let scorers = build_scorers(&config.scorers, |cfg| {
-        Ok(wrap(build_target_with(cfg, secrets)?))
+    let scorers = build_scorers(&config.scorers, base_dir, |spec| {
+        // Judge specs (TargetSpec::Chat) build exactly as before; similarity
+        // specs (TargetSpec::Embeddings) build the embeddings target. Both are
+        // wrapped in the record/replay cache, like the main target.
+        Ok(wrap(evalcore_core::embeddings::build_scorer_target(
+            spec, secrets,
+        )?))
     })?;
 
     let mut cases: Vec<TestCase> = Vec::new();
@@ -245,6 +250,7 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         concurrency: config.run.concurrency,
         budget_usd: config.run.budget_usd,
         cost_rates,
+        trials: config.run.trials.clone(),
     };
     let mut summary = run_suite(target.as_ref(), cases, &scorers, options).await;
     // Suite-level gates are evaluated in the core (wiring stays wiring): the

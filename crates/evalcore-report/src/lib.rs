@@ -2,17 +2,32 @@
 //! — no I/O, no clock, no global state — so outputs are snapshot-testable and
 //! identical for identical runs.
 
-use evalcore_core::{BaselineDiff, RunSummary, TargetOutput, Trajectory};
+use evalcore_core::types::TrialResult;
+use evalcore_core::{BaselineDiff, CaseResult, RunSummary, TargetOutput, Trajectory};
+
+/// The ` [k/N trials]` suffix appended to a case's terminal PASS/FAIL line when
+/// it ran more than one trial (`k` = passing trials, `N` = total). Empty for
+/// single-trial cases, so their output stays byte-identical to a non-trial run.
+fn trials_suffix(result: &CaseResult) -> String {
+    match &result.trials {
+        Some(trials) if trials.len() > 1 => {
+            let passed = trials.iter().filter(|t| t.passed).count();
+            format!(" [{passed}/{} trials]", trials.len())
+        }
+        _ => String::new(),
+    }
+}
 
 /// Human-readable report for terminals and logs.
 pub fn terminal(summary: &RunSummary) -> String {
     let mut out = String::new();
     for result in &summary.results {
+        let trials = trials_suffix(result);
         if result.passed() {
             let latency = result.output.as_ref().map_or(0, |o| o.latency_ms);
-            out.push_str(&format!("PASS {} ({latency}ms)\n", result.case_id));
+            out.push_str(&format!("PASS {} ({latency}ms){trials}\n", result.case_id));
         } else {
-            out.push_str(&format!("FAIL {}\n", result.case_id));
+            out.push_str(&format!("FAIL {}{trials}\n", result.case_id));
             for reason in result.failure_reasons() {
                 out.push_str(&format!("     {reason}\n"));
             }
@@ -277,7 +292,43 @@ fn push_case(out: &mut String, result: &evalcore_core::CaseResult) {
         push_trajectory(out, trajectory);
     }
 
+    // Per-trial breakdown for multi-trial cases. Absent (never emitted) for
+    // single-trial cases, so their report stays byte-identical.
+    if let Some(trials) = &result.trials {
+        push_trials(out, trials);
+    }
+
     out.push_str("</div>\n</details>\n");
+}
+
+/// Render the per-trial breakdown: one table row per trial, in trial-index
+/// order. A trial's detail is its escaped target-error reason, or a
+/// scorer=value summary for a successful trial.
+fn push_trials(out: &mut String, trials: &[TrialResult]) {
+    out.push_str("<h3>Trials</h3>\n");
+    out.push_str("<table>\n<thead><tr><th>Trial</th><th>Passed</th><th>Latency</th><th>Detail</th></tr></thead>\n<tbody>\n");
+    for (i, trial) in trials.iter().enumerate() {
+        let (cls, label) = if trial.passed {
+            ("pass", "yes")
+        } else {
+            ("fail", "no")
+        };
+        let detail = if let Some(error) = &trial.error {
+            format!("target error: {}", html_escape(error))
+        } else {
+            trial
+                .scores
+                .iter()
+                .map(|score| format!("{}={}", html_escape(&score.scorer), score.value))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        out.push_str(&format!(
+            "<tr><td class=\"num\">{i}</td><td><span class=\"badge {cls}\">{label}</span></td><td class=\"num\">{}ms</td><td>{detail}</td></tr>\n",
+            trial.latency_ms,
+        ));
+    }
+    out.push_str("</tbody>\n</table>\n");
 }
 
 /// Render an agent trajectory: one nested `<details>` per step.
@@ -480,6 +531,7 @@ mod tests {
                     }],
                     cost_usd: Some(0.0012),
                     context: None,
+                    trials: None,
                 },
                 CaseResult {
                     case_id: "refund-2".into(),
@@ -501,6 +553,7 @@ mod tests {
                     }],
                     cost_usd: Some(0.0008),
                     context: None,
+                    trials: None,
                 },
                 CaseResult {
                     case_id: "boom".into(),
@@ -512,6 +565,7 @@ mod tests {
                     scores: vec![],
                     cost_usd: None,
                     context: None,
+                    trials: None,
                 },
             ],
             gates: Vec::new(),
@@ -613,6 +667,7 @@ mod tests {
                     scores: vec![],
                     cost_usd: None,
                     context: None,
+                    trials: None,
                 },
                 CaseResult {
                     case_id: "refund-2".into(),
@@ -621,6 +676,7 @@ mod tests {
                     scores: vec![],
                     cost_usd: None,
                     context: None,
+                    trials: None,
                 },
                 CaseResult {
                     case_id: "retired".into(),
@@ -629,6 +685,7 @@ mod tests {
                     scores: vec![],
                     cost_usd: None,
                     context: None,
+                    trials: None,
                 },
             ],
             gates: Vec::new(),
@@ -672,6 +729,7 @@ mod tests {
             }],
             cost_usd: Some(0.000_19),
             context: None,
+            trials: None,
         }
     }
 
@@ -702,6 +760,7 @@ mod tests {
                 "Refunds are processed within 30 days of the request.".into(),
                 "Refunds require an order number & the original receipt.".into(),
             ]),
+            trials: None,
         }
     }
 
@@ -729,6 +788,7 @@ mod tests {
                     scores: vec![],
                     cost_usd: None,
                     context: None,
+                    trials: None,
                 },
                 CaseResult {
                     case_id: "refund-2".into(),
@@ -737,6 +797,7 @@ mod tests {
                     scores: vec![],
                     cost_usd: None,
                     context: None,
+                    trials: None,
                 },
                 CaseResult {
                     case_id: "retired".into(),
@@ -745,6 +806,7 @@ mod tests {
                     scores: vec![],
                     cost_usd: None,
                     context: None,
+                    trials: None,
                 },
             ],
             gates: Vec::new(),
@@ -781,6 +843,7 @@ mod tests {
                 }],
                 cost_usd: None,
                 context: None,
+                trials: None,
             }],
             gates: Vec::new(),
         };
@@ -815,6 +878,7 @@ mod tests {
                 scores: vec![],
                 cost_usd: None,
                 context: Some(vec!["<script>alert(1)</script> & \"quoted\" 'chunk'".into()]),
+                trials: None,
             }],
             gates: Vec::new(),
         };
@@ -848,6 +912,7 @@ mod tests {
                 scores: vec![],
                 cost_usd: None,
                 context: None,
+                trials: None,
             }],
             gates: Vec::new(),
         };
@@ -861,5 +926,110 @@ mod tests {
         let parsed: RunSummary = serde_json::from_str(&rendered).unwrap();
         assert_eq!(parsed.total(), 3);
         assert_eq!(parsed.failed(), 2);
+    }
+
+    /// A multi-trial case: 2 of 3 trials pass, one trial's target errored with a
+    /// hostile reason. Exercises the trials suffix and the HTML trials table.
+    fn multi_trial_case() -> CaseResult {
+        CaseResult {
+            case_id: "flaky-1".into(),
+            output: Some(TargetOutput {
+                text: "yes".into(),
+                latency_ms: 5,
+                tokens: None,
+                trajectory: None,
+            }),
+            error: None,
+            scores: vec![Score {
+                scorer: "contains".into(),
+                value: 2.0 / 3.0,
+                passed: false,
+                reason: None,
+            }],
+            cost_usd: None,
+            context: None,
+            trials: Some(vec![
+                TrialResult {
+                    passed: true,
+                    scores: vec![Score {
+                        scorer: "contains".into(),
+                        value: 1.0,
+                        passed: true,
+                        reason: None,
+                    }],
+                    latency_ms: 5,
+                    error: None,
+                },
+                TrialResult {
+                    passed: true,
+                    scores: vec![Score {
+                        scorer: "contains".into(),
+                        value: 1.0,
+                        passed: true,
+                        reason: None,
+                    }],
+                    latency_ms: 6,
+                    error: None,
+                },
+                TrialResult {
+                    passed: false,
+                    scores: vec![],
+                    latency_ms: 0,
+                    error: Some("<boom> & \"crash\"".into()),
+                },
+            ]),
+        }
+    }
+
+    #[test]
+    fn terminal_appends_trials_suffix_only_when_multi() {
+        // A multi-trial FAIL line carries the [k/N trials] tag; a single-trial
+        // case (trials None) is byte-identical to today (no tag).
+        let summary = RunSummary {
+            results: vec![multi_trial_case()],
+            gates: Vec::new(),
+        };
+        let rendered = terminal(&summary);
+        assert!(
+            rendered.contains("FAIL flaky-1 [2/3 trials]"),
+            "got: {rendered}"
+        );
+
+        // A single-trial fixture must NOT gain any trials tag.
+        assert!(
+            !terminal(&fixture()).contains("trials]"),
+            "single-trial output must stay tag-free"
+        );
+    }
+
+    #[test]
+    fn html_renders_trials_and_escapes_error_reasons() {
+        let summary = RunSummary {
+            results: vec![multi_trial_case()],
+            gates: Vec::new(),
+        };
+        let rendered = html(&summary, None);
+
+        assert!(
+            rendered.contains("<h3>Trials</h3>"),
+            "trials section present"
+        );
+        // A hostile trial-error reason must render inert.
+        assert!(
+            rendered.contains("target error: &lt;boom&gt; &amp; &quot;crash&quot;"),
+            "trial error reason must be escaped; got: {rendered}"
+        );
+        assert!(
+            !rendered.contains("<boom>"),
+            "no live markup survives from a trial error"
+        );
+        // A successful trial's detail summarizes its scorer values.
+        assert!(rendered.contains("contains=1"), "got: {rendered}");
+    }
+
+    #[test]
+    fn html_without_trials_has_no_trials_section() {
+        // Byte-level: a single-trial report never emits the Trials section.
+        assert!(!html(&fixture(), None).contains("<h3>Trials</h3>"));
     }
 }

@@ -89,6 +89,25 @@ pub struct Score {
     pub reason: Option<String>,
 }
 
+/// One trial's outcome within a multi-trial case (`run.trials` count > 1).
+/// Carried in `CaseResult.trials`; a single-trial case has no `TrialResult`s.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrialResult {
+    /// True iff every scorer passed for this trial. A trial whose target
+    /// errored is a failed trial (`passed: false`, empty `scores`) — failures
+    /// are data.
+    pub passed: bool,
+    /// This trial's per-scorer scores, in scorer order. Empty when the target
+    /// errored (scorers do not run on a target error).
+    pub scores: Vec<Score>,
+    /// This trial's target latency in milliseconds; `0` when the target errored.
+    pub latency_ms: u64,
+    /// The target error reason for this trial, if the target failed. Omitted on
+    /// serialization when the trial succeeded.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
 /// Everything that happened for one case.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CaseResult {
@@ -108,6 +127,15 @@ pub struct CaseResult {
     /// bytes (a shape-pinning test guards this).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<Vec<String>>,
+    /// Per-trial breakdown when the case ran more than one trial
+    /// (`run.trials` count > 1). `None` for single-trial cases, and omitted on
+    /// serialization, so single-trial `CaseResult` JSON is byte-identical to
+    /// before trials existed (a shape-pinning test guards this). When present,
+    /// the case-level `output.latency_ms` is the MEAN of the trial latencies
+    /// and each per-scorer `Score.value` above is the MEAN of that scorer's
+    /// value across trials; the individual trial latencies and scores live here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trials: Option<Vec<TrialResult>>,
 }
 
 impl CaseResult {
@@ -229,20 +257,25 @@ mod tests {
 
     #[test]
     fn case_result_context_is_baseline_backcompat() {
-        // Baseline rows persist CaseResult JSON and predate the `context`
-        // field: old rows must deserialize (→ None), and a None context must
-        // serialize to the SAME bytes as before the field existed.
+        // Baseline rows persist CaseResult JSON and predate the `context` and
+        // `trials` fields: old rows must deserialize (→ None), and a None
+        // context/trials must serialize to the SAME bytes as before the fields
+        // existed.
         let old_shape = r#"{"case_id":"c","scores":[]}"#;
         let result: CaseResult = serde_json::from_str(old_shape).unwrap();
         assert!(
             result.context.is_none(),
             "absent field deserializes to None"
         );
+        assert!(
+            result.trials.is_none(),
+            "absent trials deserializes to None"
+        );
 
         let reserialized = serde_json::to_string(&result).unwrap();
         assert_eq!(
             reserialized, old_shape,
-            "None context must not add bytes to the recorded shape"
+            "None context/trials must not add bytes to the recorded shape"
         );
 
         // The other direction: a present context rides along in the JSON.
@@ -260,6 +293,78 @@ mod tests {
             round_tripped.context.as_deref(),
             Some(["chunk a".to_string(), "chunk b".to_string()].as_slice())
         );
+    }
+
+    #[test]
+    fn single_trial_case_result_json_is_byte_identical() {
+        // A `trials: 1` run (or any run with no trials configured) must produce
+        // exactly the CaseResult bytes it produced before trials existed: the
+        // `trials` field is None and omitted, adding nothing to the shape.
+        let result = CaseResult {
+            case_id: "refund-1".into(),
+            output: Some(TargetOutput {
+                text: "ok".into(),
+                latency_ms: 12,
+                tokens: None,
+                trajectory: None,
+            }),
+            error: None,
+            scores: vec![Score {
+                scorer: "contains".into(),
+                value: 1.0,
+                passed: true,
+                reason: None,
+            }],
+            cost_usd: None,
+            context: None,
+            trials: None,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert_eq!(
+            json,
+            r#"{"case_id":"refund-1","output":{"text":"ok","latency_ms":12},"scores":[{"scorer":"contains","value":1.0,"passed":true}]}"#,
+            "None trials must not add bytes to the single-trial shape"
+        );
+    }
+
+    #[test]
+    fn multi_trial_case_result_serializes_trials_detail() {
+        // A present `trials` vec rides along in the JSON and round-trips.
+        let result = CaseResult {
+            case_id: "c".into(),
+            output: None,
+            error: None,
+            scores: vec![],
+            cost_usd: None,
+            context: None,
+            trials: Some(vec![
+                TrialResult {
+                    passed: true,
+                    scores: vec![Score {
+                        scorer: "contains".into(),
+                        value: 1.0,
+                        passed: true,
+                        reason: None,
+                    }],
+                    latency_ms: 5,
+                    error: None,
+                },
+                TrialResult {
+                    passed: false,
+                    scores: vec![],
+                    latency_ms: 0,
+                    error: Some("boom".into()),
+                },
+            ]),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains(r#""trials":[{"passed":true"#), "got: {json}");
+        assert!(json.contains(r#""error":"boom""#), "got: {json}");
+        let round_tripped: CaseResult = serde_json::from_str(&json).unwrap();
+        let trials = round_tripped.trials.unwrap();
+        assert_eq!(trials.len(), 2);
+        assert!(trials[0].error.is_none(), "successful trial omits error");
+        assert_eq!(trials[1].error.as_deref(), Some("boom"));
     }
 
     #[test]

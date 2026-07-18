@@ -5,12 +5,40 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use evalcore_config::{TrialRequire, TrialsConfig};
 use futures::StreamExt;
 
 use crate::target::Target;
-use crate::types::{CaseResult, CostRates, RunSummary, Score, Scorer, TestCase};
+use crate::types::{
+    CaseResult, CostRates, RunSummary, Score, Scorer, TargetOutput, TestCase, TrialResult,
+};
 
-#[derive(Debug, Clone, Copy, Default)]
+tokio::task_local! {
+    /// The trial index (0-based) of the trial currently executing, if any.
+    static TRIAL: u32;
+}
+
+/// The trial index visible to the currently executing trial, or `0` when no
+/// trial scope is active (single-trial and non-trial runs).
+///
+/// The record/replay cache reads this to salt cache keys for trials `i > 0`
+/// while leaving trial 0 byte-identical to a non-trial run — so a cassette
+/// recorded before trials existed replays as trial 0. Lives here (not in the
+/// store) so the engine owns trial sequencing and the store merely observes it.
+pub fn current_trial() -> u32 {
+    TRIAL.try_with(|trial| *trial).unwrap_or(0)
+}
+
+/// Run `fut` with `trial` visible to [`current_trial`] for the duration of its
+/// execution. Trial 0 keeps cache keys byte-identical to a non-trial run.
+pub async fn with_trial<F>(trial: u32, fut: F) -> F::Output
+where
+    F: std::future::Future,
+{
+    TRIAL.scope(trial, fut).await
+}
+
+#[derive(Debug, Clone)]
 pub struct RunOptions {
     /// Maximum in-flight cases (minimum 1).
     pub concurrency: usize,
@@ -20,6 +48,25 @@ pub struct RunOptions {
     pub budget_usd: Option<f64>,
     /// The selected target's token prices; enables per-case `cost_usd`.
     pub cost_rates: Option<CostRates>,
+    /// Trials per case: how many times each case runs and how per-trial
+    /// verdicts fold into the case verdict. `count == 1` with `require: all`
+    /// (the default) behaves exactly like a run with no trials configured —
+    /// byte-identical results, cache keys, and reporter output.
+    pub trials: TrialsConfig,
+}
+
+impl Default for RunOptions {
+    fn default() -> Self {
+        Self {
+            concurrency: 0,
+            budget_usd: None,
+            cost_rates: None,
+            trials: TrialsConfig {
+                count: 1,
+                require: TrialRequire::All,
+            },
+        }
+    }
 }
 
 pub async fn run_suite(
@@ -30,6 +77,7 @@ pub async fn run_suite(
 ) -> RunSummary {
     // Accumulated spend in micro-USD; atomic so concurrent cases stay honest.
     let spent_micros = AtomicU64::new(0);
+    let options = &options;
     let results = futures::stream::iter(cases)
         .map(|case| {
             let spent_micros = &spent_micros;
@@ -46,16 +94,15 @@ pub async fn run_suite(
                             scores: Vec::new(),
                             cost_usd: None,
                             context: case.context,
+                            trials: None,
                         };
                     }
                 }
-                let mut result = run_case(target, scorers, case).await;
-                if let (Some(rates), Some(tokens)) = (
-                    options.cost_rates,
-                    result.output.as_ref().and_then(|o| o.tokens),
-                ) {
-                    let cost = rates.cost_of(tokens);
-                    result.cost_usd = Some(cost);
+                let result =
+                    run_case(target, scorers, case, options.cost_rates, &options.trials).await;
+                // Every trial's cost counts toward the budget; `cost_usd` is the
+                // sum across trials (a single trial's cost for count == 1).
+                if let Some(cost) = result.cost_usd {
                     spent_micros.fetch_add((cost * 1e6) as u64, Ordering::SeqCst);
                 }
                 result
@@ -71,29 +118,56 @@ pub async fn run_suite(
     }
 }
 
-async fn run_case(target: &dyn Target, scorers: &[Box<dyn Scorer>], case: TestCase) -> CaseResult {
+/// Execute one case. Dispatches to the single-trial path (byte-identical to a
+/// non-trial run) or the multi-trial path based on `trials.count`.
+async fn run_case(
+    target: &dyn Target,
+    scorers: &[Box<dyn Scorer>],
+    case: TestCase,
+    cost_rates: Option<CostRates>,
+    trials: &TrialsConfig,
+) -> CaseResult {
+    if trials.count <= 1 {
+        run_single(target, scorers, case, cost_rates).await
+    } else {
+        run_multi(
+            target,
+            scorers,
+            case,
+            cost_rates,
+            trials.count as usize,
+            trials.require,
+        )
+        .await
+    }
+}
+
+/// The single-trial path. Byte-identical (result shape, cache key, cost) to the
+/// engine before trials existed: `trials` is `None` and no trial scope is set,
+/// so `current_trial()` is 0 and cache keys are unchanged.
+async fn run_single(
+    target: &dyn Target,
+    scorers: &[Box<dyn Scorer>],
+    case: TestCase,
+    cost_rates: Option<CostRates>,
+) -> CaseResult {
     match target.invoke(&case).await {
         Ok(output) => {
             let mut scores = Vec::with_capacity(scorers.len());
             for scorer in scorers {
-                let score = scorer
-                    .score(&case, &output)
-                    .await
-                    .unwrap_or_else(|err| Score {
-                        scorer: scorer.name(),
-                        value: 0.0,
-                        passed: false,
-                        reason: Some(format!("scorer error: {err}")),
-                    });
-                scores.push(score);
+                scores.push(score_one(scorer.as_ref(), &case, &output).await);
             }
+            let cost_usd = cost_rates
+                .zip(output.tokens)
+                .map(|(rates, tokens)| rates.cost_of(tokens));
             CaseResult {
                 case_id: case.id,
                 output: Some(output),
                 error: None,
                 scores,
-                cost_usd: None,
+                cost_usd,
                 context: case.context,
+                trials: None,
             }
         }
         Err(err) => CaseResult {
@@ -103,8 +177,161 @@ async fn run_case(target: &dyn Target, scorers: &[Box<dyn Scorer>], case: TestCa
             scores: Vec::new(),
             cost_usd: None,
             context: case.context,
+            trials: None,
         },
     }
+}
+
+/// The multi-trial path (`count > 1`). Runs `count` trials sequentially in
+/// trial-index order (determinism), each under a trial scope so its target and
+/// scorer cache calls re-key per trial. Folds per-trial verdicts into the case
+/// verdict via `require`; the case-level `scores` are per-scorer means and the
+/// case latency is the mean of the trial latencies.
+async fn run_multi(
+    target: &dyn Target,
+    scorers: &[Box<dyn Scorer>],
+    case: TestCase,
+    cost_rates: Option<CostRates>,
+    count: usize,
+    require: TrialRequire,
+) -> CaseResult {
+    let mut trial_results: Vec<TrialResult> = Vec::with_capacity(count);
+    let mut outputs: Vec<Option<TargetOutput>> = Vec::with_capacity(count);
+    for i in 0..count {
+        let (trial, output) = with_trial(i as u32, run_trial(target, scorers, &case)).await;
+        trial_results.push(trial);
+        outputs.push(output);
+    }
+
+    let passed_trials = trial_results.iter().filter(|t| t.passed).count();
+    let verdict = match require {
+        TrialRequire::All => passed_trials == count,
+        TrialRequire::Any => passed_trials >= 1,
+        // Majority = strictly more than half.
+        TrialRequire::Majority => passed_trials * 2 > count,
+    };
+
+    // Per-scorer case score = mean of that scorer's value across the trials
+    // that produced it (errored trials contribute none). `passed` is the case
+    // verdict so `CaseResult::passed()` reflects the require policy; the
+    // granular per-trial scores live in the trials detail.
+    let mut scores = Vec::with_capacity(scorers.len());
+    for (j, scorer) in scorers.iter().enumerate() {
+        let values: Vec<f64> = trial_results
+            .iter()
+            .filter_map(|t| t.scores.get(j))
+            .map(|s| s.value)
+            .collect();
+        if values.is_empty() {
+            continue;
+        }
+        let mean = values.iter().sum::<f64>() / values.len() as f64;
+        // A failing case keeps the first failing trial's reason for this scorer
+        // (trial-index order, so deterministic) — the terminal report's reason
+        // line stays actionable; the full per-trial detail lives in `trials`.
+        let reason = (!verdict)
+            .then(|| {
+                trial_results.iter().enumerate().find_map(|(i, t)| {
+                    let score = t.scores.get(j)?;
+                    (!score.passed).then(|| match &score.reason {
+                        Some(r) => format!("trial {i}: {r}"),
+                        None => format!("trial {i}: failed"),
+                    })
+                })
+            })
+            .flatten();
+        scores.push(Score {
+            scorer: scorer.name(),
+            value: mean,
+            passed: verdict,
+            reason,
+        });
+    }
+
+    let latency_mean = trial_results.iter().map(|t| t.latency_ms).sum::<u64>() / count as u64;
+
+    // Every trial's cost counts toward the budget; the case cost is their sum.
+    let cost_usd = cost_rates.and_then(|rates| {
+        let costs: Vec<f64> = outputs
+            .iter()
+            .filter_map(|o| o.as_ref().and_then(|o| o.tokens))
+            .map(|tokens| rates.cost_of(tokens))
+            .collect();
+        (!costs.is_empty()).then(|| costs.iter().sum())
+    });
+
+    // Surface the first successful trial's output (with the mean latency); if
+    // every trial errored, surface a case error so `passed()` stays false.
+    let first_ok = outputs.into_iter().flatten().next();
+    let (output, error) = match first_ok {
+        Some(mut output) => {
+            output.latency_ms = latency_mean;
+            (Some(output), None)
+        }
+        None => (None, trial_results.iter().find_map(|t| t.error.clone())),
+    };
+
+    CaseResult {
+        case_id: case.id,
+        output,
+        error,
+        scores,
+        cost_usd,
+        context: case.context,
+        trials: Some(trial_results),
+    }
+}
+
+/// Run one trial: invoke the target and, on success, apply every scorer. A
+/// target error is a failed trial with a reason (no scores). Returns the trial
+/// record plus the raw output (for aggregation) when the target succeeded.
+async fn run_trial(
+    target: &dyn Target,
+    scorers: &[Box<dyn Scorer>],
+    case: &TestCase,
+) -> (TrialResult, Option<TargetOutput>) {
+    match target.invoke(case).await {
+        Ok(output) => {
+            let mut scores = Vec::with_capacity(scorers.len());
+            for scorer in scorers {
+                scores.push(score_one(scorer.as_ref(), case, &output).await);
+            }
+            let passed = scores.iter().all(|s| s.passed);
+            let latency_ms = output.latency_ms;
+            (
+                TrialResult {
+                    passed,
+                    scores,
+                    latency_ms,
+                    error: None,
+                },
+                Some(output),
+            )
+        }
+        Err(err) => (
+            TrialResult {
+                passed: false,
+                scores: Vec::new(),
+                latency_ms: 0,
+                error: Some(format!("{err:#}")),
+            },
+            None,
+        ),
+    }
+}
+
+/// Apply one scorer, converting a scorer `Err` into a failing score with a
+/// reason (one bad scorer never aborts the run).
+async fn score_one(scorer: &dyn Scorer, case: &TestCase, output: &TargetOutput) -> Score {
+    scorer
+        .score(case, output)
+        .await
+        .unwrap_or_else(|err| Score {
+            scorer: scorer.name(),
+            value: 0.0,
+            passed: false,
+            reason: Some(format!("scorer error: {err}")),
+        })
 }
 
 #[cfg(test)]
@@ -241,6 +468,7 @@ mod tests {
                 input_per_1m: 1.0,
                 output_per_1m: 2.0,
             }),
+            ..Default::default()
         };
         let summary = run_suite(&Upper, cases(&["a", "b"]), &scorers, opts).await;
 
@@ -262,6 +490,7 @@ mod tests {
                 input_per_1m: 1.0,
                 output_per_1m: 2.0,
             }),
+            ..Default::default()
         };
         // Each case costs $0.00002, so case 1 runs (spent 0 < budget), and
         // every later case is over budget.
@@ -274,5 +503,283 @@ mod tests {
         let reason = skipped.error.as_deref().unwrap();
         assert!(reason.contains("budget"), "got: {reason}");
         assert!(skipped.output.is_none(), "skipped cases must not invoke");
+    }
+
+    /// A target whose output depends on the current trial index, so trials
+    /// produce different verdicts deterministically: `"yes"` for trials below
+    /// `pass_below`, else `"no"`. Latency is `trial + 1` (distinct per trial).
+    struct Flaky {
+        pass_below: u32,
+    }
+
+    #[async_trait]
+    impl Target for Flaky {
+        async fn invoke(&self, _case: &TestCase) -> anyhow::Result<TargetOutput> {
+            let trial = current_trial();
+            Ok(TargetOutput {
+                text: if trial < self.pass_below { "yes" } else { "no" }.into(),
+                latency_ms: trial as u64 + 1,
+                tokens: None,
+                trajectory: None,
+            })
+        }
+    }
+
+    /// A target that errors on exactly one trial index, else answers `"yes"`.
+    struct ExplodeOnTrial {
+        at: u32,
+    }
+
+    #[async_trait]
+    impl Target for ExplodeOnTrial {
+        async fn invoke(&self, _case: &TestCase) -> anyhow::Result<TargetOutput> {
+            let trial = current_trial();
+            if trial == self.at {
+                anyhow::bail!("boom on trial {trial}");
+            }
+            Ok(TargetOutput {
+                text: "yes".into(),
+                latency_ms: 10,
+                tokens: None,
+                trajectory: None,
+            })
+        }
+    }
+
+    struct WantYes;
+
+    #[async_trait]
+    impl Scorer for WantYes {
+        fn name(&self) -> String {
+            "want-yes".into()
+        }
+
+        async fn score(&self, _case: &TestCase, output: &TargetOutput) -> anyhow::Result<Score> {
+            let passed = output.text == "yes";
+            Ok(Score {
+                scorer: self.name(),
+                value: if passed { 1.0 } else { 0.0 },
+                passed,
+                reason: (!passed).then(|| "wanted yes".into()),
+            })
+        }
+    }
+
+    fn trials_opts(count: u32, require: TrialRequire) -> RunOptions {
+        RunOptions {
+            concurrency: 1,
+            trials: TrialsConfig { count, require },
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn single_trial_leaves_no_trials_detail() {
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(NonEmpty)];
+        let summary = run_suite(
+            &Upper,
+            cases(&["a"]),
+            &scorers,
+            trials_opts(1, TrialRequire::All),
+        )
+        .await;
+        assert!(
+            summary.results[0].trials.is_none(),
+            "count == 1 keeps the trials detail None"
+        );
+    }
+
+    #[tokio::test]
+    async fn require_all_needs_every_trial() {
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(WantYes)];
+        // 2 of 3 trials pass → require all FAILS the case.
+        let summary = run_suite(
+            &Flaky { pass_below: 2 },
+            cases(&["q"]),
+            &scorers,
+            trials_opts(3, TrialRequire::All),
+        )
+        .await;
+        assert_eq!(summary.passed(), 0);
+        let result = &summary.results[0];
+        let trials = result.trials.as_ref().unwrap();
+        assert_eq!(trials.len(), 3);
+        assert_eq!(trials.iter().filter(|t| t.passed).count(), 2);
+        // Per-scorer case score is the mean across trials: [1, 1, 0] → 2/3.
+        assert!((result.scores[0].value - 2.0 / 3.0).abs() < 1e-12);
+
+        // 3 of 3 pass → require all PASSES.
+        let summary = run_suite(
+            &Flaky { pass_below: 3 },
+            cases(&["q"]),
+            &scorers,
+            trials_opts(3, TrialRequire::All),
+        )
+        .await;
+        assert_eq!(summary.passed(), 1);
+    }
+
+    #[tokio::test]
+    async fn require_majority_needs_more_than_half() {
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(WantYes)];
+        // 2/3 → majority PASS.
+        assert_eq!(
+            run_suite(
+                &Flaky { pass_below: 2 },
+                cases(&["q"]),
+                &scorers,
+                trials_opts(3, TrialRequire::Majority)
+            )
+            .await
+            .passed(),
+            1
+        );
+        // 1/3 → majority FAIL (1*2 is not > 3).
+        assert_eq!(
+            run_suite(
+                &Flaky { pass_below: 1 },
+                cases(&["q"]),
+                &scorers,
+                trials_opts(3, TrialRequire::Majority)
+            )
+            .await
+            .passed(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn require_any_needs_one_trial() {
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(WantYes)];
+        // 1/3 → any PASS.
+        assert_eq!(
+            run_suite(
+                &Flaky { pass_below: 1 },
+                cases(&["q"]),
+                &scorers,
+                trials_opts(3, TrialRequire::Any)
+            )
+            .await
+            .passed(),
+            1
+        );
+        // 0/3 → any FAIL.
+        assert_eq!(
+            run_suite(
+                &Flaky { pass_below: 0 },
+                cases(&["q"]),
+                &scorers,
+                trials_opts(3, TrialRequire::Any)
+            )
+            .await
+            .passed(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn case_latency_is_mean_of_trial_latencies() {
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(WantYes)];
+        let summary = run_suite(
+            &Flaky { pass_below: 3 },
+            cases(&["q"]),
+            &scorers,
+            trials_opts(3, TrialRequire::All),
+        )
+        .await;
+        // Trial latencies 1, 2, 3 → case latency mean 2.
+        assert_eq!(
+            summary.results[0].output.as_ref().unwrap().latency_ms,
+            2,
+            "case latency is the mean of the trial latencies"
+        );
+        let trials = summary.results[0].trials.as_ref().unwrap();
+        assert_eq!(
+            trials.iter().map(|t| t.latency_ms).collect::<Vec<_>>(),
+            vec![1, 2, 3],
+            "per-trial latencies are kept in trial-index order"
+        );
+    }
+
+    #[tokio::test]
+    async fn trial_target_error_is_a_failed_trial_with_reason() {
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(WantYes)];
+        // Trial 1 errors; trials 0 and 2 succeed. Under `any` the case passes.
+        let summary = run_suite(
+            &ExplodeOnTrial { at: 1 },
+            cases(&["q"]),
+            &scorers,
+            trials_opts(3, TrialRequire::Any),
+        )
+        .await;
+        assert_eq!(
+            summary.passed(),
+            1,
+            "two good trials pass the case under any"
+        );
+        let result = &summary.results[0];
+        let trials = result.trials.as_ref().unwrap();
+        assert!(trials[0].passed);
+        assert!(!trials[1].passed, "the errored trial is a failed trial");
+        assert!(trials[1].scores.is_empty(), "no scores on a target error");
+        assert!(trials[1]
+            .error
+            .as_deref()
+            .unwrap()
+            .contains("boom on trial 1"));
+        assert!(trials[2].passed);
+        // The mean uses only the two successful trials: [1, 1] → 1.0.
+        assert_eq!(result.scores[0].value, 1.0);
+    }
+
+    #[tokio::test]
+    async fn all_trials_erroring_yields_a_case_error() {
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(WantYes)];
+        let summary = run_suite(
+            &ExplodeOnTrial { at: 0 }, // errors only trial 0
+            cases(&["q"]),
+            &scorers,
+            trials_opts(1, TrialRequire::All), // single trial errors → case errors
+        )
+        .await;
+        // count == 1 uses the single-trial path: today's behavior, trials None.
+        let result = &summary.results[0];
+        assert!(!result.passed());
+        assert!(result.error.as_deref().unwrap().contains("boom on trial 0"));
+        assert!(result.trials.is_none());
+    }
+
+    #[tokio::test]
+    async fn per_scorer_mean_feeds_a_mean_score_gate() {
+        use crate::gates::evaluate_gates;
+        use evalcore_config::GateConfig;
+
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(WantYes)];
+        // One case, 2/3 trials pass → want-yes mean value 2/3.
+        let summary = run_suite(
+            &Flaky { pass_below: 2 },
+            cases(&["q"]),
+            &scorers,
+            trials_opts(3, TrialRequire::Majority),
+        )
+        .await;
+        let pass = &evaluate_gates(
+            &[GateConfig::MeanScore {
+                scorer: Some("want-yes".into()),
+                min: 0.6,
+            }],
+            &summary,
+        )[0];
+        assert!(pass.passed, "mean 0.667 clears a 0.6 floor");
+        assert!((pass.actual - 2.0 / 3.0).abs() < 1e-12);
+
+        let fail = &evaluate_gates(
+            &[GateConfig::MeanScore {
+                scorer: Some("want-yes".into()),
+                min: 0.7,
+            }],
+            &summary,
+        )[0];
+        assert!(!fail.passed, "mean 0.667 is below a 0.7 floor");
     }
 }
