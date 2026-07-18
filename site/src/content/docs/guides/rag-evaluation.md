@@ -3,13 +3,6 @@ title: RAG evaluation
 description: Evaluate a retrieval-augmented app with EvalCore — attach retrieved context to cases, grade groundedness with the cached native judge, assert on what your pipeline retrieved, and wire the shipped Ragas/DeepEval shims into a nightly tier.
 ---
 
-:::note[Requires an unreleased build]
-Per-case `context` and the RAG-metric shims land in **0.6.0** (unreleased; the
-current release is 0.5.0). Until 0.6.0 ships, install from source —
-`cargo install --git https://github.com/eval-core/evalcore` — or build the
-workspace locally.
-:::
-
 A retrieval-augmented (RAG) app answers from chunks it retrieved, so its evals
 need one thing the others don't: the **retrieved context** the answer was
 supposed to be grounded in. Since 0.6.0 a dataset case can carry that context,
