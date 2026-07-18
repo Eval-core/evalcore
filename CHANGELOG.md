@@ -4,7 +4,7 @@ All notable changes to EvalCore. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com); versions follow semver
 (pre-1.0: minor bumps may break APIs and config).
 
-## [Unreleased]
+## [0.6.0] — 2026-07-18
 
 ### Added
 - **Per-case `context` for RAG evaluation**: a dataset case may carry retrieved
@@ -21,6 +21,11 @@ All notable changes to EvalCore. Format loosely follows
   carries context. The HTML report renders a numbered, escaped Context block in
   each case's expandable details; the JSON report carries it too, while the
   terminal and JUnit reporters are unchanged.
+- **Ragas/DeepEval shims** (`shims/` in the repo): ready-made subprocess
+  scorers wrapping Ragas and DeepEval faithfulness/context-recall metrics —
+  stdlib-only at import, lazy library imports, and an offline `--check`
+  self-test. These metrics call an LLM themselves, so they belong on a nightly
+  tier; the cached native `judge` remains the PR path.
 
 ## [0.5.0] — 2026-07-17
 

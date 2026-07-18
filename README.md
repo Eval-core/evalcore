@@ -17,7 +17,7 @@ cargo install evalcore                 # from crates.io
 In GitHub Actions, one step runs a suite and gates the job (report lands in the step summary):
 
 ```yaml
-- uses: eval-core/evalcore@v0.5.0
+- uses: eval-core/evalcore@v0.6.0
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
