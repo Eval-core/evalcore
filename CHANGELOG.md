@@ -4,6 +4,31 @@ All notable changes to EvalCore. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com); versions follow semver
 (pre-1.0: minor bumps may break APIs and config).
 
+## [0.7.5] — 2026-07-19
+
+### Changed
+- **Premium terminal output.** On an interactive terminal, `evalcore run` now
+  renders restrained semantic color (green pass, red fail, yellow flaky, dim
+  secondary figures), a prominent closing `PASSED`/`FAILED` verdict, and a
+  live spinner + `k/N` case counter on stderr. The status words are always
+  present, so nothing depends on color. Piped, redirected, in CI, or under
+  `NO_COLOR`/`TERM=dumb`, the output is exactly the previous plain text —
+  byte-for-byte, so snapshots, grep, and pull-request pastes are unaffected.
+  New flags tune it: `--color auto|always|never`, `--progress auto|never`, and
+  `-q/--quiet` (failures only). Machine reporters (`json`/`junit`) and
+  `--output` files are never colored, and the verdict rides stderr there so
+  their stdout stays pure. `--color` honors `NO_COLOR`, `TERM=dumb`, and
+  `CLICOLOR_FORCE`.
+
+### Security
+- **Terminal-output sanitization.** All user-derived text in the terminal
+  reporters (case ids, scorer reasons, target errors, gate/class labels) is
+  neutralized against ANSI/control-sequence injection — ESC, C0/C1/DEL,
+  CR/LF/TAB, and Unicode bidirectional (Trojan-Source) controls render as
+  visible escapes — so a hostile model output or dataset can't move the
+  cursor, recolor the report, or reorder a line. Benign text is unchanged;
+  JSON/JUnit/HTML keep their existing escaping.
+
 ## [0.7.0] — 2026-07-18
 
 ### Added

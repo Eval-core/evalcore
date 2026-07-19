@@ -362,7 +362,7 @@ summary, and a self-contained HTML report is uploaded as an artifact a reviewer
 can open straight from the pull request:
 
 ```yaml
-- uses: eval-core/evalcore@v0.7.0
+- uses: eval-core/evalcore@v0.7.5
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
