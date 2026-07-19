@@ -113,62 +113,47 @@
 	color: var(--muted);
 }
 
-/* ---- Step numbers: small mono figures, not badges ----------------------- */
-.ec-step-n {
+/* ---- Step numbers: a CSS counter on the section headings ---------------- */
+/* The figure is generated, not written into the heading, so the auto-TOC and
+ * heading anchors stay clean (defect 12). Scoped to direct-child H3s of the
+ * splash content column so CardGrid titles are never numbered. */
+/* Starlight wraps each heading in .sl-heading-wrapper.level-hN. Scope to
+ * direct-child h3 wrappers of the splash content so only the top-level step
+ * headings are numbered — card titles render as <p> and are excluded anyway. */
+/* Starlight 0.41.3 */
+[data-has-hero] .sl-markdown-content {
+	counter-reset: ec-step;
+}
+/* Starlight 0.41.3 */
+[data-has-hero] .sl-markdown-content > .level-h3 {
+	counter-increment: ec-step;
+}
+[data-has-hero] .sl-markdown-content > .level-h3 h3::before {
+	content: counter(ec-step);
 	font-family: var(--sl-font-mono);
 	font-weight: 500;
 	font-size: 0.8em;
 	color: var(--muted);
-	margin-right: var(--sp-2);
+	margin-right: var(--sp-3);
 }
 
-/* ---- Feature grid: hairline-topped columns, no icons/cards -------------- */
-.ec-features {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: var(--sp-6) var(--sp-7);
-	margin-top: var(--sp-6);
-}
-.ec-feature {
-	padding-top: var(--sp-4);
-	border-top: var(--border);
-}
-.ec-feature h3 {
-	margin: 0 0 var(--sp-2);
-	font-size: var(--fs-base);
-	font-weight: 600;
-	letter-spacing: -0.01em;
-	color: var(--sl-color-text);
-}
-.ec-feature p {
-	margin: 0;
-	font-size: var(--fs-sm);
-	line-height: var(--lh-snug);
-	color: var(--muted);
-}
-.ec-feature code {
-	font-size: 0.88em;
-	color: inherit;
-	background: var(--code-bg);
-	border-radius: var(--radius-sm);
-	padding: 0.08em 0.32em;
-}
-@media (max-width: 50rem) {
-	.ec-features {
-		grid-template-columns: 1fr 1fr;
-	}
-}
-@media (max-width: 34rem) {
-	.ec-features {
-		grid-template-columns: 1fr;
-	}
-}
+/* The feature grid is now a Starlight <CardGrid> styled in components.css so
+ * the landing and the docs share one card vocabulary. */
 
-/* ---- "Works with your stack": one muted line --------------------------- */
+/* ---- "Works with" strip: compact, not a thin section ------------------- */
+/* A full H2 over one muted line read as a section that did not earn a break.
+ * This is a centered strip instead — same content, no heading, no rule. */
 .ec-stack {
 	max-width: 46rem;
+	margin: var(--sp-7) auto 0;
+	text-align: center;
 	color: var(--muted);
-	line-height: var(--lh-normal);
+	font-size: var(--fs-sm);
+	line-height: var(--lh-snug);
+}
+.ec-stack-label {
+	font-weight: 600;
+	color: var(--sl-color-text);
 }
 
 /* ---- Closing: plain centered block ------------------------------------- */

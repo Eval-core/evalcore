@@ -34,7 +34,18 @@
  * no box. The rule is the only chrome. */
 /* Starlight 0.41.3 */
 .card-grid {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: var(--sp-6) var(--sp-7);
+}
+@media (max-width: 60rem) {
+	.card-grid {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+@media (max-width: 34rem) {
+	.card-grid {
+		grid-template-columns: 1fr;
+	}
 }
 /* Starlight 0.41.3 */
 .sl-markdown-content .card {

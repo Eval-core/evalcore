@@ -14,6 +14,12 @@ export default defineConfig({
 			description:
 				'The eval engine for AI systems: measure, compare, and regression-gate LLM apps and agents with one config-first binary.',
 			favicon: '/favicon.png',
+			// Site-wide footer strip (links every repo artifact the site never
+			// surfaced). Wraps Starlight's default footer so docs pages keep
+			// their prev/next pagination.
+			components: {
+				Footer: './src/components/Footer.astro',
+			},
 			// The mark: orbit-and-check symbol next to the wordmark. Light/dark
 			// variants because the near-black strokes would vanish on the dark bg.
 			logo: {
