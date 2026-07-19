@@ -70,7 +70,7 @@ How you upgrade depends on how you installed:
   version over the old one.
 - **Prebuilt binary:** download the newer release archive and replace the
   binary on your `PATH` (re-run the extract/move step above).
-- **GitHub Action:** bump the pinned tag (`eval-core/evalcore@v0.5.0`), or set
+- **GitHub Action:** bump the pinned tag (`eval-core/evalcore@v0.7.0`), or set
   the `version:` input to a specific release tag or `latest`.
 
 EvalCore is pre-1.0: minor versions may change config or CLI surface. Check the
@@ -84,7 +84,7 @@ fallback), runs a suite, writes the report to the job step summary, and exits
 with the suite's gate code — so the job passes or fails with your evals:
 
 ```yaml
-- uses: eval-core/evalcore@v0.5.0
+- uses: eval-core/evalcore@v0.7.0
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
@@ -96,14 +96,14 @@ with the suite's gate code — so the job passes or fails with your evals:
   baseline.
 - `version` (optional) pins the release to install; defaults to `latest`.
 
-Pin the action to a released tag (`@v0.5.0`) so CI is reproducible. The
+Pin the action to a released tag (`@v0.7.0`) so CI is reproducible. The
 [Running in CI](/evalcore/guides/running-in-ci/) guide covers the full workflow.
 
 ## Choosing an install method in CI
 
 | Where you run | Recommended install | Why |
 |---|---|---|
-| GitHub Actions | The `eval-core/evalcore@v0.5.0` Action | Installs the binary, adds a step summary, and carries the exit code for you. |
+| GitHub Actions | The `eval-core/evalcore@v0.7.0` Action | Installs the binary, adds a step summary, and carries the exit code for you. |
 | GitLab CI / Jenkins / Buildkite | Download the release binary in a script | No Rust toolchain on the runner; fast, pinned. |
 | Any runner with Rust | `cargo install evalcore --locked` | Works everywhere, including Windows, at the cost of a build. |
 | Air-gapped / self-hosted | Vendor the binary into your image | Fully offline; no download at job time. |

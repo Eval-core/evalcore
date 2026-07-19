@@ -106,7 +106,7 @@ One step installs the release binary (with a `cargo` fallback), runs the suite,
 writes the report to the job step summary, and exits with the gate's code:
 
 ```yaml
-- uses: eval-core/evalcore@v0.5.0
+- uses: eval-core/evalcore@v0.7.0
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
@@ -129,7 +129,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4        # brings the committed .evalcore/cache.db
-      - uses: eval-core/evalcore@v0.5.0
+      - uses: eval-core/evalcore@v0.7.0
         with:
           config: evals/evals.yaml
           args: --cache replay --baseline main
@@ -148,7 +148,7 @@ The GitHub Action produces one automatically via its `html-artifact` input
 as a CI artifact **even when the run fails** — reports matter most on a failure.
 
 ```yaml
-- uses: eval-core/evalcore@v0.5.0
+- uses: eval-core/evalcore@v0.7.0
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
@@ -186,7 +186,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: eval-core/evalcore@v0.5.0
+      - uses: eval-core/evalcore@v0.7.0
         with:
           config: evals/evals.yaml
           # live: call the real provider and re-record; compare to the accepted
