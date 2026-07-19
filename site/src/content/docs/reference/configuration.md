@@ -496,6 +496,7 @@ The `run` block is optional; every field has a default.
 | `budget_usd` | number | no | none | Abort scheduling new cases once accumulated cost reaches this (USD). Requires the target to declare `cost` rates. Must be positive. |
 | `gates` | list of [gate](#gates) | no | `[]` | Suite-level aggregate acceptance criteria. Evaluated in list order. |
 | `trials` | integer or [trials block](#trials) | no | `1` | Run each case N times and aggregate. Since v0.7.0 (unreleased). |
+| `classification` | bool | no | `false` | Compute [classification aggregates](#classification) (accuracy, macro-F1, per-class metrics) over labeled cases. Since v0.7.0 (unreleased). |
 
 ```yaml
 run:
@@ -553,6 +554,39 @@ the cost is the sum of every trial (counting toward `budget_usd`). An unknown
 existing cassettes replay; trials 1..N re-key with the trial index, and judge
 and similarity calls re-key per trial the same way.
 
+### Classification
+
+Since v0.7.0 (unreleased). `classification: true` computes label-prediction
+metrics over the **labeled** cases (those with an `expected` field): accuracy,
+macro-averaged F1, and a per-class precision/recall/F1/support table. Off by
+default; also turned on implicitly by an [`accuracy` or `macro_f1`
+gate](#gates), which needs the metrics. See the [Classification
+guide](../../guides/classification/) for a worked example.
+
+```yaml
+run:
+  classification: true
+```
+
+- A case's **label** is its trimmed `expected`; its **prediction** is its trimmed
+  output. Matching is exact and **case-sensitive** — v1 normalizes with `.trim()`
+  and nothing more (normalize in your target or a scorer).
+- The class set is the observed **expected** labels only. A prediction matching
+  no expected label is a false negative for its true class and enters no other
+  class's tally. Every `0/0` ratio is defined as `0.0`.
+- Macro-F1 is the **unweighted** mean of the per-class F1 scores (every class
+  counts equally, regardless of support).
+- A **target-error** case with `expected` counts as labeled-and-wrong — it
+  produced no output, so it matches no class, and an error storm sinks accuracy.
+- Multi-trial runs (v1 limitation): the prediction is the case-level surfaced
+  output (the first successful trial), not a vote across trials.
+
+The terminal prints one line after the gates block when the run computed
+classification: `classification: accuracy 0.67 · macro-F1 0.67 (3 labeled, 1
+unlabeled)`. The per-class table rides the JSON and HTML reports. Absent (the
+default), reporter output and the serialized `RunSummary` are byte-identical to a
+run with no classification.
+
 ### Gates
 
 Since v0.5.0. Gates express CI acceptance criteria over the whole run rather
@@ -587,6 +621,38 @@ is not among the configured scorers`. Cases whose target errored produce no
 scores, so they contribute nothing to the mean — pair a `mean_score` gate with a
 `pass_rate` gate to catch error storms that would otherwise leave a high mean
 intact.
+
+**`accuracy`** — fraction of labeled cases predicted correctly:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | `"accuracy"` | yes | Selects this gate. |
+| `min` | number | yes | Minimum accuracy, within `[0, 1]`. |
+
+Since v0.7.0 (unreleased). Reads the run's [classification aggregates](#classification)
+and turns them on implicitly. An out-of-range `min` is rejected: `accuracy min
+must be within [0, 1], got <n>`. A run with **zero labeled cases** scores `0.0`
+and fails with a `no labeled cases` reason rather than passing vacuously.
+
+**`macro_f1`** — macro-averaged F1 over the observed (expected) label set:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `type` | `"macro_f1"` | yes | Selects this gate. |
+| `min` | number | yes | Minimum macro-F1, within `[0, 1]`. |
+
+Since v0.7.0 (unreleased). Like `accuracy`, reads the classification aggregates,
+turns them on implicitly, and fails loudly on zero labeled cases. An out-of-range
+`min` is rejected: `macro_f1 min must be within [0, 1], got <n>`.
+
+```yaml
+run:
+  gates:
+    - type: accuracy
+      min: 0.9
+    - type: macro_f1
+      min: 0.8
+```
 
 Gate outcomes print after the summary and ride along in the JSON and HTML
 reports; JUnit output is unchanged (the exit code carries the gate result). See

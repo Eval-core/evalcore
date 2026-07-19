@@ -121,6 +121,62 @@ target — a live model, or a judge grading fuzzy output — where the trials
 genuinely diverge and `[2/3 trials]` tells you the case is flaky rather than
 solid.
 
+## Flakiness statistics
+
+Once a run carries per-trial detail, the reporters distil it into flakiness
+figures — a reporter-layer computation over the trials, so nothing about the
+engine or the aggregation above changes.
+
+A case is **flaky** when its trials split: it passed *some* but not all of them
+(`0 < passed < count`). A case that passes every trial or fails every trial is
+not flaky — it is solid, just solidly passing or solidly failing. The terminal
+summary line appends a ` · N flaky` count whenever at least one case ran with
+trials detail:
+
+```
+PASS greeting (4ms) [3/3 trials]
+FAIL mismatch [0/3 trials]
+     contains: trial 0: expected output to contain "hello", got: "goodbye"
+
+1 passed, 1 failed, 2 total · 0 flaky
+```
+
+This is the same deterministic shell suite as above: every trial of a case
+agrees, so neither case splits and the count is `0 flaky`. Against a stochastic
+target — where `greeting` might pass 2 of 3 trials — that case would be counted
+in the suffix. A single-trial run (or any run with no trials detail) omits the
+suffix entirely, so its summary line stays byte-identical to before.
+
+The JSON report attaches a `trial_stats` object to each case that has trials
+detail — the flakiness numbers behind the terminal suffix, with sorted keys:
+
+```json
+"trial_stats": {
+  "pass_fraction": 0.0,
+  "score_mean": {
+    "contains": 0.0
+  },
+  "score_range": {
+    "contains": [
+      0.0,
+      0.0
+    ]
+  }
+}
+```
+
+`pass_fraction` is passing trials over `count` — the flakiness measure (there is
+no `pass@k` terminology; [`require: any`](#the-require-policy) already expresses
+"at least one of N"). `score_mean` and `score_range` give, per scorer, the mean
+and the `[min, max]` of that scorer's value across the trials, so you can see
+both the central value the case reports and how far the trials spread. Cases
+with no trials detail gain no `trial_stats` key, so single-trial JSON is
+byte-identical to plain serialization.
+
+The HTML report's per-case **Trials** section carries the same figure in its
+header — `k/N passed (pass fraction 0.67)` — above the per-trial table and a
+per-scorer mean/min/max summary.
+
 ## Determinism and the cache
 
 Trials are built on EvalCore's record/replay cache without breaking the

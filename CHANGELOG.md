@@ -30,6 +30,32 @@ All notable changes to EvalCore. Format loosely follows
   ride the record/replay cache like judge calls (with an identity that can
   never collide with a chat target), so replayed similarity scores are free,
   offline, and deterministic.
+- **Classification aggregates** (`run.classification: true`): treat each
+  labeled case's `expected` as the true class and its output as the prediction,
+  then report accuracy and macro-averaged F1 over the labeled cases, plus a
+  per-class precision/recall/F1/support table. A case is labeled iff it has
+  `expected`; the label is the trimmed `expected`, the prediction the trimmed
+  output, matched **case-sensitively** (normalize in your target or a scorer —
+  v1 trims and nothing more). The class set is the observed expected labels
+  only, so a hallucinated prediction is a false negative for its true class,
+  never a class of its own; every `0/0` guard yields `0.0`. A target-error case
+  with `expected` counts as labeled-and-wrong, so an error storm sinks accuracy.
+  New `accuracy {min}` and `macro_f1 {min}` gates read these aggregates (and
+  turn them on implicitly) — a run with **zero labeled cases** scores `0.0` and
+  fails such a gate loudly with a `no labeled cases` reason rather than passing
+  vacuously. The terminal prints one line after the gates block (`classification:
+  accuracy 0.67 · macro-F1 0.67 (3 labeled, 1 unlabeled)`); the per-class table
+  rides the JSON and HTML reports. Absent (the default), `RunSummary` serializes
+  byte-identically to before.
+- **Trials statistics presentation**: reporters now surface flakiness from the
+  per-trial detail (no engine change). The terminal summary line gains a
+  ` · N flaky` suffix — a case is flaky when its trials split (`0 < passed <
+  count`), e.g. `1 passed, 1 failed, 2 total · 0 flaky`. The JSON report adds a
+  per-case `trial_stats` object (`pass_fraction`, per-scorer `score_mean`, and
+  per-scorer `score_range` as `[min, max]`, keys sorted), and the HTML per-case
+  Trials section shows `k/N passed (pass fraction 0.67)`. All three are emitted
+  only when a case carries trials detail, so a single-trial run's terminal, JSON,
+  and HTML output stays byte-identical.
 
 ### Known gaps
 - With `run.trials` > 1, the terminal/HTML token totals reflect one trial per

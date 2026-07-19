@@ -75,6 +75,7 @@ export default defineConfig({
 						{ label: 'Custom scorers', slug: 'guides/custom-scorers' },
 						{ label: 'Gates and baselines', slug: 'guides/gates-and-baselines' },
 						{ label: 'Trials and statistics', slug: 'guides/trials-and-statistics' },
+						{ label: 'Classification', slug: 'guides/classification' },
 						{ label: 'HTML reports', slug: 'guides/html-reports' },
 					],
 				},
