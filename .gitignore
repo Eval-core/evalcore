@@ -10,4 +10,5 @@ __pycache__/
 
 # Example cassettes are recorded with contributors' own API keys; committing
 # one is a deliberate act, not a default.
-examples/**/.evalcore/site/demo/**/.evalcore/
+examples/**/.evalcore/
+site/demo/**/.evalcore/
