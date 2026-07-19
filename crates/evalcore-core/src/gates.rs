@@ -101,6 +101,42 @@ fn evaluate_gate(gate: &GateConfig, summary: &RunSummary) -> GateResult {
                 reason: None,
             }
         }
+        GateConfig::Accuracy { min } => {
+            classification_gate(format!("accuracy >= {min}"), *min, summary, |c| c.accuracy)
+        }
+        GateConfig::MacroF1 { min } => {
+            classification_gate(format!("macro_f1 >= {min}"), *min, summary, |c| c.macro_f1)
+        }
+    }
+}
+
+/// Evaluate a classification gate (`accuracy`/`macro_f1`) against the run's
+/// computed [`ClassificationSummary`](crate::types::ClassificationSummary).
+/// `metric` selects the measured value. A run with zero labeled cases — or no
+/// classification computed at all — scores `0.0` and fails with a "no labeled
+/// cases" reason, so the gate fails loudly rather than passing vacuously.
+fn classification_gate(
+    label: String,
+    min: f64,
+    summary: &RunSummary,
+    metric: impl Fn(&crate::types::ClassificationSummary) -> f64,
+) -> GateResult {
+    match summary.classification.as_ref() {
+        Some(classification) if classification.labeled_cases > 0 => {
+            let actual = metric(classification);
+            GateResult {
+                gate: label,
+                actual,
+                passed: actual >= min - GATE_TOLERANCE,
+                reason: None,
+            }
+        }
+        _ => GateResult {
+            gate: label,
+            actual: 0.0,
+            passed: false,
+            reason: Some("no labeled cases".into()),
+        },
     }
 }
 
@@ -141,6 +177,7 @@ mod tests {
                 case("d", None, vec![score("contains", 0.0, false)]),
             ],
             gates: Vec::new(),
+            classification: None,
         };
         let pass = &evaluate_gates(&[GateConfig::PassRate { min: 0.7 }], &summary)[0];
         assert!(pass.passed);
@@ -154,6 +191,7 @@ mod tests {
         let empty = RunSummary {
             results: Vec::new(),
             gates: Vec::new(),
+            classification: None,
         };
         let zero = &evaluate_gates(&[GateConfig::PassRate { min: 0.0 }], &empty)[0];
         assert!(!zero.passed);
@@ -169,6 +207,7 @@ mod tests {
                 case("boom", Some("connection refused"), vec![]),
             ],
             gates: Vec::new(),
+            classification: None,
         };
         let result = &evaluate_gates(&[GateConfig::PassRate { min: 0.6 }], &summary)[0];
         assert_eq!(result.actual, 0.5);
@@ -191,6 +230,7 @@ mod tests {
                 ),
             ],
             gates: Vec::new(),
+            classification: None,
         };
         // All scores: (1.0 + 0.6 + 1.0 + 0.4) / 4 = 0.75.
         let all = &evaluate_gates(
@@ -222,6 +262,7 @@ mod tests {
         let summary = RunSummary {
             results: vec![case("boom", Some("timeout"), vec![])],
             gates: Vec::new(),
+            classification: None,
         };
         let result = &evaluate_gates(
             &[GateConfig::MeanScore {
@@ -253,6 +294,7 @@ mod tests {
                 case("c", None, vec![score("judge", 0.95, true)]),
             ],
             gates: Vec::new(),
+            classification: None,
         };
         let result = &evaluate_gates(
             &[GateConfig::MeanScore {
@@ -274,6 +316,7 @@ mod tests {
         let summary = RunSummary {
             results: vec![case("a", None, vec![score("judge", f64::NAN, true)])],
             gates: Vec::new(),
+            classification: None,
         };
         let result = &evaluate_gates(
             &[GateConfig::MeanScore {
@@ -290,6 +333,7 @@ mod tests {
         let summary = RunSummary {
             results: vec![case("a", None, vec![score("contains", 1.0, true)])],
             gates: Vec::new(),
+            classification: None,
         };
         let results = evaluate_gates(
             &[
@@ -303,5 +347,76 @@ mod tests {
         );
         assert!(results[0].gate.starts_with("mean_score"));
         assert!(results[1].gate.starts_with("pass_rate"));
+    }
+
+    fn summary_with_classification(
+        accuracy: f64,
+        macro_f1: f64,
+        labeled_cases: usize,
+    ) -> RunSummary {
+        RunSummary {
+            results: vec![case("a", None, vec![score("contains", 1.0, true)])],
+            gates: Vec::new(),
+            classification: Some(crate::types::ClassificationSummary {
+                labeled_cases,
+                unlabeled_cases: 0,
+                accuracy,
+                macro_f1,
+                per_class: Vec::new(),
+            }),
+        }
+    }
+
+    #[test]
+    fn accuracy_and_macro_f1_gates_pass_and_fail() {
+        let summary = summary_with_classification(0.92, 0.88, 24);
+
+        let acc = &evaluate_gates(&[GateConfig::Accuracy { min: 0.9 }], &summary)[0];
+        assert!(acc.passed);
+        assert_eq!(acc.actual, 0.92);
+        assert_eq!(acc.gate, "accuracy >= 0.9");
+        assert!(acc.reason.is_none());
+
+        let acc_fail = &evaluate_gates(&[GateConfig::Accuracy { min: 0.95 }], &summary)[0];
+        assert!(!acc_fail.passed);
+
+        let f1 = &evaluate_gates(&[GateConfig::MacroF1 { min: 0.9 }], &summary)[0];
+        assert!(!f1.passed);
+        assert_eq!(f1.actual, 0.88);
+        assert_eq!(f1.gate, "macro_f1 >= 0.9");
+    }
+
+    #[test]
+    fn classification_gate_exact_floor_passes_despite_tolerance() {
+        // A gate whose floor exactly equals the measured accuracy must pass.
+        let summary = summary_with_classification(0.9, 0.9, 10);
+        let acc = &evaluate_gates(&[GateConfig::Accuracy { min: 0.9 }], &summary)[0];
+        assert!(acc.passed, "exact floor must pass, got {}", acc.actual);
+    }
+
+    #[test]
+    fn classification_gate_zero_labeled_cases_fails_loudly() {
+        // Zero labeled cases: metric 0.0 and a "no labeled cases" reason, for
+        // both an empty classification summary and a missing one.
+        let summary = summary_with_classification(0.0, 0.0, 0);
+        for gate in [
+            GateConfig::Accuracy { min: 0.0 },
+            GateConfig::MacroF1 { min: 0.0 },
+        ] {
+            let result = &evaluate_gates(&[gate], &summary)[0];
+            assert!(!result.passed, "zero labeled cases must fail even at min 0");
+            assert_eq!(result.actual, 0.0);
+            assert_eq!(result.reason.as_deref(), Some("no labeled cases"));
+        }
+
+        // No classification computed at all → same "no labeled cases" outcome.
+        let no_classification = RunSummary {
+            results: vec![case("a", None, vec![])],
+            gates: Vec::new(),
+            classification: None,
+        };
+        let result = &evaluate_gates(&[GateConfig::Accuracy { min: 0.5 }], &no_classification)[0];
+        assert!(!result.passed);
+        assert_eq!(result.reason.as_deref(), Some("no labeled cases"));
     }
 }

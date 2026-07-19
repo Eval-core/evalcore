@@ -111,10 +111,12 @@ pub async fn run_suite(
         .buffered(options.concurrency.max(1))
         .collect()
         .await;
-    // Gates are evaluated by the CLI after the run; the engine leaves them empty.
+    // Gates and classification are attached by the CLI after the run; the
+    // engine leaves them empty.
     RunSummary {
         results,
         gates: Vec::new(),
+        classification: None,
     }
 }
 

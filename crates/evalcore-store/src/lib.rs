@@ -312,6 +312,7 @@ mod tests {
                 trials: None,
             }],
             gates: Vec::new(),
+            classification: None,
         };
         let newer = RunSummary {
             results: vec![evalcore_core::CaseResult {
@@ -324,6 +325,7 @@ mod tests {
                 trials: None,
             }],
             gates: Vec::new(),
+            classification: None,
         };
         store.save_baseline("main", &older).unwrap();
         store.save_baseline("main", &newer).unwrap();

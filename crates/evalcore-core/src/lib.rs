@@ -5,6 +5,7 @@
 //! target crates) can depend on this one without cycles.
 
 pub mod baseline;
+pub mod classification;
 pub mod dataset;
 pub mod embeddings;
 pub mod engine;
@@ -15,6 +16,7 @@ pub mod trace;
 pub mod types;
 
 pub use baseline::{compare, BaselineDiff, CaseRegression};
+pub use classification::compute_classification;
 pub use dataset::load_jsonl;
 pub use engine::{run_suite, RunOptions};
 pub use gates::{evaluate_gates, GateResult};
@@ -25,5 +27,6 @@ pub use target::{
 };
 pub use trace::{normalize_trace, parse_trajectory, TraceStep, Trajectory};
 pub use types::{
-    CaseResult, CostRates, RunSummary, Score, Scorer, TargetOutput, TestCase, TokenUsage,
+    CaseResult, ClassMetrics, ClassificationSummary, CostRates, RunSummary, Score, Scorer,
+    TargetOutput, TestCase, TokenUsage,
 };

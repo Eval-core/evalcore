@@ -115,6 +115,7 @@ mod tests {
         RunSummary {
             results: cases.iter().map(|(id, p)| result(id, *p)).collect(),
             gates: Vec::new(),
+            classification: None,
         }
     }
 

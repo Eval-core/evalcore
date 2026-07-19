@@ -208,6 +208,20 @@ impl EvalConfig {
                         }
                     }
                 }
+                GateConfig::Accuracy { min } => {
+                    if !min.is_finite() || *min < 0.0 || *min > 1.0 {
+                        return Err(ConfigError::Invalid(format!(
+                            "run.gates: accuracy min must be within [0, 1], got {min}"
+                        )));
+                    }
+                }
+                GateConfig::MacroF1 { min } => {
+                    if !min.is_finite() || *min < 0.0 || *min > 1.0 {
+                        return Err(ConfigError::Invalid(format!(
+                            "run.gates: macro_f1 min must be within [0, 1], got {min}"
+                        )));
+                    }
+                }
             }
         }
         Ok(())
@@ -322,6 +336,12 @@ pub struct RunConfig {
     /// is byte-identical to a run with no trials configured.
     #[serde(default = "default_trials", deserialize_with = "deserialize_trials")]
     pub trials: TrialsConfig,
+    /// Opt in to classification aggregates: treat each labeled case's `expected`
+    /// as the true class and its output as the predicted class, then compute
+    /// accuracy and macro-F1 over the labeled cases. Off by default; also turned
+    /// on implicitly by an `accuracy`/`macro_f1` gate, which needs the metrics.
+    #[serde(default)]
+    pub classification: bool,
 }
 
 impl Default for RunConfig {
@@ -331,6 +351,7 @@ impl Default for RunConfig {
             budget_usd: None,
             gates: Vec::new(),
             trials: default_trials(),
+            classification: false,
         }
     }
 }
@@ -458,6 +479,15 @@ pub enum GateConfig {
         scorer: Option<String>,
         min: f64,
     },
+    /// Fraction of labeled cases predicted correctly must be at least `min`
+    /// (`min` in `[0, 1]`). Reads the run's classification aggregates, so it
+    /// turns them on implicitly. A run with zero labeled cases scores `0.0` and
+    /// fails with a "no labeled cases" reason rather than passing vacuously.
+    Accuracy { min: f64 },
+    /// Macro-averaged F1 over the observed (expected) label set must be at least
+    /// `min` (`min` in `[0, 1]`). Like `accuracy`, reads the classification
+    /// aggregates and fails loudly on zero labeled cases.
+    MacroF1 { min: f64 },
 }
 
 fn default_concurrency() -> usize {
@@ -1465,5 +1495,66 @@ scorers:
             err.contains("threshold must be within [-1, 1]"),
             "got: {err}"
         );
+    }
+
+    #[test]
+    fn classification_defaults_off_and_parses_when_set() {
+        // Absent: off, byte-identically to a run with no classification block.
+        let config = EvalConfig::from_yaml_str(&config_with_run("")).unwrap();
+        assert!(!config.run.classification);
+
+        let config =
+            EvalConfig::from_yaml_str(&config_with_run("run:\n  classification: true\n")).unwrap();
+        assert!(config.run.classification);
+    }
+
+    #[test]
+    fn parses_accuracy_and_macro_f1_gates() {
+        let config = EvalConfig::from_yaml_str(&config_with_run(
+            "run:\n  gates:\n    - type: accuracy\n      min: 0.9\n\
+             \x20   - type: macro_f1\n      min: 0.8\n",
+        ))
+        .unwrap();
+        assert_eq!(config.run.gates.len(), 2);
+        assert!(matches!(
+            config.run.gates[0],
+            GateConfig::Accuracy { min } if min == 0.9
+        ));
+        assert!(matches!(
+            config.run.gates[1],
+            GateConfig::MacroF1 { min } if min == 0.8
+        ));
+    }
+
+    #[test]
+    fn rejects_classification_gates_out_of_range() {
+        // (run.gates block, fragment the error must mention)
+        let cases = [
+            (
+                "run:\n  gates:\n    - type: accuracy\n      min: 1.5\n",
+                "accuracy min must be within [0, 1]",
+            ),
+            (
+                "run:\n  gates:\n    - type: accuracy\n      min: -0.1\n",
+                "accuracy min must be within [0, 1]",
+            ),
+            (
+                "run:\n  gates:\n    - type: macro_f1\n      min: 2.0\n",
+                "macro_f1 min must be within [0, 1]",
+            ),
+            (
+                "run:\n  gates:\n    - type: macro_f1\n      min: .nan\n",
+                "macro_f1 min must be within [0, 1]",
+            ),
+        ];
+        for (run, fragment) in cases {
+            let err = EvalConfig::from_yaml_str(&config_with_run(run))
+                .unwrap_err()
+                .to_string();
+            assert!(
+                err.contains(fragment),
+                "run {run:?} should be rejected mentioning {fragment:?}, got: {err}"
+            );
+        }
     }
 }

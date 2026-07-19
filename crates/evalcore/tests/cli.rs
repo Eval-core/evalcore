@@ -308,3 +308,75 @@ fn saved_baseline_is_a_pure_snapshot_without_gates() {
         baseline.gates
     );
 }
+
+/// Write a labeled classification suite: a `cat` shell target echoes the input,
+/// so each case's prediction is its input. Cases are labeled via `expected`, and
+/// an always-passing `contains: ""` scorer keeps every per-case verdict green so
+/// only the accuracy gate drives the exit code. Two of three cases match their
+/// label (accuracy = 2/3 ≈ 0.667); the caller supplies the gate `min`.
+fn write_classification_suite(dir: &std::path::Path, accuracy_min: &str) {
+    std::fs::write(
+        dir.join("evals.yaml"),
+        format!(
+            r#"
+targets:
+  echo: {{ type: shell, cmd: "cat" }}
+datasets:
+  - file: cases.jsonl
+scorers:
+  - type: contains
+    value: ""
+run:
+  gates:
+    - type: accuracy
+      min: {accuracy_min}
+"#
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("cases.jsonl"),
+        concat!(
+            r#"{"id": "a", "input": "cat", "expected": "cat"}"#,
+            "\n",
+            r#"{"id": "b", "input": "dog", "expected": "dog"}"#,
+            "\n",
+            r#"{"id": "c", "input": "fish", "expected": "bird"}"#,
+            "\n",
+        ),
+    )
+    .unwrap();
+}
+
+#[test]
+fn accuracy_gate_met_reports_classification_and_exits_zero() {
+    let dir = tempfile::tempdir().unwrap();
+    write_classification_suite(dir.path(), "0.6");
+
+    evalcore()
+        .arg("run")
+        .arg(dir.path().join("evals.yaml"))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "classification: accuracy 0.67 · macro-F1",
+        ))
+        .stdout(predicate::str::contains(
+            "classification: accuracy 0.67 · macro-F1 0.67 (3 labeled, 0 unlabeled)",
+        ))
+        .stdout(predicate::str::contains("GATE PASS accuracy >= 0.6"));
+}
+
+#[test]
+fn accuracy_gate_unmet_exits_one() {
+    let dir = tempfile::tempdir().unwrap();
+    write_classification_suite(dir.path(), "0.9");
+
+    evalcore()
+        .arg("run")
+        .arg(dir.path().join("evals.yaml"))
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("GATE FAIL accuracy >= 0.9"))
+        .stdout(predicate::str::contains("classification: accuracy 0.67"));
+}

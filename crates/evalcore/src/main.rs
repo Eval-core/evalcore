@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use anyhow::{bail, Context};
 use clap::{Parser, Subcommand, ValueEnum};
-use evalcore_config::{EvalConfig, ScorerConfig, TargetConfig};
+use evalcore_config::{EvalConfig, GateConfig, ScorerConfig, TargetConfig};
 use evalcore_core::{
     build_target_with, load_jsonl, run_suite, CostRates, RunOptions, SecretPolicy, Target, TestCase,
 };
@@ -252,7 +252,25 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         cost_rates,
         trials: config.run.trials.clone(),
     };
+    // Classification aggregates are computed when opted in, or implicitly when an
+    // accuracy/macro_f1 gate needs them. Snapshot the cases' labels before the
+    // engine consumes `cases`; the pure function pairs them with the results.
+    let want_classification = config.run.classification
+        || config.run.gates.iter().any(|gate| {
+            matches!(
+                gate,
+                GateConfig::Accuracy { .. } | GateConfig::MacroF1 { .. }
+            )
+        });
+    let classification_cases = want_classification.then(|| cases.clone());
     let mut summary = run_suite(target.as_ref(), cases, &scorers, options).await;
+    // Attach classification before gates so accuracy/macro_f1 gates can read it.
+    if let Some(cases) = classification_cases {
+        summary.classification = Some(evalcore_core::compute_classification(
+            &cases,
+            &summary.results,
+        ));
+    }
     // Suite-level gates are evaluated in the core (wiring stays wiring): the
     // pure function computes the outcomes, which ride along in the summary for
     // reporting and, below, fold into the exit code.
@@ -318,10 +336,11 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         let store = store
             .as_ref()
             .context("--save-baseline requires the history store, which was not opened")?;
-        // A baseline is a pure per-case snapshot; gate results are run-scoped
-        // acceptance criteria, not case data, so they never enter stored
-        // history (and old rows have no gates field — kept byte-compatible).
+        // A baseline is a pure per-case snapshot; gate results and classification
+        // aggregates are run-scoped, not case data, so they never enter stored
+        // history (and old rows have neither field — kept byte-compatible).
         summary.gates = Vec::new();
+        summary.classification = None;
         store.save_baseline(label, &summary)?;
         eprintln!(
             "saved baseline {label:?} ({}/{} passed)",

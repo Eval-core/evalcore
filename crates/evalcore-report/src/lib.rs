@@ -40,6 +40,14 @@ pub fn terminal(summary: &RunSummary) -> String {
     if let Some(cost) = summary.total_cost_usd() {
         totals.push_str(&format!(" · ${cost:.4}"));
     }
+    // Flakiness suffix: reporter-computed from the per-case trials detail. A
+    // case is flaky when its trials split (0 < passed < count). Appended only
+    // when at least one case carries a trials detail, so single-trial runs
+    // render byte-identically to before.
+    if summary.results.iter().any(|r| r.trials.is_some()) {
+        let flaky = summary.results.iter().filter(|r| is_flaky(r)).count();
+        totals.push_str(&format!(" · {flaky} flaky"));
+    }
     out.push_str(&format!(
         "\n{} passed, {} failed, {} total{totals}\n",
         summary.passed(),
@@ -58,12 +66,122 @@ pub fn terminal(summary: &RunSummary) -> String {
             out.push_str(&format!("     {reason}\n"));
         }
     }
+    // Classification aggregates, one line after the gates block, only when the
+    // run computed them. Absent otherwise, so classification-free runs are
+    // byte-identical. The per-class table lives in the JSON/HTML reporters.
+    if let Some(classification) = &summary.classification {
+        out.push_str(&format!(
+            "classification: accuracy {:.2} · macro-F1 {:.2} ({} labeled, {} unlabeled)\n",
+            classification.accuracy,
+            classification.macro_f1,
+            classification.labeled_cases,
+            classification.unlabeled_cases,
+        ));
+    }
     out
 }
 
+/// True when a case's trials split — some passed, some failed
+/// (`0 < passed < count`) — the reporter-layer flakiness measure. False for
+/// single-trial cases and cases whose trials all agree.
+fn is_flaky(result: &CaseResult) -> bool {
+    match &result.trials {
+        Some(trials) => {
+            let passed = trials.iter().filter(|t| t.passed).count();
+            passed > 0 && passed < trials.len()
+        }
+        None => false,
+    }
+}
+
 /// Machine-readable report: the full `RunSummary` as pretty JSON.
+///
+/// When any case carries a trials detail, each such case gains a reporter-
+/// computed `trial_stats` object (`pass_fraction`, `score_mean`, `score_range`)
+/// with sorted keys. A run with no trials detail serializes byte-identically to
+/// `serde_json::to_string_pretty(summary)` — the augmentation path is skipped
+/// entirely, so single-trial output is unchanged.
 pub fn json(summary: &RunSummary) -> anyhow::Result<String> {
-    Ok(serde_json::to_string_pretty(summary)?)
+    if !summary.results.iter().any(|r| r.trials.is_some()) {
+        return Ok(serde_json::to_string_pretty(summary)?);
+    }
+    let mut value = serde_json::to_value(summary)?;
+    if let Some(results) = value
+        .get_mut("results")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for (case_json, result) in results.iter_mut().zip(summary.results.iter()) {
+            if let (Some(object), Some(trials)) = (case_json.as_object_mut(), &result.trials) {
+                object.insert("trial_stats".into(), trial_stats(trials));
+            }
+        }
+    }
+    Ok(serde_json::to_string_pretty(&value)?)
+}
+
+/// Reporter-computed statistics over a case's trials, as a JSON object with
+/// sorted keys (serde_json's `Map` is a `BTreeMap` — `preserve_order` is banned
+/// — so `score_mean`/`score_range` are label-sorted deterministically):
+/// `pass_fraction` (passing trials / count), `score_mean` (per-scorer mean), and
+/// `score_range` (per-scorer `[min, max]`).
+fn trial_stats(trials: &[TrialResult]) -> serde_json::Value {
+    let count = trials.len();
+    let passed = trials.iter().filter(|t| t.passed).count();
+    let pass_fraction = if count == 0 {
+        0.0
+    } else {
+        passed as f64 / count as f64
+    };
+    let mut score_mean = serde_json::Map::new();
+    let mut score_range = serde_json::Map::new();
+    for (scorer, (mean, min, max)) in scorer_trial_stats(trials) {
+        score_mean.insert(scorer.clone(), json_number(mean));
+        score_range.insert(
+            scorer,
+            serde_json::Value::Array(vec![json_number(min), json_number(max)]),
+        );
+    }
+    let mut stats = serde_json::Map::new();
+    stats.insert("pass_fraction".into(), json_number(pass_fraction));
+    stats.insert("score_mean".into(), serde_json::Value::Object(score_mean));
+    stats.insert("score_range".into(), serde_json::Value::Object(score_range));
+    serde_json::Value::Object(stats)
+}
+
+/// Encode an `f64` as a JSON number, falling back to `null` for a non-finite
+/// value (JSON has no NaN/Infinity) so the reporter never panics on hostile data.
+fn json_number(value: f64) -> serde_json::Value {
+    serde_json::Number::from_f64(value)
+        .map(serde_json::Value::Number)
+        .unwrap_or(serde_json::Value::Null)
+}
+
+/// Per-scorer `(mean, min, max)` over a case's trials, keyed by scorer name and
+/// sorted (a `BTreeMap`) for determinism. A scorer contributes only the trials
+/// in which it produced a score (errored trials have none), so every entry has
+/// at least one value.
+fn scorer_trial_stats(
+    trials: &[TrialResult],
+) -> std::collections::BTreeMap<String, (f64, f64, f64)> {
+    let mut values: std::collections::BTreeMap<String, Vec<f64>> =
+        std::collections::BTreeMap::new();
+    for trial in trials {
+        for score in &trial.scores {
+            values
+                .entry(score.scorer.clone())
+                .or_default()
+                .push(score.value);
+        }
+    }
+    values
+        .into_iter()
+        .map(|(scorer, vs)| {
+            let mean = vs.iter().sum::<f64>() / vs.len() as f64;
+            let min = vs.iter().copied().fold(f64::INFINITY, f64::min);
+            let max = vs.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+            (scorer, (mean, min, max))
+        })
+        .collect()
 }
 
 /// JUnit XML for CI systems (GitHub Actions, GitLab, Jenkins all ingest it).
@@ -205,6 +323,12 @@ pub fn html(summary: &RunSummary, diff: Option<&BaselineDiff>) -> String {
         out.push_str("</tbody>\n</table>\n</section>\n");
     }
 
+    // Classification panel — omitted entirely when the run computed no
+    // classification aggregates, so classification-free reports stay identical.
+    if let Some(classification) = &summary.classification {
+        push_classification(&mut out, classification);
+    }
+
     // Case table: one expandable row per case, in dataset order.
     out.push_str("<section class=\"cases\">\n<h2>Cases</h2>\n");
     out.push_str("<div class=\"row head\"><span class=\"c-status\">Status</span><span class=\"c-id\">Case</span><span class=\"c-latency\">Latency</span><span class=\"c-cost\">Cost</span></div>\n");
@@ -220,6 +344,46 @@ pub fn html(summary: &RunSummary, diff: Option<&BaselineDiff>) -> String {
 
     out.push_str("</main>\n</body>\n</html>\n");
     out
+}
+
+/// Render the classification panel: the headline accuracy/macro-F1 figures and
+/// a per-class precision/recall/F1/support table, label-sorted (the core sorts
+/// `per_class`). Labels are escaped, so a hostile label renders inert.
+fn push_classification(out: &mut String, classification: &evalcore_core::ClassificationSummary) {
+    out.push_str("<section class=\"classification\">\n<h2>Classification</h2>\n");
+    out.push_str("<div class=\"stats\">\n");
+    out.push_str(&format!(
+        "<span class=\"stat\">accuracy {:.2}</span>\n",
+        classification.accuracy
+    ));
+    out.push_str(&format!(
+        "<span class=\"stat\">macro-F1 {:.2}</span>\n",
+        classification.macro_f1
+    ));
+    out.push_str(&format!(
+        "<span class=\"stat\">{} labeled</span>\n",
+        classification.labeled_cases
+    ));
+    out.push_str(&format!(
+        "<span class=\"stat\">{} unlabeled</span>\n",
+        classification.unlabeled_cases
+    ));
+    out.push_str("</div>\n");
+    if !classification.per_class.is_empty() {
+        out.push_str("<table>\n<thead><tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr></thead>\n<tbody>\n");
+        for metrics in &classification.per_class {
+            out.push_str(&format!(
+                "<tr><td>{}</td><td class=\"num\">{:.2}</td><td class=\"num\">{:.2}</td><td class=\"num\">{:.2}</td><td class=\"num\">{}</td></tr>\n",
+                html_escape(&metrics.label),
+                metrics.precision,
+                metrics.recall,
+                metrics.f1,
+                metrics.support,
+            ));
+        }
+        out.push_str("</tbody>\n</table>\n");
+    }
+    out.push_str("</section>\n");
 }
 
 /// Render one case as an expandable `<details>` "row".
@@ -306,6 +470,16 @@ fn push_case(out: &mut String, result: &evalcore_core::CaseResult) {
 /// scorer=value summary for a successful trial.
 fn push_trials(out: &mut String, trials: &[TrialResult]) {
     out.push_str("<h3>Trials</h3>\n");
+    let count = trials.len();
+    let passed = trials.iter().filter(|t| t.passed).count();
+    let fraction = if count == 0 {
+        0.0
+    } else {
+        passed as f64 / count as f64
+    };
+    out.push_str(&format!(
+        "<p class=\"muted\">{passed}/{count} passed (pass fraction {fraction:.2})</p>\n"
+    ));
     out.push_str("<table>\n<thead><tr><th>Trial</th><th>Passed</th><th>Latency</th><th>Detail</th></tr></thead>\n<tbody>\n");
     for (i, trial) in trials.iter().enumerate() {
         let (cls, label) = if trial.passed {
@@ -329,6 +503,19 @@ fn push_trials(out: &mut String, trials: &[TrialResult]) {
         ));
     }
     out.push_str("</tbody>\n</table>\n");
+
+    // Per-scorer aggregate across the trials: mean and [min, max].
+    let stats = scorer_trial_stats(trials);
+    if !stats.is_empty() {
+        out.push_str("<table>\n<thead><tr><th>Scorer</th><th>Mean</th><th>Min</th><th>Max</th></tr></thead>\n<tbody>\n");
+        for (scorer, (mean, min, max)) in &stats {
+            out.push_str(&format!(
+                "<tr><td>{}</td><td class=\"num\">{mean:.2}</td><td class=\"num\">{min:.2}</td><td class=\"num\">{max:.2}</td></tr>\n",
+                html_escape(scorer),
+            ));
+        }
+        out.push_str("</tbody>\n</table>\n");
+    }
 }
 
 /// Render an agent trajectory: one nested `<details>` per step.
@@ -569,6 +756,7 @@ mod tests {
                 },
             ],
             gates: Vec::new(),
+            classification: None,
         }
     }
 
@@ -689,6 +877,7 @@ mod tests {
                 },
             ],
             gates: Vec::new(),
+            classification: None,
         };
         let diff = evalcore_core::compare(&baseline_run, &fixture());
         insta::assert_snapshot!(baseline(&diff, "main"));
@@ -810,6 +999,7 @@ mod tests {
                 },
             ],
             gates: Vec::new(),
+            classification: None,
         };
         let summary = fixture_full();
         let diff = evalcore_core::compare(&baseline_run, &summary);
@@ -846,6 +1036,7 @@ mod tests {
                 trials: None,
             }],
             gates: Vec::new(),
+            classification: None,
         };
         let rendered = html(&summary, None);
 
@@ -881,6 +1072,7 @@ mod tests {
                 trials: None,
             }],
             gates: Vec::new(),
+            classification: None,
         };
         let rendered = html(&summary, None);
 
@@ -915,6 +1107,7 @@ mod tests {
                 trials: None,
             }],
             gates: Vec::new(),
+            classification: None,
         };
         let diff = evalcore_core::compare(&baseline_run, &summary);
         assert_eq!(html(&summary, Some(&diff)), html(&summary, Some(&diff)));
@@ -988,6 +1181,7 @@ mod tests {
         let summary = RunSummary {
             results: vec![multi_trial_case()],
             gates: Vec::new(),
+            classification: None,
         };
         let rendered = terminal(&summary);
         assert!(
@@ -1007,6 +1201,7 @@ mod tests {
         let summary = RunSummary {
             results: vec![multi_trial_case()],
             gates: Vec::new(),
+            classification: None,
         };
         let rendered = html(&summary, None);
 
@@ -1031,5 +1226,153 @@ mod tests {
     fn html_without_trials_has_no_trials_section() {
         // Byte-level: a single-trial report never emits the Trials section.
         assert!(!html(&fixture(), None).contains("<h3>Trials</h3>"));
+    }
+
+    /// A summary carrying classification aggregates with a hostile label, for the
+    /// classification-reporting tests.
+    fn fixture_with_classification() -> RunSummary {
+        let mut summary = fixture();
+        summary.classification = Some(evalcore_core::ClassificationSummary {
+            labeled_cases: 24,
+            unlabeled_cases: 1,
+            accuracy: 0.916_666_666,
+            macro_f1: 0.875,
+            per_class: vec![
+                evalcore_core::ClassMetrics {
+                    label: "<b>refund</b>".into(),
+                    precision: 1.0,
+                    recall: 0.5,
+                    f1: 2.0 / 3.0,
+                    support: 2,
+                },
+                evalcore_core::ClassMetrics {
+                    label: "escalate".into(),
+                    precision: 0.75,
+                    recall: 1.0,
+                    f1: 0.857,
+                    support: 3,
+                },
+            ],
+        });
+        summary
+    }
+
+    #[test]
+    fn terminal_classification_line_only_when_present() {
+        // The classification line follows the gates block, with two-decimal
+        // figures and the labeled/unlabeled counts.
+        let rendered = terminal(&fixture_with_classification());
+        assert!(
+            rendered.contains(
+                "classification: accuracy 0.92 · macro-F1 0.88 (24 labeled, 1 unlabeled)"
+            ),
+            "got: {rendered}"
+        );
+        // A classification-free run must not gain the line (byte-compat).
+        assert!(
+            !terminal(&fixture()).contains("classification:"),
+            "classification-free output must stay line-free"
+        );
+    }
+
+    #[test]
+    fn terminal_flaky_suffix_only_when_trials_present() {
+        // One flaky case (2/3) → the summary line gains ` · 1 flaky`.
+        let summary = RunSummary {
+            results: vec![multi_trial_case()],
+            gates: Vec::new(),
+            classification: None,
+        };
+        assert!(
+            terminal(&summary).contains("0 passed, 1 failed, 1 total · 1 flaky"),
+            "got: {}",
+            terminal(&summary)
+        );
+        // No trials detail anywhere → no flaky suffix (byte-compat).
+        assert!(
+            !terminal(&fixture()).contains("flaky"),
+            "single-trial output must stay flaky-free"
+        );
+    }
+
+    #[test]
+    fn html_classification_section_escapes_labels() {
+        let rendered = html(&fixture_with_classification(), None);
+        assert!(
+            rendered.contains("<h2>Classification</h2>"),
+            "classification section present"
+        );
+        assert!(
+            rendered.contains("accuracy 0.92"),
+            "headline accuracy; got: {rendered}"
+        );
+        // The hostile class label renders inert.
+        assert!(
+            rendered.contains("&lt;b&gt;refund&lt;/b&gt;"),
+            "class label must be escaped; got: {rendered}"
+        );
+        assert!(
+            !rendered.contains("<b>refund</b>"),
+            "no live markup survives from a class label"
+        );
+        // A classification-free report never emits the section.
+        assert!(!html(&fixture(), None).contains("<h2>Classification</h2>"));
+    }
+
+    #[test]
+    fn json_adds_trial_stats_only_when_trials_present() {
+        // With trials detail, the case gains a reporter-computed trial_stats with
+        // sorted keys; without, the JSON is byte-identical to plain serialization.
+        let summary = RunSummary {
+            results: vec![multi_trial_case()],
+            gates: Vec::new(),
+            classification: None,
+        };
+        let rendered = json(&summary).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&rendered).unwrap();
+        let stats = &value["results"][0]["trial_stats"];
+        assert!(
+            (stats["pass_fraction"].as_f64().unwrap() - 2.0 / 3.0).abs() < 1e-12,
+            "got: {stats}"
+        );
+        assert!(
+            (stats["score_mean"]["contains"].as_f64().unwrap() - 1.0).abs() < 1e-12,
+            "mean over the two scoring trials is 1.0; got: {stats}"
+        );
+        let range = stats["score_range"]["contains"].as_array().unwrap();
+        assert_eq!(range[0].as_f64().unwrap(), 1.0);
+        assert_eq!(range[1].as_f64().unwrap(), 1.0);
+
+        // Byte-compat: a single-trial summary serializes exactly like plain JSON.
+        assert_eq!(
+            json(&fixture()).unwrap(),
+            serde_json::to_string_pretty(&fixture()).unwrap(),
+            "no trials detail → byte-identical to plain serialization"
+        );
+        assert!(!json(&fixture()).unwrap().contains("trial_stats"));
+    }
+
+    #[test]
+    fn json_includes_classification_when_present() {
+        let rendered = json(&fixture_with_classification()).unwrap();
+        assert!(rendered.contains("\"classification\""));
+        let parsed: RunSummary = serde_json::from_str(&rendered).unwrap();
+        let classification = parsed.classification.unwrap();
+        assert_eq!(classification.labeled_cases, 24);
+        assert_eq!(classification.per_class[0].label, "<b>refund</b>");
+    }
+
+    #[test]
+    fn html_trials_header_shows_pass_fraction() {
+        let summary = RunSummary {
+            results: vec![multi_trial_case()],
+            gates: Vec::new(),
+            classification: None,
+        };
+        let rendered = html(&summary, None);
+        assert!(
+            rendered.contains("2/3 passed (pass fraction 0.67)"),
+            "got: {rendered}"
+        );
     }
 }

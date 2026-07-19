@@ -159,6 +159,47 @@ impl CaseResult {
     }
 }
 
+/// Precision/recall/F1 for one class in a [`ClassificationSummary`]. The class
+/// set is the observed *expected* labels only, so a hallucinated prediction —
+/// one that matches no expected label — is a false negative for its true class
+/// and never forms a class of its own.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ClassMetrics {
+    /// The class label (a trimmed `expected` value).
+    pub label: String,
+    /// `correct / predicted-as-this-label`; `0.0` when nothing was predicted as
+    /// this label (0/0 guard).
+    pub precision: f64,
+    /// `correct / cases-with-this-label`; `0.0` when the label has no support
+    /// (0/0 guard).
+    pub recall: f64,
+    /// Harmonic mean of precision and recall; `0.0` when both are `0.0`.
+    pub f1: f64,
+    /// Number of labeled cases whose true label is this class.
+    pub support: usize,
+}
+
+/// Classification aggregates over a run's labeled cases (those with `expected`).
+/// A case is predicted correctly when its trimmed output equals its trimmed
+/// `expected`. Populated only when `run.classification` is set or an
+/// `accuracy`/`macro_f1` gate is configured; otherwise `None` and omitted from
+/// serialization, so a run without classification is byte-identical to before.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ClassificationSummary {
+    /// Cases carrying an `expected` label (the metric denominator).
+    pub labeled_cases: usize,
+    /// Cases without `expected`, excluded from every metric.
+    pub unlabeled_cases: usize,
+    /// Fraction of labeled cases predicted correctly; `0.0` when none are
+    /// labeled.
+    pub accuracy: f64,
+    /// Mean per-class F1 over the expected-label set; `0.0` when none are
+    /// labeled.
+    pub macro_f1: f64,
+    /// Per-class metrics, sorted by label (determinism).
+    pub per_class: Vec<ClassMetrics>,
+}
+
 /// The result of a whole run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunSummary {
@@ -170,6 +211,12 @@ pub struct RunSummary {
     /// ignores this field; it compares per-case results only.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub gates: Vec<GateResult>,
+    /// Classification aggregates, attached by the CLI when `run.classification`
+    /// is set or an `accuracy`/`macro_f1` gate is present. `None` (and omitted
+    /// from JSON) otherwise, so a run without classification serializes exactly
+    /// as it did before the field existed (a shape-pinning test guards this).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub classification: Option<ClassificationSummary>,
 }
 
 impl RunSummary {
@@ -369,21 +416,57 @@ mod tests {
 
     #[test]
     fn run_summary_gates_is_baseline_backcompat() {
-        // Baseline rows persist RunSummary JSON and predate the `gates` field:
-        // old rows must deserialize (→ empty vec), and an empty `gates` must
-        // serialize to the SAME bytes as before the field existed — otherwise
-        // stored baselines would silently stop round-tripping.
+        // Baseline rows persist RunSummary JSON and predate the `gates` and
+        // `classification` fields: old rows must deserialize (→ empty/None), and
+        // absent gates/classification must serialize to the SAME bytes as before
+        // the fields existed — otherwise stored baselines would silently stop
+        // round-tripping.
         let old_shape = r#"{"results":[]}"#;
         let summary: RunSummary = serde_json::from_str(old_shape).unwrap();
         assert!(
             summary.gates.is_empty(),
             "absent field deserializes to empty"
         );
+        assert!(
+            summary.classification.is_none(),
+            "absent classification deserializes to None"
+        );
 
         let reserialized = serde_json::to_string(&summary).unwrap();
         assert_eq!(
             reserialized, old_shape,
-            "empty gates must not add bytes to the recorded shape"
+            "empty gates and absent classification must not add bytes to the recorded shape"
         );
+    }
+
+    #[test]
+    fn run_summary_classification_rides_along_when_present() {
+        // A present classification summary serializes and round-trips.
+        let summary = RunSummary {
+            results: vec![],
+            gates: Vec::new(),
+            classification: Some(ClassificationSummary {
+                labeled_cases: 2,
+                unlabeled_cases: 1,
+                accuracy: 0.5,
+                macro_f1: 0.5,
+                per_class: vec![ClassMetrics {
+                    label: "refund".into(),
+                    precision: 1.0,
+                    recall: 0.5,
+                    f1: 0.6666666666666666,
+                    support: 2,
+                }],
+            }),
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(
+            json.contains(r#""classification":{"labeled_cases":2"#),
+            "got: {json}"
+        );
+        let round_tripped: RunSummary = serde_json::from_str(&json).unwrap();
+        let classification = round_tripped.classification.unwrap();
+        assert_eq!(classification.labeled_cases, 2);
+        assert_eq!(classification.per_class[0].label, "refund");
     }
 }
