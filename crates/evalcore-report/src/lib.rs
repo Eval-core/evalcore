@@ -880,7 +880,11 @@ fn xml_escape(text: &str) -> String {
 /// `xml_escape` but emits `&#39;` for the apostrophe (universally valid in HTML,
 /// unlike `&apos;`). Every user-derived string in the HTML report goes through
 /// this, so a case output of `<script>alert(1)</script>` renders as inert text.
-fn html_escape(text: &str) -> String {
+///
+/// Public so the local `evalcore serve` viewer escapes DB-derived strings
+/// (config paths, target names) with the exact same rule as the report; it must
+/// stay a pure `&str -> String` with no rendering behavior of its own.
+pub fn html_escape(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")

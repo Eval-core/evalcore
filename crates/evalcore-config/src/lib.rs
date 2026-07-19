@@ -355,6 +355,13 @@ pub struct RunConfig {
     /// when absent so single-target configs round-trip unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub matrix: Option<Vec<String>>,
+    /// Append one run-history row per executed run (matrix: one per arm) to the
+    /// local store, so `evalcore serve` can list past runs. On by default;
+    /// `--no-history` on the CLI overrides to false. History is metadata only —
+    /// its I/O never affects the eval verdict, the exit code, or the report
+    /// bytes; a recording failure is a stderr warning, nothing more.
+    #[serde(default = "default_true")]
+    pub history: bool,
 }
 
 impl Default for RunConfig {
@@ -366,6 +373,7 @@ impl Default for RunConfig {
             trials: default_trials(),
             classification: false,
             matrix: None,
+            history: true,
         }
     }
 }
@@ -1552,6 +1560,17 @@ scorers:
         let config =
             EvalConfig::from_yaml_str(&config_with_run("run:\n  classification: true\n")).unwrap();
         assert!(config.run.classification);
+    }
+
+    #[test]
+    fn history_defaults_on_and_parses_when_disabled() {
+        // Absent: on, so `evalcore serve` sees runs without extra config.
+        let config = EvalConfig::from_yaml_str(&config_with_run("")).unwrap();
+        assert!(config.run.history, "history defaults to true");
+
+        let config =
+            EvalConfig::from_yaml_str(&config_with_run("run:\n  history: false\n")).unwrap();
+        assert!(!config.run.history, "history: false disables recording");
     }
 
     #[test]

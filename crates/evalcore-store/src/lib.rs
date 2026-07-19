@@ -42,6 +42,26 @@ pub fn cache_key(canonical_request: &str) -> String {
         .collect()
 }
 
+/// One run-history row: the metadata a viewer lists, plus the run's summary
+/// parsed lazily. A corrupt summary is carried as `Err(message)` rather than
+/// aborting the whole listing — so `evalcore serve` renders that one row as an
+/// error entry and every other row still shows. `summary` keeps the run's
+/// gates and classification (unlike a baseline, which clears them): they are
+/// exactly what the viewer displays.
+#[derive(Debug)]
+pub struct RunMeta {
+    /// Autoincrement row id — stable, newest largest.
+    pub id: i64,
+    /// SQLite `datetime('now')` at record time (`YYYY-MM-DD HH:MM:SS`, UTC).
+    pub created_at: String,
+    /// The config file path exactly as the user gave it to `evalcore run`.
+    pub config: String,
+    /// The target this row records (a matrix arm's name for matrix runs).
+    pub target: String,
+    /// The stored `RunSummary`, or a message when the row's JSON is corrupt.
+    pub summary: Result<RunSummary, String>,
+}
+
 /// A SQLite-backed store. Cheap to open; safe to share across concurrent
 /// cases (a single connection behind a mutex — cache lookups are microseconds
 /// next to LLM calls).
@@ -73,6 +93,13 @@ impl Store {
                 label      TEXT NOT NULL,
                 summary    TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS run_history (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                config     TEXT NOT NULL,
+                target     TEXT NOT NULL,
+                summary    TEXT NOT NULL
             );",
         )?;
         Ok(Self {
@@ -138,6 +165,85 @@ impl Store {
         })
         .transpose()
     }
+
+    /// Append one run-history row: the config path as given, the target name
+    /// (one call per matrix arm), and the full run summary (gates and
+    /// classification included). Rows are append-only and never updated; the
+    /// viewer reads them. `created_at` is filled by SQLite — row metadata, never
+    /// a cache key or a `run` reporter input.
+    pub fn record_run(
+        &self,
+        config: &str,
+        target: &str,
+        summary: &RunSummary,
+    ) -> anyhow::Result<()> {
+        let json = serde_json::to_string(summary)?;
+        let conn = self.conn.lock().expect("store mutex poisoned");
+        conn.execute(
+            "INSERT INTO run_history (config, target, summary) VALUES (?1, ?2, ?3)",
+            rusqlite::params![config, target, json],
+        )?;
+        Ok(())
+    }
+
+    /// Every run-history row, newest first. Each row's summary is parsed here (a
+    /// corrupt one becomes `Err` on that [`RunMeta`], not a failure of the whole
+    /// call) — cheap at local scale, and it keeps the viewer's listing a pure
+    /// read.
+    pub fn list_runs(&self) -> anyhow::Result<Vec<RunMeta>> {
+        let conn = self.conn.lock().expect("store mutex poisoned");
+        let mut stmt = conn.prepare(
+            "SELECT id, created_at, config, target, summary FROM run_history ORDER BY id DESC",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+                r.get::<_, String>(4)?,
+            ))
+        })?;
+        let mut metas = Vec::new();
+        for row in rows {
+            let (id, created_at, config, target, json) = row?;
+            metas.push(RunMeta {
+                id,
+                created_at,
+                config,
+                target,
+                summary: parse_summary(&json),
+            });
+        }
+        Ok(metas)
+    }
+
+    /// Load one run-history row by id, or `None` when no such row exists. A
+    /// corrupt summary is carried on the returned [`RunMeta`] as `Err`, never a
+    /// panic — the caller decides how to surface it.
+    pub fn load_run(&self, id: i64) -> anyhow::Result<Option<RunMeta>> {
+        let conn = self.conn.lock().expect("store mutex poisoned");
+        let row: Option<(String, String, String, String)> = conn
+            .query_row(
+                "SELECT created_at, config, target, summary FROM run_history WHERE id = ?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .optional()?;
+        Ok(row.map(|(created_at, config, target, json)| RunMeta {
+            id,
+            created_at,
+            config,
+            target,
+            summary: parse_summary(&json),
+        }))
+    }
+}
+
+/// Parse a stored summary, mapping a corruption to a short message (kept on the
+/// [`RunMeta`]) so one bad row never panics or aborts a listing.
+fn parse_summary(json: &str) -> Result<RunSummary, String> {
+    serde_json::from_str(json).map_err(|err| format!("corrupt run-history summary: {err}"))
 }
 
 /// Wraps any target with record/replay behavior. Targets whose
@@ -335,6 +441,127 @@ mod tests {
         assert_eq!(loaded.results[0].case_id, "new", "newest save wins");
         let other = store.load_baseline("other").unwrap().unwrap();
         assert_eq!(other.results[0].case_id, "old", "labels are independent");
+    }
+
+    /// A one-case summary with the given id and a gate, so tests can assert
+    /// that history rows keep run-scoped data (gates/classification) a baseline
+    /// would have cleared.
+    fn history_summary(case_id: &str, gate_passed: bool) -> RunSummary {
+        RunSummary {
+            results: vec![evalcore_core::CaseResult {
+                case_id: case_id.into(),
+                output: None,
+                error: None,
+                scores: vec![],
+                cost_usd: None,
+                context: None,
+                trials: None,
+            }],
+            gates: vec![evalcore_core::GateResult {
+                gate: "pass_rate >= 0.5".into(),
+                actual: 1.0,
+                passed: gate_passed,
+                reason: None,
+            }],
+            classification: None,
+        }
+    }
+
+    #[test]
+    fn run_history_records_lists_newest_first_and_loads() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = temp_store(&dir);
+
+        assert!(store.list_runs().unwrap().is_empty());
+        assert!(store.load_run(1).unwrap().is_none(), "missing id -> None");
+
+        store
+            .record_run("evals.yaml", "gpt", &history_summary("older", true))
+            .unwrap();
+        store
+            .record_run("evals.yaml", "claude", &history_summary("newer", false))
+            .unwrap();
+
+        let runs = store.list_runs().unwrap();
+        assert_eq!(runs.len(), 2);
+        // Newest first: the claude row (id 2) precedes the gpt row (id 1).
+        assert_eq!(runs[0].target, "claude");
+        assert_eq!(runs[1].target, "gpt");
+        assert!(runs[0].id > runs[1].id, "ids descend");
+        assert_eq!(runs[0].config, "evals.yaml");
+
+        // History keeps gates (a baseline would have cleared them).
+        let newer = runs[0].summary.as_ref().unwrap();
+        assert_eq!(newer.gates.len(), 1);
+        assert!(!newer.gates[0].passed);
+        assert_eq!(newer.results[0].case_id, "newer");
+
+        let loaded = store.load_run(runs[1].id).unwrap().unwrap();
+        assert_eq!(loaded.target, "gpt");
+        assert_eq!(loaded.summary.unwrap().results[0].case_id, "older");
+    }
+
+    #[test]
+    fn corrupt_run_history_row_surfaces_as_error_not_panic() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cache.db");
+        let store = Store::open(&path).unwrap();
+        store
+            .record_run("evals.yaml", "gpt", &history_summary("ok", true))
+            .unwrap();
+
+        // Corrupt the second row's summary directly on disk.
+        {
+            let conn = rusqlite::Connection::open(&path).unwrap();
+            conn.execute(
+                "INSERT INTO run_history (config, target, summary) VALUES ('evals.yaml', 'bad', 'not json')",
+                [],
+            )
+            .unwrap();
+        }
+
+        let runs = store.list_runs().unwrap();
+        assert_eq!(runs.len(), 2, "the whole listing still returns");
+        // Newest first: the corrupt row is an Err entry, the good row is Ok.
+        let corrupt = runs.iter().find(|r| r.target == "bad").unwrap();
+        assert!(
+            corrupt.summary.is_err(),
+            "corrupt summary is an error entry, not a panic"
+        );
+        let good = runs.iter().find(|r| r.target == "gpt").unwrap();
+        assert!(good.summary.is_ok());
+
+        // load_run of the corrupt id likewise carries the Err, never panics.
+        let loaded = store.load_run(corrupt.id).unwrap().unwrap();
+        assert!(loaded.summary.is_err());
+    }
+
+    #[test]
+    fn run_history_table_is_additive_over_a_pre_existing_db() {
+        // A cache.db written by an older build (only llm_cache) must reopen and
+        // gain run_history without touching the old cache rows.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cache.db");
+        {
+            let conn = rusqlite::Connection::open(&path).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE llm_cache (
+                    key TEXT PRIMARY KEY, request TEXT NOT NULL,
+                    response TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                INSERT INTO llm_cache (key, request, response) VALUES ('k', '{}', '{\"text\":\"hi\",\"latency_ms\":1}');",
+            )
+            .unwrap();
+        }
+
+        // Reopen with the current schema: no error, old cache row intact, and
+        // run_history now usable.
+        let store = Store::open(&path).unwrap();
+        assert_eq!(store.get("k").unwrap().unwrap().text, "hi");
+        store
+            .record_run("evals.yaml", "gpt", &history_summary("c", true))
+            .unwrap();
+        assert_eq!(store.list_runs().unwrap().len(), 1);
     }
 
     #[test]

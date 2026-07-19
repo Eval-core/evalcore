@@ -63,6 +63,22 @@ enum Commands {
         /// when --baseline is also given — enabling rolling baselines).
         #[arg(long)]
         save_baseline: Option<String>,
+        /// Do not append a run-history row (overrides `run.history: true`). The
+        /// eval verdict and report bytes are unaffected either way — history is
+        /// metadata for `evalcore serve`.
+        #[arg(long)]
+        no_history: bool,
+    },
+    /// Serve a local, read-only web viewer over the run history in a store.
+    /// Binds 127.0.0.1 only (localhost is the security model) and runs until
+    /// interrupted.
+    Serve {
+        /// Store to read (defaults to `.evalcore/cache.db`).
+        #[arg(long)]
+        store: Option<PathBuf>,
+        /// Port to bind on 127.0.0.1.
+        #[arg(long, default_value_t = 7878)]
+        port: u16,
     },
 }
 
@@ -115,6 +131,7 @@ async fn main() -> anyhow::Result<ExitCode> {
             cache,
             baseline,
             save_baseline,
+            no_history,
         } => {
             run(RunArgs {
                 config_path: &config,
@@ -126,10 +143,26 @@ async fn main() -> anyhow::Result<ExitCode> {
                 cache,
                 baseline: baseline.as_deref(),
                 save_baseline: save_baseline.as_deref(),
+                no_history,
             })
             .await
         }
+        Commands::Serve { store, port } => serve(store.as_deref(), port).await,
     }
+}
+
+/// Open a store and run the local read-only viewer. The store path defaults to
+/// `.evalcore/cache.db`; the bind address is fixed at 127.0.0.1 inside the serve
+/// crate. Runs until the process is interrupted.
+async fn serve(store_path: Option<&Path>, port: u16) -> anyhow::Result<ExitCode> {
+    let default_path = PathBuf::from(".evalcore/cache.db");
+    let path = store_path.unwrap_or(&default_path);
+    let store = Arc::new(
+        Store::open(path).with_context(|| format!("failed to open store {}", path.display()))?,
+    );
+    println!("serving http://127.0.0.1:{port}");
+    evalcore_serve::run(store, port).await?;
+    Ok(ExitCode::SUCCESS)
 }
 
 struct RunArgs<'a> {
@@ -142,6 +175,31 @@ struct RunArgs<'a> {
     cache: CacheArg,
     baseline: Option<&'a str>,
     save_baseline: Option<&'a str>,
+    no_history: bool,
+}
+
+/// Record a run-history row for one executed run (matrix: one call per arm),
+/// reusing an already-open store or opening one at the default location. Never
+/// changes the run's outcome: any failure is a stderr warning and returns.
+/// Called only after gates/classification are attached, so the stored summary
+/// is exactly what the viewer shows.
+fn record_history(
+    existing: Option<&Arc<Store>>,
+    base_dir: &Path,
+    config_path: &Path,
+    target: &str,
+    summary: &evalcore_core::RunSummary,
+) {
+    // The config path is stored exactly as the user gave it on the CLI.
+    let config = config_path.display().to_string();
+    let result = match existing {
+        Some(store) => store.record_run(&config, target, summary),
+        None => Store::open(&base_dir.join(".evalcore/cache.db"))
+            .and_then(|store| store.record_run(&config, target, summary)),
+    };
+    if let Err(err) = result {
+        eprintln!("warning: could not record run history: {err}");
+    }
 }
 
 /// Token cost rates declared by a target's config, if any. Only the priced
@@ -187,6 +245,7 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         cache,
         baseline,
         save_baseline,
+        no_history,
     } = args;
     let config = EvalConfig::from_path(config_path)?;
     // Paths inside the config resolve relative to the config file itself, so
@@ -210,6 +269,7 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
     if let Some(names) = matrix_names {
         return run_matrix(RunMatrixArgs {
             config: &config,
+            config_path,
             base_dir,
             names,
             target_name,
@@ -219,6 +279,7 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
             cache,
             baseline,
             save_baseline,
+            no_history,
         })
         .await;
     }
@@ -352,6 +413,13 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
     // is persisted as a baseline (baselines are pure per-case snapshots).
     let gates_passed = summary.gates.iter().all(|g| g.passed);
 
+    // Run history: append one row (with gates/classification attached, before
+    // any reporting). A side-effect only — a failure warns on stderr and never
+    // touches the verdict, exit code, or report bytes below.
+    if config.run.history && !no_history {
+        record_history(store.as_ref(), base_dir, config_path, &name, &summary);
+    }
+
     let rendered = match reporter {
         Reporter::Terminal => evalcore_report::terminal(&summary),
         Reporter::Json => evalcore_report::json(&summary)?,
@@ -438,6 +506,7 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
 
 struct RunMatrixArgs<'a> {
     config: &'a EvalConfig,
+    config_path: &'a Path,
     base_dir: &'a Path,
     names: Vec<String>,
     target_name: Option<&'a str>,
@@ -447,6 +516,7 @@ struct RunMatrixArgs<'a> {
     cache: CacheArg,
     baseline: Option<&'a str>,
     save_baseline: Option<&'a str>,
+    no_history: bool,
 }
 
 /// Run the suite once per matrix target, in list order, and render the
@@ -456,6 +526,7 @@ struct RunMatrixArgs<'a> {
 async fn run_matrix(args: RunMatrixArgs<'_>) -> anyhow::Result<ExitCode> {
     let RunMatrixArgs {
         config,
+        config_path,
         base_dir,
         names,
         target_name,
@@ -465,6 +536,7 @@ async fn run_matrix(args: RunMatrixArgs<'_>) -> anyhow::Result<ExitCode> {
         cache,
         baseline,
         save_baseline,
+        no_history,
     } = args;
 
     // Matrix is mutually exclusive with target selection and with baselines —
@@ -565,6 +637,11 @@ async fn run_matrix(args: RunMatrixArgs<'_>) -> anyhow::Result<ExitCode> {
         summary.gates = evalcore_core::evaluate_gates(&config.run.gates, &summary);
         let gates_passed = summary.gates.iter().all(|g| g.passed);
         all_ok &= summary.all_passed() && gates_passed;
+        // One history row per arm, target = the arm's name. Side-effect only,
+        // recorded with gates attached and before rendering; a failure warns.
+        if config.run.history && !no_history {
+            record_history(store.as_ref(), base_dir, config_path, &name, &summary);
+        }
         arms.push(evalcore_core::MatrixArm {
             target: name,
             summary,

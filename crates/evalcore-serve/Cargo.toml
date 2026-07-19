@@ -1,0 +1,25 @@
+[package]
+name = "evalcore-serve"
+description = "Local, read-only web viewer over the EvalCore run-history store (`evalcore serve`)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+evalcore-core = { workspace = true }
+evalcore-report = { workspace = true }
+evalcore-store = { workspace = true }
+
+anyhow = { workspace = true }
+axum = { workspace = true }
+# TcpListener + the runtime that axum::serve drives; net is not in the workspace
+# tokio feature set, so add it here (the only crate that binds a socket).
+tokio = { workspace = true, features = ["net"] }
+
+[dev-dependencies]
+# rusqlite only to corrupt a row on disk for the "error entry, not a 500" test.
+rusqlite = { workspace = true }
+tempfile = { workspace = true }
+tower = { workspace = true }

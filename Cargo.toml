@@ -6,6 +6,7 @@ members = [
     "crates/evalcore-core",
     "crates/evalcore-report",
     "crates/evalcore-scorers",
+    "crates/evalcore-serve",
     "crates/evalcore-store",
 ]
 
@@ -22,11 +23,16 @@ evalcore-config = { path = "crates/evalcore-config", version = "0.6.0" }
 evalcore-core = { path = "crates/evalcore-core", version = "0.6.0" }
 evalcore-report = { path = "crates/evalcore-report", version = "0.6.0" }
 evalcore-scorers = { path = "crates/evalcore-scorers", version = "0.6.0" }
+evalcore-serve = { path = "crates/evalcore-serve", version = "0.6.0" }
 evalcore-store = { path = "crates/evalcore-store", version = "0.6.0" }
 
 # external
 anyhow = "1"
 async-trait = "0.1"
+# Local read-only run-history viewer (`evalcore serve`). Minimal feature set:
+# HTTP/1 + the tokio server glue + query extraction for /diff. No JSON, TLS,
+# multipart, or tracing — the viewer is localhost-only and self-contained.
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "query"] }
 clap = { version = "4", features = ["derive"] }
 futures = "0.3"
 # json-schema scorer. default-features = false drops resolve-http/resolve-file
@@ -50,4 +56,6 @@ assert_cmd = "2"
 insta = "1"
 predicates = "3"
 tempfile = "3"
+# serve tests drive the axum router with tower's oneshot — no real port bind.
+tower = { version = "0.5", features = ["util"] }
 wiremock = "0.6"

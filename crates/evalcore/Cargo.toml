@@ -17,6 +17,7 @@ evalcore-config = { workspace = true }
 evalcore-core = { workspace = true }
 evalcore-report = { workspace = true }
 evalcore-scorers = { workspace = true }
+evalcore-serve = { workspace = true }
 evalcore-store = { workspace = true }
 
 anyhow = { workspace = true }
@@ -24,6 +25,9 @@ clap = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+# evalcore-store lets the history tests read back the recorded run rows.
+evalcore-store = { workspace = true }
+
 assert_cmd = { workspace = true }
 predicates = { workspace = true }
 serde_json = { workspace = true }
