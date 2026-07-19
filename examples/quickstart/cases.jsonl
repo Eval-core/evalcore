@@ -1,2 +1,4 @@
-{"id": "refund-1", "input": "How do I get a refund for my order?"}
-{"id": "refund-2", "input": "Please process my REFUND today."}
+{"id": "late-refund", "input": "It has been three weeks and my refund still has not shown up. Where is it?", "context": ["Policy 4.2: Approved refunds are processed within 30 business days, counted from the date the return is approved."]}
+{"id": "fee-dispute", "input": "I was charged a $35 overdraft fee I do not think is fair. Can I dispute it?", "context": ["Policy 7.1: Customers have 60 calendar days from the statement date to dispute a fee. The charge is reversed pending review."]}
+{"id": "card-lost", "input": "I lost my debit card somewhere and I am worried someone will use it.", "context": ["Policy 6.4: A lost or stolen card is frozen immediately; a replacement arrives within 7 to 10 business days at no charge."]}
+{"id": "wire-eta", "input": "How long will an international wire transfer take to arrive?", "context": ["Policy 5.3: International wire transfers settle within 3 to 5 business days."]}

@@ -37,30 +37,22 @@ Show
 
 # A beat of stillness so loop-watchers catch the start of the session.
 Sleep 800ms
-Type "# A suite is one YAML file: a target, a dataset, and scorers."
+Type "# A support bot, graded against the policy each answer must cite."
 Enter
 Sleep 400ms
-Type "cat examples/quickstart/evals.yaml"
+Type "# Offline: the shell target needs no model, no network, no keys."
 Enter
-Sleep 3s
-
-Type "# Run it — the shell (cat) target needs no network and no keys."
-Enter
-Sleep 400ms
+Sleep 600ms
 Type "evalcore run examples/quickstart/evals.yaml"
 Enter
-Sleep 3s
+Sleep 4s
 
-Type "# Same command, applied to a recorded agent: grade the answer AND the path."
+Type "# 4 grounded answers pass; the compliance gate holds."
 Enter
 Sleep 400ms
-Type "evalcore run examples/agent-trace/evals.yaml"
+Type "# Exit 0 = green. Gate CI on it."
 Enter
-Sleep 3.5s
-
-Type "# Exit 0 = everything passed. Gate CI on it."
-Enter
-Sleep 400ms
+Sleep 600ms
 Type "echo $?"
 Enter
-Sleep 2.5s
+Sleep 3.5s

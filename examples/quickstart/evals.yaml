@@ -1,22 +1,54 @@
-# EvalCore quickstart: evaluates a `cat` echo target, so it runs with no
-# network and no API keys. Swap the target for your real app when ready:
+# EvalCore quickstart: a mini bank support bot, graded against the policy each
+# answer must cite. It runs fully offline — the target is a shell script
+# (bot.sh) emitting canned, policy-grounded answers, so there is no model and no
+# network — yet it exercises the real scoring path. Swap bot.sh for your live
+# RAG endpoint when you wire it up; the cases, context, and scorers stay identical:
 #
-#   my-app:
+#   support-bot:
 #     type: openai-compatible
 #     url: https://api.openai.com/v1
-#     model: gpt-4.1
+#     model: gpt-4.1-mini
 #     api_key_env: OPENAI_API_KEY
 #
 # Run it:  evalcore run examples/quickstart/evals.yaml
 targets:
-  echo:
+  support-bot:
     type: shell
-    cmd: "cat"
+    cmd: "sh examples/quickstart/bot.sh"
 
 datasets:
   - file: cases.jsonl
 
 scorers:
+  # GROUNDING: every answer must cite a policy. A grounded answer names the rule
+  # it relied on, so the word "policy" appearing in the output is a cheap,
+  # deterministic proxy for "grounded in the cited source".
   - type: contains
-    value: "refund"
+    value: "policy"
     case_sensitive: false
+
+  # SPECIFICITY: it must cite a *specific* policy number, not just wave at
+  # "policy" in the abstract — so the answer is auditable against a real rule.
+  - type: regex
+    pattern: "policy [0-9.]+"
+
+  # GROUNDEDNESS JUDGE (production path — commented so the runnable suite stays
+  # offline and deterministic). To enable: uncomment, point url/model at any
+  # OpenAI-compatible endpoint, export the key named in api_key_env, then run
+  # once with `--cache live` to record verdicts and commit .evalcore/cache.db.
+  # After that, `--cache replay` grades every PR offline and for $0. The judge
+  # reads each case's `context` (the policy chunk) and scores the answer against
+  # it, so the rubric asks about grounding directly.
+  # - type: judge
+  #   url: https://api.openai.com/v1
+  #   model: gpt-4.1-mini
+  #   api_key_env: OPENAI_API_KEY
+  #   rubric: "Is every factual claim in the answer supported by the provided policy context?"
+  #   threshold: 0.7
+
+run:
+  gates:
+    # A compliance floor over the whole run: at least 95% of cases must pass all
+    # scorers. The HTML report from each PR run is the audit artifact.
+    - type: pass_rate
+      min: 0.95

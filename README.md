@@ -45,8 +45,20 @@ All of it runs local-first and offline — the suite, the cassette, and history 
 
 ## Quickstart
 
+The shipped example is a mini bank support bot, graded against the policy each answer must cite — fully offline, no keys:
+
 ```sh
 cargo run -p evalcore -- run examples/quickstart/evals.yaml
+```
+
+```
+PASS late-refund (12ms)
+PASS fee-dispute (11ms)
+PASS card-lost (10ms)
+PASS wire-eta (10ms)
+
+4 passed, 0 failed, 4 total
+GATE PASS pass_rate >= 0.95 (actual 1.00)
 ```
 
 An eval suite is a YAML file plus a JSONL dataset:
@@ -54,14 +66,20 @@ An eval suite is a YAML file plus a JSONL dataset:
 ```yaml
 # evals.yaml
 targets:
-  echo:
+  support-bot:
     type: shell
-    cmd: "cat"
+    cmd: "sh examples/quickstart/bot.sh"   # a real app goes here
 datasets:
   - file: cases.jsonl
 scorers:
-  - type: contains
-    value: "refund"
+  - type: contains          # grounding: every answer must cite a policy
+    value: "policy"
+  - type: regex             # specificity: it must cite a numbered rule
+    pattern: "policy [0-9.]+"
+run:
+  gates:
+    - type: pass_rate       # compliance floor over the whole run
+      min: 0.95
 ```
 
 Scorers range from deterministic checks (`contains`, `exact`, `regex`, and `json-schema` for structured output), through an any-language escape hatch (`subprocess`: JSON on stdin → `{"score": ...}` on stdout), to LLM-backed grading — LLM-as-judge and `similarity` (semantic closeness by embedding cosine):
@@ -78,9 +96,8 @@ Scorers range from deterministic checks (`contains`, `exact`, `regex`, and `json
 Judge calls go through the record/replay cache too — replayed judge verdicts are deterministic, which is what makes LLM-graded suites usable as CI gates. Embedding calls (`similarity`) cache and replay just like the judge.
 
 ```jsonl
-{"id": "refund-1", "input": "How do I get a refund for my order?"}
-{"id": "rag-1", "input": "How long do refunds take?", "context": "Refunds are processed within 30 days."}
-{"id": "rag-2", "input": "What do I need for a refund?", "context": ["Refunds require an order number.", "Keep your original receipt."]}
+{"id": "late-refund", "input": "It has been three weeks and my refund still has not shown up. Where is it?", "context": ["Policy 4.2: Approved refunds are processed within 30 business days."]}
+{"id": "wire-eta", "input": "How long will an international wire transfer take to arrive?", "context": ["Policy 5.3: International wire transfers settle within 3 to 5 business days."]}
 ```
 
 For RAG evaluation, a case may carry retrieved `context` — a single string or an array of strings. **Scorers see the context but targets never do:** a RAG app runs its own retrieval (put anything the target needs in `input`), so context stays on the scoring side. The judge grades the answer against the context (write rubrics like "grounded in the provided context?"), and subprocess scorers receive it as a `context` array on stdin. Because the context is part of the judge's prompt, changing it re-records the judge verdict, just like changing the rubric.

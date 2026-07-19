@@ -12,7 +12,14 @@ fn quickstart() -> &'static str {
 }
 
 fn evalcore() -> Command {
-    Command::cargo_bin("evalcore").unwrap()
+    let mut cmd = Command::cargo_bin("evalcore").unwrap();
+    // Run from the repo root so the quickstart's shell target (`sh
+    // examples/quickstart/bot.sh`) resolves its script the same way a user
+    // invoking `evalcore run examples/quickstart/evals.yaml` from the repo root
+    // does. Datasets and `.evalcore` resolve relative to the (absolute) config
+    // path, not cwd, so the temp-dir suites below are unaffected.
+    cmd.current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
+    cmd
 }
 
 #[test]
@@ -30,8 +37,9 @@ fn run_passes_the_quickstart_suite_with_exit_zero() {
         .args(["run", quickstart()])
         .assert()
         .success()
-        .stdout(predicate::str::contains("2 passed, 0 failed, 2 total"))
-        .stdout(predicate::str::contains("PASS refund-1"));
+        .stdout(predicate::str::contains("4 passed, 0 failed, 4 total"))
+        .stdout(predicate::str::contains("PASS late-refund"))
+        .stdout(predicate::str::contains("GATE PASS pass_rate"));
 }
 
 #[test]
@@ -46,7 +54,7 @@ fn run_reports_junit_to_a_file() {
 
     let xml = std::fs::read_to_string(&report).unwrap();
     assert!(
-        xml.contains("<testsuites tests=\"2\" failures=\"0\">"),
+        xml.contains("<testsuites tests=\"4\" failures=\"0\">"),
         "got: {xml}"
     );
 }
@@ -105,7 +113,7 @@ fn unknown_target_lists_available_ones() {
         .args(["run", quickstart(), "--target", "nope"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("available: echo"));
+        .stderr(predicate::str::contains("available: support-bot"));
 }
 
 /// Strip `(<n>ms)` latency stamps so two separate runs compare equal despite
@@ -149,7 +157,7 @@ fn html_report_is_written_alongside_terminal_without_changing_stdout() {
         "got: {}",
         &doc[..40.min(doc.len())]
     );
-    assert!(doc.contains("refund-1"), "case id must be in the report");
+    assert!(doc.contains("late-refund"), "case id must be in the report");
 }
 
 #[test]
