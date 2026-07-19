@@ -1,0 +1,193 @@
+/* Landing page (splash template) — stripped, typographic presentation.
+ *
+ * Every landing-only class is namespaced `ec-` so no future Starlight internal
+ * can collide with it (the `.stack` name clashed with Starlight's own hero flex
+ * container). Starlight-owned selectors inside .hero are marked with the version.
+ */
+
+/* ---- Splash column ------------------------------------------------------ */
+/* Splash pages carry no sidebar, but Starlight still reserves --sl-sidebar-width
+ * and offsets the column with an asymmetric margin, leaving it left of center.
+ * Reclaim full width and center the content column symmetrically. */
+/* Starlight 0.41.3 */
+:root[data-has-hero] .main-pane {
+	width: 100%;
+	--sl-content-margin-inline: auto;
+}
+
+/* ---- Hero: centered, typographic, two quiet buttons --------------------- */
+/* The hero ships without an image, but Starlight still reserves its image
+ * column at >=50rem and flips its .stack to text-align:start. Collapse to one
+ * full-width centered column. (Unlayered rules beat @layer starlight.core.) */
+/* Starlight 0.41.3 */
+[data-has-hero] .hero {
+	grid-template-columns: 100%;
+}
+/* Starlight 0.41.3 */
+[data-has-hero] .hero .stack {
+	text-align: center;
+	align-items: center;
+	margin-inline: auto;
+}
+.hero {
+	padding-block: var(--sp-6) var(--sp-4);
+}
+.hero h1 {
+	font-size: var(--fs-3xl);
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	line-height: var(--lh-tight);
+	color: var(--sl-color-text);
+	max-width: 46rem;
+	margin-inline: auto;
+}
+.hero .tagline {
+	max-width: 38rem;
+	margin-inline: auto;
+	color: var(--muted);
+	font-size: var(--fs-lg);
+	line-height: var(--lh-snug);
+}
+/* Starlight 0.41.3 */
+.hero .actions {
+	justify-content: center;
+	margin-top: var(--sp-6);
+}
+
+/* Buttons: primary = solid text-color on bg (near-black->white, inverts in
+ * dark); secondary = 1px hairline, no fill. --radius, never a pill. That, plus
+ * the two hover states below, is the entire button interaction design. */
+/* Starlight 0.41.3 */
+.sl-link-button {
+	border-radius: var(--radius);
+	font-weight: 500;
+	font-size: var(--fs-sm);
+	box-shadow: none;
+}
+.sl-link-button.primary {
+	background: var(--sl-color-text);
+	color: var(--sl-color-bg);
+	border: 1px solid var(--sl-color-text);
+}
+.sl-link-button.primary:hover {
+	opacity: 0.85;
+	background: var(--sl-color-text);
+	color: var(--sl-color-bg);
+}
+.sl-link-button.secondary {
+	background: transparent;
+	color: var(--sl-color-text);
+	border: 1px solid var(--sl-color-hairline);
+}
+.sl-link-button.secondary:hover {
+	border-color: var(--sl-color-text);
+	background: transparent;
+	color: var(--sl-color-text);
+}
+
+/* ---- Terminal cast: plain thin frame, the one permitted shadow ---------- */
+.ec-cast {
+	max-width: 46rem;
+	margin: var(--sp-8) auto 0;
+}
+/* Render at the asset's intrinsic ratio — no forced aspect-ratio/object-fit,
+ * which cropped the first line on the recording. */
+.ec-cast video,
+.ec-cast img {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+	height: auto;
+	border: var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--cast-shadow);
+	background: var(--code-bg);
+}
+.ec-cast img {
+	margin: 0;
+}
+.ec-cast figcaption {
+	margin-top: var(--sp-3);
+	text-align: center;
+	font-size: var(--fs-sm);
+	color: var(--muted);
+}
+
+/* ---- Step numbers: small mono figures, not badges ----------------------- */
+.ec-step-n {
+	font-family: var(--sl-font-mono);
+	font-weight: 500;
+	font-size: 0.8em;
+	color: var(--muted);
+	margin-right: var(--sp-2);
+}
+
+/* ---- Feature grid: hairline-topped columns, no icons/cards -------------- */
+.ec-features {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--sp-6) var(--sp-7);
+	margin-top: var(--sp-6);
+}
+.ec-feature {
+	padding-top: var(--sp-4);
+	border-top: var(--border);
+}
+.ec-feature h3 {
+	margin: 0 0 var(--sp-2);
+	font-size: var(--fs-base);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: var(--sl-color-text);
+}
+.ec-feature p {
+	margin: 0;
+	font-size: var(--fs-sm);
+	line-height: var(--lh-snug);
+	color: var(--muted);
+}
+.ec-feature code {
+	font-size: 0.88em;
+	color: inherit;
+	background: var(--code-bg);
+	border-radius: var(--radius-sm);
+	padding: 0.08em 0.32em;
+}
+@media (max-width: 50rem) {
+	.ec-features {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+@media (max-width: 34rem) {
+	.ec-features {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* ---- "Works with your stack": one muted line --------------------------- */
+.ec-stack {
+	max-width: 46rem;
+	color: var(--muted);
+	line-height: var(--lh-normal);
+}
+
+/* ---- Closing: plain centered block ------------------------------------- */
+.ec-closing {
+	text-align: center;
+	margin: var(--sp-7) 0 var(--sp-4);
+}
+.ec-closing code {
+	display: inline-block;
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-sm);
+	padding: var(--sp-2) var(--sp-3);
+	border: var(--border);
+	border-radius: var(--radius);
+	background: var(--code-bg);
+	color: var(--sl-color-text);
+}
+.ec-closing .muted {
+	margin-top: var(--sp-4);
+	font-size: var(--fs-sm);
+	color: var(--muted);
+}

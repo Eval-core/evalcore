@@ -1,0 +1,95 @@
+/* Base typography and prose — the reading surface.
+ *
+ * Everything here reads from tokens.css. Headings, links, code, tables, and
+ * selection are set once and inherited by every page so the reading experience
+ * is identical from the landing page to the 700-line configuration reference.
+ */
+
+body {
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
+
+.sl-markdown-content {
+	font-size: var(--fs-base);
+	line-height: var(--lh-normal);
+}
+
+/* Page title (H1) and section headings share one voice. */
+.sl-markdown-content :is(h1, h2, h3, h4) {
+	letter-spacing: -0.01em;
+	line-height: var(--lh-tight);
+	font-weight: 600;
+}
+
+/* H2 carries a full-width bottom rule. `display: block` is load-bearing: the
+ * heading otherwise computes inline and the rule hugs the text instead of
+ * spanning the column (the stubby-underline defect). */
+.sl-markdown-content h2 {
+	display: block;
+	margin-top: var(--sp-7);
+	padding-bottom: var(--sp-2);
+	border-bottom: var(--border);
+	font-size: var(--fs-xl);
+}
+
+.sl-markdown-content h3 {
+	margin-top: var(--sp-6);
+	font-size: var(--fs-lg);
+}
+
+/* Quiet, consistent code — inline and block. Inline code never turns accent. */
+.sl-markdown-content code {
+	font-size: 0.9em;
+}
+.sl-markdown-content :not(pre) > code {
+	color: inherit;
+	background: var(--code-bg);
+	border-radius: var(--radius-sm);
+	padding: 0.12em 0.36em;
+}
+.sl-markdown-content pre {
+	border-radius: var(--radius);
+}
+
+/* Links: accent only, understated. */
+.sl-markdown-content a {
+	text-decoration-thickness: 1px;
+	text-underline-offset: 2px;
+}
+.sl-markdown-content a:hover {
+	color: var(--accent-hover);
+}
+
+/* Tables: hairline row separators only. No outer border, no zebra, no header
+ * fill. Header row is muted small caps-weight; cells breathe on --sp-3. */
+.sl-markdown-content table {
+	display: block;
+	width: 100%;
+	overflow-x: auto;
+	border-collapse: collapse;
+	border: 0;
+}
+.sl-markdown-content :is(th, td) {
+	padding: var(--sp-3);
+	border: 0;
+	border-bottom: var(--border);
+	text-align: left;
+	font-size: var(--fs-sm);
+	vertical-align: top;
+}
+.sl-markdown-content th {
+	font-weight: 600;
+	color: var(--muted);
+}
+
+/* Warm selection tint. */
+::selection {
+	background: var(--selection-bg);
+}
+
+/* Header wordmark is plain text color — the type is the brand, never accent. */
+.site-title,
+a.site-title {
+	color: var(--sl-color-text);
+}

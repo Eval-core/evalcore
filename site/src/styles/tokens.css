@@ -1,0 +1,123 @@
+/* EvalCore design tokens — the single source of truth.
+ *
+ * Everything downstream (base, chrome, landing, components) pulls from here.
+ * No raw px/rem values live in those files; if a value is worth using twice it
+ * is worth a token. The palettes are carried over unchanged from the previous
+ * theme — they are well-considered and the AA contrast work is already done.
+ * The spacing and type scales are the new part: the old stylesheet had neither,
+ * which is the primary reason the site read as assembled rather than designed.
+ */
+
+/* ---- Typefaces + scales (theme-independent) ----------------------------- */
+:root {
+	--sl-font: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+	--sl-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	/* Spacing — 4px base, geometric. Vertical rhythm comes entirely from these. */
+	--sp-1: 0.25rem;
+	--sp-2: 0.5rem;
+	--sp-3: 0.75rem;
+	--sp-4: 1rem;
+	--sp-5: 1.5rem;
+	--sp-6: 2rem;
+	--sp-7: 3rem;
+	--sp-8: 4rem;
+	--sp-9: 6rem;
+
+	/* Type — 1.200 minor third off 1rem. */
+	--fs-xs: 0.8125rem;
+	--fs-sm: 0.875rem;
+	--fs-base: 1rem;
+	--fs-lg: 1.125rem;
+	--fs-xl: 1.375rem;
+	--fs-2xl: 1.75rem;
+	--fs-3xl: clamp(2.25rem, 5vw, 3.25rem);
+
+	--lh-tight: 1.2;
+	--lh-snug: 1.4;
+	--lh-normal: 1.7;
+
+	--radius: 6px;
+	--radius-sm: 4px;
+
+	/* Resolves against the current theme's --sl-color-hairline at use time. */
+	--border: 1px solid var(--sl-color-hairline);
+
+	/* Content measures. The splash column is wider than the reading measure so
+	 * the hero and feature grid fill wide desktops; prose stays comfortable. */
+	--measure-prose: 46rem;
+	--measure-splash: 1120px;
+}
+
+/* ---- Dark palette (Starlight default :root) ----------------------------- *
+ * bg #0b0b0c · text #ededed · border #262626 · muted #999 · accent #fb923c
+ * code surface #151517 */
+:root {
+	--sl-color-white: #ededed;
+	--sl-color-gray-1: #e2e2e2;
+	--sl-color-gray-2: #c2c2c2;
+	--sl-color-gray-3: #999999;
+	--sl-color-gray-4: #5a5a5c;
+	--sl-color-gray-5: #2b2b2e;
+	--sl-color-gray-6: #1a1a1c;
+	--sl-color-gray-7: #141416;
+	--sl-color-black: #0b0b0c;
+
+	/* Burnt orange accent — links, active nav, focus. Full Starlight accent
+	 * scale is overridden so no indigo/blue default can leak through. */
+	--sl-color-accent-low: #3a1e0e;
+	--sl-color-accent: #fb923c;
+	--sl-color-accent-high: #fdba74;
+
+	--sl-color-text: #ededed;
+	--sl-color-text-accent: #fb923c;
+	--sl-color-bg: #0b0b0c;
+	--sl-color-bg-nav: #0b0b0c;
+	--sl-color-bg-sidebar: #0b0b0c;
+	--sl-color-bg-inline-code: #151517;
+	--sl-color-hairline: #262626;
+	--sl-color-hairline-light: #262626;
+	--sl-color-hairline-shade: #1c1c1e;
+
+	--muted: #999999;
+	--accent-hover: #fdba74;
+	--selection-bg: rgb(251 146 60 / 28%);
+	--code-bg: #151517;
+	--cast-shadow: 0 1px 3px rgb(0 0 0 / 45%);
+}
+
+/* ---- Light palette ------------------------------------------------------ *
+ * bg #ffffff · text #111 · border #e5e5e5 · muted #666 · accent #c2410c
+ * code surface #f6f6f7 */
+:root[data-theme='light'] {
+	--sl-color-white: #111111;
+	--sl-color-gray-1: #1a1a1a;
+	--sl-color-gray-2: #333333;
+	--sl-color-gray-3: #666666;
+	--sl-color-gray-4: #8c8c8c;
+	--sl-color-gray-5: #d4d4d4;
+	--sl-color-gray-6: #ececec;
+	--sl-color-gray-7: #f6f6f7;
+	--sl-color-black: #ffffff;
+
+	/* Burnt orange accent (darker for AA contrast on white). */
+	--sl-color-accent-low: #ffedd5;
+	--sl-color-accent: #c2410c;
+	--sl-color-accent-high: #7c2d12;
+
+	--sl-color-text: #111111;
+	--sl-color-text-accent: #c2410c;
+	--sl-color-bg: #ffffff;
+	--sl-color-bg-nav: #ffffff;
+	--sl-color-bg-sidebar: #ffffff;
+	--sl-color-bg-inline-code: #f6f6f7;
+	--sl-color-hairline: #e5e5e5;
+	--sl-color-hairline-light: #e5e5e5;
+	--sl-color-hairline-shade: #eeeeee;
+
+	--muted: #666666;
+	--accent-hover: #9a3412;
+	--selection-bg: #ffedd5;
+	--code-bg: #f6f6f7;
+	--cast-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+}

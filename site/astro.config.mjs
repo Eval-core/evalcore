@@ -22,13 +22,18 @@ export default defineConfig({
 				alt: 'EvalCore',
 			},
 			// Self-hosted fonts (no external requests). Order matters: fonts first,
-			// then the theme that references them.
+			// then the design system. The five style files load in dependency
+			// order — tokens define the variables every later file reads.
 			customCss: [
 				'@fontsource-variable/inter',
 				'@fontsource/jetbrains-mono/400.css',
 				'@fontsource/jetbrains-mono/500.css',
 				'@fontsource/jetbrains-mono/700.css',
-				'./src/styles/custom.css',
+				'./src/styles/tokens.css',
+				'./src/styles/base.css',
+				'./src/styles/chrome.css',
+				'./src/styles/landing.css',
+				'./src/styles/components.css',
 			],
 			social: [
 				{
@@ -52,6 +57,11 @@ export default defineConfig({
 						editorTabBarBackground: 'var(--code-bg)',
 						editorActiveTabBackground: 'var(--code-bg)',
 						editorTabBarBorderBottomColor: 'var(--sl-color-hairline)',
+						// The active file-tab indicator defaults to the theme accent,
+						// which leaked orange into code chrome (D15). Force it to the
+						// text color so the tab reads active without the accent.
+						editorActiveTabIndicatorTopColor: 'var(--sl-color-text)',
+						editorActiveTabBorderColor: 'var(--sl-color-hairline)',
 						terminalBackground: 'var(--code-bg)',
 						terminalTitlebarBackground: 'var(--code-bg)',
 						terminalTitlebarBorderBottomColor: 'var(--sl-color-hairline)',

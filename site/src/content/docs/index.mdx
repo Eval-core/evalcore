@@ -30,7 +30,7 @@ hero:
 Three steps: describe the suite as data, run it once against the real model, then
 replay the recorded cassette in CI forever.
 
-### <span class="step-n">1</span> Describe the suite in YAML
+### <span class="ec-step-n">1</span> Describe the suite in YAML
 
 An eval is a YAML file plus a JSONL dataset. There is no SDK and no test harness to write.
 Point a target at your app, list the datasets, and stack scorers. Here a `contains`
@@ -58,7 +58,7 @@ scorers:
     threshold: 0.7
 ```
 
-### <span class="step-n">2</span> Run it once, live
+### <span class="ec-step-n">2</span> Run it once, live
 
 The first run has no cache hits, so every call goes live against the model and
 gets recorded to a local SQLite cassette (the default `auto` mode: replay hits,
@@ -73,7 +73,7 @@ PASS refund-2 (512ms)
 2 passed, 0 failed, 2 total · 2202 tokens · $0.0038
 ```
 
-### <span class="step-n">3</span> Replay forever in CI: $0, offline, deterministic
+### <span class="ec-step-n">3</span> Replay forever in CI: $0, offline, deterministic
 
 Commit the cassette. Now CI runs `--cache replay`: every call is served from the
 recording, so there is no network, no API key, and no flaky judge. Calls return
@@ -107,40 +107,40 @@ jobs:
 
 ## Everything you need
 
-<div class="features">
-	<div class="feature">
+<div class="ec-features">
+	<div class="ec-feature">
 		<h3>Record / replay cassettes</h3>
 		<p>Every model call is recorded to a local SQLite cassette keyed on a hash of the canonical request. Commit it and CI runs <code>--cache replay</code> byte-for-byte at $0, offline, with no API keys and no flaky judges.</p>
 	</div>
-	<div class="feature">
+	<div class="ec-feature">
 		<h3>Statistical trials</h3>
 		<p>One sample of a stochastic model isn't a measurement. <code>run.trials</code> runs every case N times with <code>all</code> / <code>majority</code> / <code>any</code> verdicts, feeds per-scorer means to your gates, and calls out flaky cases. Replayed trials stay deterministic.</p>
 	</div>
-	<div class="feature">
+	<div class="ec-feature">
 		<h3>Compare models side by side</h3>
 		<p><code>--matrix gpt,claude</code> runs one suite across several targets in a single invocation: per-case winners, win/tie counts, per-target cost. Model A vs B, or prompt v1 vs v2, with one exit code for CI.</p>
 	</div>
-	<div class="feature">
+	<div class="ec-feature">
 		<h3>Agent trajectories</h3>
 		<p>Feed recorded OTel / OpenInference traces to a <code>trace</code> target and grade the path with a <code>trajectory</code> scorer: <code>must_call</code> / <code>must_not_call</code> ordering, <code>max_steps</code> budgets, plus final-answer grading in the same suite.</p>
 	</div>
-	<div class="feature">
+	<div class="ec-feature">
 		<h3>Gates &amp; baselines</h3>
 		<p>Block regressions, not imperfection. <code>--baseline</code> tolerates accepted failures and fails only on new ones; <code>run.gates</code> adds <code>pass_rate</code> and <code>mean_score</code> floors, plus <code>accuracy</code> and <code>macro_f1</code> for classification suites.</p>
 	</div>
-	<div class="feature">
+	<div class="ec-feature">
 		<h3>Local run viewer</h3>
 		<p>Every run lands in local history, and <code>evalcore serve</code> opens a read-only viewer over it: pass-rate trends, every run's full report, and a diff between any two runs. It binds localhost, so nothing leaves your machine.</p>
 	</div>
-	<div class="feature">
+	<div class="ec-feature">
 		<h3>Any language</h3>
 		<p>Protocols over SDKs. Targets speak <code>openai-compatible</code>, <code>http</code>, or <code>shell</code>; custom scorers speak JSON over stdin/stdout; judges are any OpenAI-compatible endpoint. Rust is the engine, but you never write Rust.</p>
 	</div>
-	<div class="feature">
+	<div class="ec-feature">
 		<h3>Cost tracking &amp; budgets</h3>
 		<p>Declare <code>cost</code> input/output rates and get per-case tokens and dollars. <code>run.budget_usd</code> stops scheduling new cases once the run hits its cap. Replayed runs count their recorded virtual cost too.</p>
 	</div>
-	<div class="feature">
+	<div class="ec-feature">
 		<h3>HTML reports</h3>
 		<p>Emit a single self-contained HTML file with every case, score, and diff inline, and no assets to host. Drop it into CI artifacts and open the run in a browser.</p>
 	</div>
@@ -148,9 +148,9 @@ jobs:
 
 ## Works with your stack
 
-<p class="stack">OpenAI, vLLM, Ollama, any OpenAI-compatible gateway, your own REST APIs, shell commands, and OTel / OpenInference traces.</p>
+<p class="ec-stack">OpenAI, vLLM, Ollama, any OpenAI-compatible gateway, your own REST APIs, shell commands, and OTel / OpenInference traces.</p>
 
-<div class="closing">
+<div class="ec-closing">
 	<p><code>cargo install evalcore</code></p>
 	<p class="muted">No telemetry. No signup. No server.</p>
 </div>

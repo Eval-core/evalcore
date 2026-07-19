@@ -1,0 +1,148 @@
+/* Site chrome — the frame around the content: header, sidebar, right-rail TOC,
+ * pagination, and the footer strip.
+ *
+ * Selectors that target Starlight-owned classes are marked with the version so
+ * the next Starlight upgrade has an audit list. Never target an astro-* hash
+ * class; those are build-scoped and change every build.
+ */
+
+/* ---- Header ------------------------------------------------------------- */
+/* Starlight 0.41.3 */
+header.header {
+	border-bottom: var(--border);
+}
+
+/* ---- Sidebar ------------------------------------------------------------ */
+/* Group labels: quiet uppercase eyebrows, well separated from the group above. */
+/* Starlight 0.41.3 */
+.sidebar-content .group-label {
+	font-size: var(--fs-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--muted);
+	font-weight: 600;
+}
+/* Starlight 0.41.3 */
+.sidebar-content ul.top-level > li + li {
+	margin-top: var(--sp-5);
+}
+
+/* Items: muted, small, no background on any state. A 2px transparent left rule
+ * is reserved on every link so the active marker never shifts the text. */
+/* Starlight 0.41.3 */
+.sidebar-content a {
+	border-left: 2px solid transparent;
+	padding-block: var(--sp-2);
+	font-size: var(--fs-sm);
+	color: var(--muted);
+}
+.sidebar-content a:hover {
+	color: var(--sl-color-text);
+	background: transparent;
+}
+
+/* Active: 2px orange left rule + weight, NO fill. The solid orange block was
+ * the loudest element on the old site and contradicted the one-accent rule. */
+/* Starlight 0.41.3 */
+.sidebar-content a[aria-current='page'] {
+	border-left-color: var(--sl-color-accent);
+	color: var(--sl-color-text);
+	font-weight: 500;
+	background: transparent;
+}
+
+/* ---- Right-rail TOC ----------------------------------------------------- */
+/* Same active-state language as the sidebar: orange text + 2px left rule. Two
+ * different active treatments in one viewport is the incoherence being fixed. */
+/* Starlight 0.41.3 */
+starlight-toc a {
+	border-left: 2px solid transparent;
+	font-size: var(--fs-xs);
+	color: var(--muted);
+}
+starlight-toc a:hover {
+	color: var(--sl-color-text);
+}
+/* Starlight 0.41.3 */
+starlight-toc a[aria-current='true'] {
+	border-left-color: var(--sl-color-accent);
+	color: var(--sl-color-text-accent);
+}
+
+/* ---- Pagination --------------------------------------------------------- */
+/* Starlight 0.41.3 */
+.pagination-links a {
+	border: var(--border);
+	border-radius: var(--radius);
+	box-shadow: none;
+}
+.pagination-links a:hover {
+	border-color: var(--sl-color-text);
+	background: transparent;
+}
+
+/* ---- Footer strip ------------------------------------------------------- */
+/* The credibility strip for an open-source launch. Rendered by Footer.astro on
+ * every page, above Starlight's default footer content. */
+.ec-footer {
+	border-top: var(--border);
+	margin-top: var(--sp-9);
+	padding-block: var(--sp-7) var(--sp-6);
+}
+.ec-footer-cols {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: var(--sp-6) var(--sp-7);
+	max-width: var(--measure-splash);
+	margin-inline: auto;
+}
+.ec-footer-col h2 {
+	margin: 0 0 var(--sp-3);
+	padding: 0;
+	border: 0;
+	font-size: var(--fs-xs);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--muted);
+}
+.ec-footer-col ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--sp-2);
+}
+.ec-footer-col a {
+	font-size: var(--fs-sm);
+	color: var(--muted);
+	text-decoration: none;
+}
+.ec-footer-col a:hover {
+	color: var(--sl-color-text);
+}
+.ec-footer-note {
+	font-size: var(--fs-sm);
+	color: var(--muted);
+	line-height: var(--lh-snug);
+}
+.ec-footer-baseline {
+	max-width: var(--measure-splash);
+	margin: var(--sp-7) auto 0;
+	padding-top: var(--sp-5);
+	border-top: var(--border);
+	font-size: var(--fs-xs);
+	color: var(--muted);
+}
+
+@media (max-width: 50rem) {
+	.ec-footer-cols {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+@media (max-width: 30rem) {
+	.ec-footer-cols {
+		grid-template-columns: 1fr;
+	}
+}

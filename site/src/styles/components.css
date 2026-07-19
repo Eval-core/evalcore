@@ -1,0 +1,92 @@
+/* Component vocabulary — asides, cards, tabs, and code surfaces.
+ *
+ * Defined once and used everywhere. Divergence in these is what makes a site
+ * feel like unrelated pages, so a guide, the reference, and the landing page
+ * all draw from this one file. Starlight-owned selectors carry the version.
+ */
+
+/* ---- Asides ------------------------------------------------------------- */
+/* Flat --code-bg surface, a 2px semantic left rule, one radius. Used for every
+ * "Known gap" / "Limitation" section so those read as one treatment. */
+/* Starlight 0.41.3 */
+.starlight-aside {
+	padding: var(--sp-4);
+	border-radius: var(--radius);
+	border-inline-start: 2px solid var(--sl-color-asides-border);
+	background: var(--code-bg);
+	color: var(--sl-color-text);
+}
+.starlight-aside__title {
+	font-size: var(--fs-sm);
+	font-weight: 600;
+	color: var(--sl-color-asides-text-accent);
+}
+.starlight-aside__content {
+	font-size: var(--fs-sm);
+	line-height: var(--lh-snug);
+}
+.starlight-aside__content a {
+	color: var(--sl-color-asides-text-accent);
+}
+
+/* ---- Cards (CardGrid) --------------------------------------------------- */
+/* Match the landing feature grid exactly: hairline top rule, no fill, no icon,
+ * no box. The rule is the only chrome. */
+/* Starlight 0.41.3 */
+.card-grid {
+	gap: var(--sp-6) var(--sp-7);
+}
+/* Starlight 0.41.3 */
+.sl-markdown-content .card {
+	border: 0;
+	border-top: var(--border);
+	border-radius: 0;
+	padding: var(--sp-4) 0 0;
+	background: transparent;
+}
+.card .icon {
+	display: none;
+}
+.card .title {
+	font-size: var(--fs-base);
+	font-weight: 600;
+	color: var(--sl-color-text);
+}
+.card .sl-markdown-content,
+.card p {
+	font-size: var(--fs-sm);
+	line-height: var(--lh-snug);
+	color: var(--muted);
+}
+
+/* ---- Tabs --------------------------------------------------------------- */
+/* Hairline strip; active tab carries a 2px orange bottom rule and text color.
+ * Inactive tabs are muted. No pills, no filled tabs. */
+/* Starlight 0.41.3 */
+.starlight-tabs [role='tablist'] {
+	border-bottom: var(--border);
+}
+.starlight-tabs [role='tab'] {
+	border-bottom: 2px solid transparent;
+	color: var(--muted);
+	font-size: var(--fs-sm);
+}
+.starlight-tabs [role='tab'][aria-selected='true'] {
+	border-bottom-color: var(--sl-color-accent);
+	color: var(--sl-color-text);
+}
+
+/* ---- Steps -------------------------------------------------------------- */
+/* Starlight's Steps draws a vertical rule and numbered markers. Keep the marker
+ * monochrome so the accent stays reserved for links and active states. */
+/* Starlight 0.41.3 */
+.sl-steps > li::before {
+	background: var(--code-bg) !important;
+	border: var(--border) !important;
+	color: var(--sl-color-text) !important;
+}
+
+/* ---- Code surfaces (expressive-code) ------------------------------------ */
+/* Frame radius/border/background are set in astro.config's expressiveCode
+ * styleOverrides. The active file-tab indicator is forced monochrome there too
+ * (D15) so no orange leaks into code chrome. */
