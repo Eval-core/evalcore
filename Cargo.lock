@@ -474,6 +474,7 @@ dependencies = [
 name = "evalcore"
 version = "0.7.0"
 dependencies = [
+ "anstyle",
  "anyhow",
  "assert_cmd",
  "clap",
@@ -521,6 +522,7 @@ dependencies = [
 name = "evalcore-report"
 version = "0.7.0"
 dependencies = [
+ "anstyle",
  "anyhow",
  "evalcore-core",
  "insta",

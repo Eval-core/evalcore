@@ -510,3 +510,176 @@ fn matrix_with_baseline_is_a_hard_error() {
             "baselines are per-run; run targets separately with --target",
         ));
 }
+
+// ---- Terminal presentation: color policy, verdict banner, stream routing ----
+//
+// Under assert_cmd the child's stdout/stderr are pipes, so `IsTerminal` is
+// false: the default run is non-interactive — no color, no progress, no cursor
+// control — exactly the CI/redirected contract.
+
+/// The ANSI escape byte. Its total absence is how we prove "no styling".
+const ESC: u8 = 0x1b;
+
+#[test]
+fn non_tty_stdout_has_no_ansi_no_cursor_control_and_carries_the_verdict() {
+    let run = evalcore().args(["run", quickstart()]).assert().success();
+    let out = run.get_output();
+    assert!(
+        !out.stdout.contains(&ESC),
+        "captured (non-TTY) stdout must contain no ESC/ANSI"
+    );
+    // No spinner frames leaked to stderr: progress is TTY-only, so there is no
+    // carriage-return animation in a captured run.
+    assert!(
+        !out.stderr.contains(&b'\r') && !out.stderr.contains(&ESC),
+        "no progress animation or cursor control in non-TTY stderr"
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("\nPASSED\n"),
+        "the prominent verdict is present in plain output; got: {stdout}"
+    );
+}
+
+#[test]
+fn color_always_emits_ansi_and_color_never_does_not() {
+    let colored = evalcore()
+        .args(["run", quickstart(), "--color", "always"])
+        .assert()
+        .success();
+    assert!(
+        colored.get_output().stdout.contains(&ESC),
+        "--color always must emit ANSI even when piped"
+    );
+
+    let plain = evalcore()
+        .args(["run", quickstart(), "--color", "never"])
+        .assert()
+        .success();
+    assert!(
+        !plain.get_output().stdout.contains(&ESC),
+        "--color never must emit no ANSI"
+    );
+}
+
+#[test]
+fn explicit_color_always_overrides_no_color_env() {
+    let out = evalcore()
+        .args(["run", quickstart(), "--color", "always"])
+        .env("NO_COLOR", "1")
+        .assert()
+        .success();
+    assert!(
+        out.get_output().stdout.contains(&ESC),
+        "an explicit --color always wins over NO_COLOR"
+    );
+}
+
+#[test]
+fn json_reporter_keeps_stdout_pure_and_routes_the_verdict_to_stderr() {
+    let run = evalcore()
+        .args(["run", quickstart(), "--reporter", "json"])
+        .assert()
+        .success();
+    let out = run.get_output();
+    let stdout = String::from_utf8(out.stdout.clone()).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|e| panic!("machine stdout must be pure JSON, got {e}: {stdout}"));
+    assert!(parsed.get("results").is_some());
+    assert!(
+        !stdout.contains("PASSED") && !out.stdout.contains(&ESC),
+        "no verdict text or ANSI may pollute machine stdout"
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("PASSED"),
+        "the verdict rides stderr for machine reporters; got: {stderr}"
+    );
+}
+
+#[test]
+fn output_file_holds_the_plain_report_and_verdict_goes_to_stderr() {
+    let dir = tempfile::tempdir().unwrap();
+    let report = dir.path().join("report.txt");
+    let run = evalcore()
+        .args(["run", quickstart(), "--output"])
+        .arg(&report)
+        .assert()
+        .success();
+    let out = run.get_output();
+
+    let file = std::fs::read(&report).unwrap();
+    assert!(!file.contains(&ESC), "report file must be plain, no ANSI");
+    let file_s = String::from_utf8(file).unwrap();
+    assert!(file_s.contains("4 passed, 0 failed, 4 total"));
+    assert!(
+        !file_s.contains("\nPASSED\n"),
+        "the file holds the report; the verdict banner is not part of it"
+    );
+    assert!(
+        out.stdout.is_empty(),
+        "nothing on stdout when --output owns the report"
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("report written to"),
+        "confirmation on stderr"
+    );
+    assert!(stderr.contains("PASSED"), "verdict on stderr with --output");
+}
+
+#[test]
+fn quiet_hides_passing_cases_but_keeps_totals_and_verdict() {
+    let run = evalcore()
+        .args(["run", quickstart(), "--quiet"])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&run.get_output().stdout);
+    assert!(
+        !stdout.contains("PASS late-refund"),
+        "passing cases hidden under --quiet; got: {stdout}"
+    );
+    assert!(
+        stdout.contains("4 passed, 0 failed, 4 total"),
+        "totals kept"
+    );
+    assert!(stdout.contains("\nPASSED\n"), "verdict kept");
+}
+
+#[test]
+fn failing_run_prints_failed_verdict_and_exits_one() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("evals.yaml"),
+        r#"
+targets:
+  echo: { type: shell, cmd: "cat" }
+datasets:
+  - file: cases.jsonl
+scorers:
+  - type: contains
+    value: "xyzzy-never-present"
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("cases.jsonl"),
+        r#"{"id": "will-fail", "input": "hello"}"#,
+    )
+    .unwrap();
+
+    let run = evalcore()
+        .arg("run")
+        .arg(dir.path().join("evals.yaml"))
+        .assert()
+        .code(1);
+    let stdout = String::from_utf8_lossy(&run.get_output().stdout);
+    assert!(
+        stdout.contains("FAIL will-fail") && stdout.contains("\nFAILED\n"),
+        "failing run shows the case and the FAILED verdict; got: {stdout}"
+    );
+    assert!(
+        !run.get_output().stdout.contains(&ESC),
+        "still no ANSI in a captured failing run"
+    );
+}

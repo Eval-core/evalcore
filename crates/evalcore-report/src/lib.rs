@@ -2,10 +2,130 @@
 //! — no I/O, no clock, no global state — so outputs are snapshot-testable and
 //! identical for identical runs.
 
+use std::borrow::Cow;
+
+use anstyle::{AnsiColor, Style as Ansi};
 use evalcore_core::types::TrialResult;
 use evalcore_core::{
     BaselineDiff, CaseResult, MatrixComparison, MatrixSummary, RunSummary, TargetOutput, Trajectory,
 };
+
+/// Render options for the terminal reporters. A pure data value: the CLI derives
+/// it from terminal capabilities (`--color`, `--progress`, `NO_COLOR`, whether
+/// stdout is a TTY), and the reporter never reads the terminal, environment, or
+/// clock itself. [`Style::plain`] reproduces the pre-styling output byte-for-byte,
+/// so machine reporters and redirected/CI output stay deterministic and grep-able.
+#[derive(Debug, Clone, Copy)]
+pub struct Style {
+    /// Emit ANSI SGR color codes around status tokens.
+    pub color: bool,
+    /// Use Unicode glyphs (e.g. the CLI verdict mark). `false` stays ASCII. Does
+    /// not affect the `·`/`->` already present in the plain report.
+    pub unicode: bool,
+    /// Omit passing cases from the per-case listing; failures are always shown.
+    pub quiet: bool,
+}
+
+impl Style {
+    /// No color, no glyphs, every case shown — byte-identical to the reporters
+    /// before styling existed. The default and the only form used in CI, files,
+    /// pipes, and machine reporters.
+    pub const fn plain() -> Self {
+        Self {
+            color: false,
+            unicode: false,
+            quiet: false,
+        }
+    }
+
+    /// Paint `text` in `role` when [`color`](Self::color) is set; otherwise return
+    /// it unchanged. Pure: the SGR bytes depend only on `self` and `role`, never
+    /// on the terminal.
+    fn paint(&self, role: Ansi, text: &str) -> String {
+        if self.color {
+            format!("{}{text}{}", role.render(), role.render_reset())
+        } else {
+            text.to_string()
+        }
+    }
+
+    /// Paint `text` as a pass (green). Public so the CLI paints its verdict,
+    /// hints, and progress with the exact same palette as the report body.
+    pub fn pass(&self, text: &str) -> String {
+        self.paint(PASS, text)
+    }
+    /// Paint `text` as a failure (bold red) — the accent a reader must not miss.
+    pub fn fail(&self, text: &str) -> String {
+        self.paint(FAIL, text)
+    }
+    /// Paint `text` as a warning (yellow) — flaky or tolerated outcomes.
+    pub fn warn(&self, text: &str) -> String {
+        self.paint(WARN, text)
+    }
+    /// Paint `text` dim — secondary figures (latency, totals, hints, progress).
+    pub fn muted(&self, text: &str) -> String {
+        self.paint(MUTED, text)
+    }
+}
+
+impl Default for Style {
+    fn default() -> Self {
+        Self::plain()
+    }
+}
+
+/// Restrained three-hue palette plus a dim. Green passes; red (bold, the one
+/// thing a reader must not miss) fails; yellow warns — flaky or tolerated; dim
+/// carries secondary figures (latency, token/cost totals). Color is never the
+/// only signal: the PASS/FAIL words ride alongside it.
+const PASS: Ansi = Ansi::new().fg_color(Some(anstyle::Color::Ansi(AnsiColor::Green)));
+const FAIL: Ansi = Ansi::new()
+    .fg_color(Some(anstyle::Color::Ansi(AnsiColor::Red)))
+    .bold();
+const WARN: Ansi = Ansi::new().fg_color(Some(anstyle::Color::Ansi(AnsiColor::Yellow)));
+const MUTED: Ansi = Ansi::new().dimmed();
+
+/// Make user-derived text safe to print to a terminal: neutralize ANSI and
+/// control-sequence injection so a hostile case id, scorer reason, or target
+/// name cannot move the cursor, recolor the report, reorder a line's glyphs, or
+/// break its line structure. TAB → space; CR/LF → the visible escapes `\r`/`\n`
+/// (a field stays one logical line); every other control character (C0, DEL, C1,
+/// including ESC) → `\xNN`; and the Unicode bidirectional-formatting controls
+/// (Trojan-Source overrides/isolates/marks) → `\u{NNNN}`, so the line reads in
+/// its true order. Text with none of these is returned borrowed and unchanged,
+/// so ordinary reports render byte-for-byte as before.
+fn sanitize(text: &str) -> Cow<'_, str> {
+    if !text.chars().any(|c| c.is_control() || is_bidi_control(c)) {
+        return Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            '\t' => out.push(' '),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            c if c.is_control() => out.push_str(&format!("\\x{:02x}", c as u32)),
+            c if is_bidi_control(c) => out.push_str(&format!("\\u{{{:04x}}}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    Cow::Owned(out)
+}
+
+/// The Unicode bidirectional-formatting controls: embeddings/overrides
+/// (U+202A–202E), isolates (U+2066–2069), and the directional marks
+/// (LRM/RLM/ALM). Not `char::is_control`, yet they can visually reorder a line's
+/// glyphs (a Trojan-Source spoof), so user text is stripped of them. Combining
+/// marks and joiners (ZWJ/ZWNJ) are deliberately excluded — they carry meaning
+/// in legitimate scripts and cannot reorder a line.
+fn is_bidi_control(c: char) -> bool {
+    matches!(c,
+        '\u{202A}'..='\u{202E}'
+        | '\u{2066}'..='\u{2069}'
+        | '\u{200E}' | '\u{200F}'
+        | '\u{061C}'
+    )
+}
 
 /// The ` [k/N trials]` suffix appended to a case's terminal PASS/FAIL line when
 /// it ran more than one trial (`k` = passing trials, `N` = total). Empty for
@@ -20,27 +140,45 @@ fn trials_suffix(result: &CaseResult) -> String {
     }
 }
 
-/// Human-readable report for terminals and logs.
-pub fn terminal(summary: &RunSummary) -> String {
+/// Human-readable report for terminals and logs. Pure: identical `(summary,
+/// style)` render byte-identical bytes. With [`Style::plain`] the output is
+/// byte-for-byte what it was before styling — color, and skipping passing cases
+/// under `quiet`, are the only behavioral differences, and both are opt-in.
+pub fn terminal(summary: &RunSummary, style: &Style) -> String {
     let mut out = String::new();
     for result in &summary.results {
-        let trials = trials_suffix(result);
-        if result.passed() {
-            let latency = result.output.as_ref().map_or(0, |o| o.latency_ms);
-            out.push_str(&format!("PASS {} ({latency}ms){trials}\n", result.case_id));
+        let raw_trials = trials_suffix(result);
+        // Flaky trials are a warning accent; an empty suffix stays empty (and
+        // thus color-free) so single-trial lines are byte-identical when plain.
+        let trials = if raw_trials.is_empty() {
+            raw_trials
         } else {
-            out.push_str(&format!("FAIL {}{trials}\n", result.case_id));
+            style.warn(&raw_trials)
+        };
+        let case_id = sanitize(&result.case_id);
+        if result.passed() {
+            if style.quiet {
+                continue;
+            }
+            let latency = result.output.as_ref().map_or(0, |o| o.latency_ms);
+            out.push_str(&format!(
+                "{} {case_id} {}{trials}\n",
+                style.pass("PASS"),
+                style.muted(&format!("({latency}ms)")),
+            ));
+        } else {
+            out.push_str(&format!("{} {case_id}{trials}\n", style.fail("FAIL")));
             for reason in result.failure_reasons() {
-                out.push_str(&format!("     {reason}\n"));
+                out.push_str(&format!("     {}\n", sanitize(&reason)));
             }
         }
     }
     let mut totals = String::new();
     if let Some(tokens) = summary.total_tokens() {
-        totals.push_str(&format!(" · {} tokens", tokens.total()));
+        totals.push_str(&style.muted(&format!(" · {} tokens", tokens.total())));
     }
     if let Some(cost) = summary.total_cost_usd() {
-        totals.push_str(&format!(" · ${cost:.4}"));
+        totals.push_str(&style.muted(&format!(" · ${cost:.4}")));
     }
     // Flakiness suffix: reporter-computed from the per-case trials detail. A
     // case is flaky when its trials split (0 < passed < count). Appended only
@@ -48,7 +186,7 @@ pub fn terminal(summary: &RunSummary) -> String {
     // render byte-identically to before.
     if summary.results.iter().any(|r| r.trials.is_some()) {
         let flaky = summary.results.iter().filter(|r| is_flaky(r)).count();
-        totals.push_str(&format!(" · {flaky} flaky"));
+        totals.push_str(&style.warn(&format!(" · {flaky} flaky")));
     }
     out.push_str(&format!(
         "\n{} passed, {} failed, {} total{totals}\n",
@@ -59,13 +197,18 @@ pub fn terminal(summary: &RunSummary) -> String {
     // Suite-level gate outcomes, one line each. Absent when no gates are
     // configured, so gate-free runs render byte-identically to before.
     for gate in &summary.gates {
-        let status = if gate.passed { "PASS" } else { "FAIL" };
+        let token = if gate.passed {
+            style.pass("PASS")
+        } else {
+            style.fail("FAIL")
+        };
         out.push_str(&format!(
-            "GATE {status} {} (actual {:.2})\n",
-            gate.gate, gate.actual
+            "GATE {token} {} (actual {:.2})\n",
+            sanitize(&gate.gate),
+            gate.actual
         ));
         if let Some(reason) = &gate.reason {
-            out.push_str(&format!("     {reason}\n"));
+            out.push_str(&format!("     {}\n", sanitize(reason)));
         }
     }
     // Classification aggregates, one line after the gates block, only when the
@@ -227,37 +370,59 @@ pub fn junit(summary: &RunSummary) -> String {
 
 /// Baseline comparison section, appended after the main report (stdout for
 /// terminal runs, stderr when a machine reporter owns stdout).
-pub fn baseline(diff: &evalcore_core::BaselineDiff, label: &str) -> String {
+pub fn baseline(diff: &evalcore_core::BaselineDiff, label: &str, style: &Style) -> String {
+    // `label` renders through `{:?}`, whose `str` Debug already escapes control
+    // characters (ESC → `\u{1b}`), so the header is injection-safe as written.
     let mut out = format!(
         "\nbaseline {label:?}: {}/{} passed -> current: {}/{} passed\n",
         diff.baseline_passed, diff.baseline_total, diff.current_passed, diff.current_total
     );
     for regression in &diff.regressions {
-        out.push_str(&format!("REGRESSED {}\n", regression.case_id));
+        out.push_str(&format!(
+            "{} {}\n",
+            style.fail("REGRESSED"),
+            sanitize(&regression.case_id)
+        ));
         for reason in &regression.reasons {
-            out.push_str(&format!("     {reason}\n"));
+            out.push_str(&format!("     {}\n", sanitize(reason)));
         }
     }
     for new_failing in &diff.new_failing {
-        out.push_str(&format!("NEW FAIL  {}\n", new_failing.case_id));
+        out.push_str(&format!(
+            "{}  {}\n",
+            style.fail("NEW FAIL"),
+            sanitize(&new_failing.case_id)
+        ));
         for reason in &new_failing.reasons {
-            out.push_str(&format!("     {reason}\n"));
+            out.push_str(&format!("     {}\n", sanitize(reason)));
         }
     }
     for fixed in &diff.fixed {
-        out.push_str(&format!("FIXED     {fixed}\n"));
+        out.push_str(&format!(
+            "{}     {}\n",
+            style.pass("FIXED"),
+            sanitize(fixed)
+        ));
     }
     for removed in &diff.removed {
-        out.push_str(&format!("REMOVED   {removed}\n"));
+        out.push_str(&format!(
+            "{}   {}\n",
+            style.muted("REMOVED"),
+            sanitize(removed)
+        ));
     }
     if diff.gate_failed() {
         out.push_str(&format!(
-            "baseline gate: FAIL ({} regressed, {} new failing)\n",
+            "baseline gate: {} ({} regressed, {} new failing)\n",
+            style.fail("FAIL"),
             diff.regressions.len(),
             diff.new_failing.len()
         ));
     } else {
-        out.push_str("baseline gate: OK — no regressions\n");
+        out.push_str(&format!(
+            "baseline gate: {} — no regressions\n",
+            style.pass("OK")
+        ));
     }
     out
 }
@@ -284,47 +449,67 @@ pub fn html(summary: &RunSummary, diff: Option<&BaselineDiff>) -> String {
 /// case-by-case PASS/FAIL grid with the per-case winner and a wins footer.
 /// Pure and deterministic; arms in matrix order, comparison rows in dataset
 /// order, no color codes beyond the single-run reporter's.
-pub fn terminal_matrix(matrix: &MatrixSummary, comparison: &MatrixComparison) -> String {
+pub fn terminal_matrix(
+    matrix: &MatrixSummary,
+    comparison: &MatrixComparison,
+    style: &Style,
+) -> String {
     let mut out = String::new();
     for arm in &matrix.arms {
-        out.push_str(&format!("== target: {}\n", arm.target));
-        out.push_str(&terminal(&arm.summary));
+        out.push_str(&style.muted(&format!("== target: {}", sanitize(&arm.target))));
+        out.push('\n');
+        out.push_str(&terminal(&arm.summary, style));
         out.push('\n');
     }
-    out.push_str("== comparison\n");
+    out.push_str(&style.muted("== comparison"));
+    out.push('\n');
 
-    // Case column at least 8 wide; each arm column fits its name (min 4, the
-    // width of PASS/FAIL). Columns are separated by four spaces.
-    let id_w = comparison
+    // Widths derive from the *sanitized* names, so a hostile case id or target
+    // can't inject control bytes yet columns still line up. Case column at least
+    // 8 wide; each arm column fits its name (min 4, the width of PASS/FAIL).
+    // Columns are separated by four spaces. Painting happens after padding, so
+    // SGR bytes never perturb alignment.
+    let case_ids: Vec<Cow<'_, str>> = comparison
         .rows
         .iter()
-        .map(|r| r.case_id.len())
-        .max()
-        .unwrap_or(0)
-        .max(8);
-    let col_w = |name: &str| name.len().max(4);
+        .map(|r| sanitize(&r.case_id))
+        .collect();
+    let arm_names: Vec<Cow<'_, str>> = comparison
+        .arms
+        .iter()
+        .map(|a| sanitize(&a.target))
+        .collect();
+    let id_w = case_ids.iter().map(|s| s.len()).max().unwrap_or(0).max(8);
+    let col_w = |i: usize| arm_names[i].len().max(4);
 
     let mut header = format!("{:<id_w$}", "case");
-    for arm in &comparison.arms {
+    for (i, name) in arm_names.iter().enumerate() {
         header.push_str("    ");
-        header.push_str(&format!("{:<w$}", arm.target, w = col_w(&arm.target)));
+        header.push_str(&format!("{name:<w$}", w = col_w(i)));
     }
     out.push_str(header.trim_end());
     out.push('\n');
 
-    for row in &comparison.rows {
-        let mut line = format!("{:<id_w$}", row.case_id);
+    for (r, row) in comparison.rows.iter().enumerate() {
+        let mut line = format!("{:<id_w$}", case_ids[r]);
         for (i, cell) in row.cells.iter().enumerate() {
             line.push_str("    ");
             let mark = if cell.passed { "PASS" } else { "FAIL" };
-            let w = col_w(&comparison.arms[i].target);
-            line.push_str(&format!("{mark:<w$}"));
+            let painted = if cell.passed {
+                style.pass(mark)
+            } else {
+                style.fail(mark)
+            };
+            line.push_str(&painted);
+            // Pad the visible width by mark length (always 4), never the painted
+            // byte length, so color codes don't shift the grid.
+            line.push_str(&" ".repeat(col_w(i).saturating_sub(mark.len())));
         }
         line.push_str("    ");
-        line.push_str(match row.winner {
-            Some(i) => comparison.arms[i].target.as_str(),
-            None => "tie",
-        });
+        match row.winner {
+            Some(i) => line.push_str(&style.pass(&arm_names[i])),
+            None => line.push_str("tie"),
+        }
         out.push_str(line.trim_end());
         out.push('\n');
     }
@@ -334,12 +519,13 @@ pub fn terminal_matrix(matrix: &MatrixSummary, comparison: &MatrixComparison) ->
 }
 
 /// The `<name> <wins> · … · ties <n>` summary shared by the terminal and HTML
-/// comparison sections.
+/// comparison sections. Target names are sanitized for the terminal; the HTML
+/// path builds its own escaped version.
 fn wins_line(comparison: &MatrixComparison) -> String {
     let mut parts: Vec<String> = comparison
         .arms
         .iter()
-        .map(|a| format!("{} {}", a.target, a.wins))
+        .map(|a| format!("{} {}", sanitize(&a.target), a.wins))
         .collect();
     parts.push(format!("ties {}", comparison.ties));
     parts.join(" · ")
@@ -1000,12 +1186,144 @@ mod tests {
 
     #[test]
     fn terminal_report_snapshot() {
-        insta::assert_snapshot!(terminal(&fixture()));
+        insta::assert_snapshot!(terminal(&fixture(), &Style::plain()));
     }
 
     #[test]
     fn terminal_report_with_gates_snapshot() {
-        insta::assert_snapshot!(terminal(&fixture_with_gates()));
+        insta::assert_snapshot!(terminal(&fixture_with_gates(), &Style::plain()));
+    }
+
+    /// The fully styled path (color + unicode), pinned so the ANSI wrapping of
+    /// every status token — PASS/FAIL cases, the flaky suffix, gate verdicts —
+    /// is reviewed on change. The CLI selects this style only for an interactive,
+    /// color-capable stdout; CI and files always use [`Style::plain`].
+    const STYLED: Style = Style {
+        color: true,
+        unicode: true,
+        quiet: false,
+    };
+
+    #[test]
+    fn terminal_report_styled_snapshot() {
+        insta::assert_snapshot!(terminal(&fixture_with_gates(), &STYLED));
+    }
+
+    #[test]
+    fn styled_output_differs_only_by_ansi() {
+        // Stripping every SGR sequence from the styled render must reproduce the
+        // plain render exactly — proof that color is a pure overlay and never
+        // changes the words, counts, or layout a reader relies on.
+        let styled = terminal(&fixture_with_gates(), &STYLED);
+        assert_ne!(styled, terminal(&fixture_with_gates(), &Style::plain()));
+        assert_eq!(
+            strip_ansi(&styled),
+            terminal(&fixture_with_gates(), &Style::plain())
+        );
+    }
+
+    #[test]
+    fn quiet_hides_passing_cases_but_keeps_failures_and_totals() {
+        let quiet = Style {
+            color: false,
+            unicode: false,
+            quiet: true,
+        };
+        let rendered = terminal(&fixture(), &quiet);
+        // refund-1 passes → hidden; the two failures and their reasons stay.
+        assert!(
+            !rendered.contains("refund-1"),
+            "passing case hidden; got: {rendered}"
+        );
+        assert!(
+            rendered.contains("FAIL refund-2"),
+            "failure kept; got: {rendered}"
+        );
+        assert!(rendered.contains("target error: connection refused"));
+        assert!(
+            rendered.contains("1 passed, 2 failed, 3 total"),
+            "totals kept"
+        );
+    }
+
+    #[test]
+    fn sanitize_neutralizes_ansi_and_control_sequences() {
+        // A hostile case id and scorer reason carrying a raw ESC color code, a
+        // carriage return (cursor-to-column-0), a bare newline, and a tab.
+        // Plus a right-to-left override (U+202E) — a Trojan-Source glyph-reorder
+        // that `char::is_control` misses.
+        let summary = RunSummary {
+            results: vec![CaseResult {
+                case_id: "boom\u{1b}[31m\rEVIL\u{202e}drowssap".into(),
+                output: None,
+                error: Some("line1\nline2\tcol\u{1b}[2K".into()),
+                scores: vec![],
+                cost_usd: None,
+                context: None,
+                trials: None,
+            }],
+            gates: Vec::new(),
+            classification: None,
+        };
+        // Rendered plain: the reporter emits no palette ESC of its own, so *any*
+        // surviving ESC would be user-injected. There must be none.
+        let rendered = terminal(&summary, &Style::plain());
+        assert!(
+            !rendered.contains('\u{1b}'),
+            "no raw ESC may survive from user text; got: {rendered:?}"
+        );
+        assert!(
+            !rendered.contains('\u{202e}') && rendered.contains("\\u{202e}"),
+            "the bidi override must be neutralized to a visible escape; got: {rendered:?}"
+        );
+        assert!(
+            rendered.contains("\\x1b"),
+            "ESC rendered visibly; got: {rendered:?}"
+        );
+        assert!(
+            rendered.contains("\\r") && rendered.contains("\\n"),
+            "CR/LF escaped"
+        );
+        assert!(
+            !rendered.contains("line1\nline2"),
+            "an embedded newline must not add a report line"
+        );
+        assert!(rendered.contains("FAIL"), "status word still present");
+        // And the styled path likewise lets no user ESC through: the erase-line
+        // sequence the reporter never emits must be gone.
+        assert!(
+            !terminal(&summary, &STYLED).contains("\u{1b}[2K"),
+            "hostile erase-line sequence must be neutralized even when styled"
+        );
+    }
+
+    #[test]
+    fn sanitize_leaves_benign_text_untouched() {
+        // Quotes, ampersands, angle brackets, and non-ASCII are not controls.
+        assert!(matches!(
+            sanitize("expected \"a\" & <b> — café"),
+            Cow::Borrowed(_)
+        ));
+    }
+
+    /// Remove every ANSI SGR sequence (`ESC [ … m`) — enough to prove the styled
+    /// and plain renders carry identical text. Test-only.
+    fn strip_ansi(s: &str) -> String {
+        let mut out = String::with_capacity(s.len());
+        let mut chars = s.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '\u{1b}' && chars.peek() == Some(&'[') {
+                chars.next();
+                for e in chars.by_ref() {
+                    if e == 'm' {
+                        break;
+                    }
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        out
     }
 
     #[test]
@@ -1090,7 +1408,7 @@ mod tests {
             classification: None,
         };
         let diff = evalcore_core::compare(&baseline_run, &fixture());
-        insta::assert_snapshot!(baseline(&diff, "main"));
+        insta::assert_snapshot!(baseline(&diff, "main", &Style::plain()));
     }
 
     /// A trajectory-bearing case, for the HTML report's trajectory section.
@@ -1408,7 +1726,7 @@ mod tests {
             gates: Vec::new(),
             classification: None,
         };
-        let rendered = terminal(&summary);
+        let rendered = terminal(&summary, &Style::plain());
         assert!(
             rendered.contains("FAIL flaky-1 [2/3 trials]"),
             "got: {rendered}"
@@ -1416,7 +1734,7 @@ mod tests {
 
         // A single-trial fixture must NOT gain any trials tag.
         assert!(
-            !terminal(&fixture()).contains("trials]"),
+            !terminal(&fixture(), &Style::plain()).contains("trials]"),
             "single-trial output must stay tag-free"
         );
     }
@@ -1486,7 +1804,7 @@ mod tests {
     fn terminal_classification_line_only_when_present() {
         // The classification line follows the gates block, with two-decimal
         // figures and the labeled/unlabeled counts.
-        let rendered = terminal(&fixture_with_classification());
+        let rendered = terminal(&fixture_with_classification(), &Style::plain());
         assert!(
             rendered.contains(
                 "classification: accuracy 0.92 · macro-F1 0.88 (24 labeled, 1 unlabeled)"
@@ -1495,7 +1813,7 @@ mod tests {
         );
         // A classification-free run must not gain the line (byte-compat).
         assert!(
-            !terminal(&fixture()).contains("classification:"),
+            !terminal(&fixture(), &Style::plain()).contains("classification:"),
             "classification-free output must stay line-free"
         );
     }
@@ -1509,13 +1827,13 @@ mod tests {
             classification: None,
         };
         assert!(
-            terminal(&summary).contains("0 passed, 1 failed, 1 total · 1 flaky"),
+            terminal(&summary, &Style::plain()).contains("0 passed, 1 failed, 1 total · 1 flaky"),
             "got: {}",
-            terminal(&summary)
+            terminal(&summary, &Style::plain())
         );
         // No trials detail anywhere → no flaky suffix (byte-compat).
         assert!(
-            !terminal(&fixture()).contains("flaky"),
+            !terminal(&fixture(), &Style::plain()).contains("flaky"),
             "single-trial output must stay flaky-free"
         );
     }
@@ -1677,7 +1995,7 @@ mod tests {
     fn terminal_matrix_snapshot() {
         let matrix = matrix_fixture();
         let comparison = compare_arms(&matrix);
-        insta::assert_snapshot!(terminal_matrix(&matrix, &comparison));
+        insta::assert_snapshot!(terminal_matrix(&matrix, &comparison, &Style::plain()));
     }
 
     #[test]
@@ -1794,7 +2112,10 @@ mod tests {
     fn matrix_reporters_do_not_disturb_single_run_output() {
         // A one-arm-style single summary still renders byte-identically through
         // the single-run reporters — the refactor kept them pure.
-        assert_eq!(terminal(&fixture()), terminal(&fixture()));
+        assert_eq!(
+            terminal(&fixture(), &Style::plain()),
+            terminal(&fixture(), &Style::plain())
+        );
         assert_eq!(junit(&fixture()), junit(&fixture()));
     }
 }
