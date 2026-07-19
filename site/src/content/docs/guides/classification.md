@@ -1,20 +1,21 @@
 ---
 title: Classification
-description: Score a label-prediction suite — accuracy, macro-averaged F1, and per-class precision/recall over your labeled cases, with gates you can put in CI.
+description: Score a label-prediction suite with accuracy, macro-averaged F1, and per-class precision/recall over your labeled cases, plus gates you can put in CI.
 ---
 
-Not every eval is open-ended generation. Intent routing, sentiment, spam/not-spam,
-support-ticket triage — these ask the model to pick one label from a fixed set,
-and the question you want answered is "how often does it pick the right one,
-and where does it confuse one class for another?" `run.classification` computes
-the standard classification metrics — accuracy, macro-averaged F1, and per-class
-precision/recall — over the cases that carry an expected label.
+Not every eval is open-ended generation. Intent routing, sentiment,
+spam/not-spam, and support-ticket triage all ask the model to pick one label
+from a fixed set, and the question you want answered is "how often does it pick
+the right one, and where does it confuse one class for another?"
+`run.classification` computes the standard classification metrics (accuracy,
+macro-averaged F1, and per-class precision/recall) over the cases that carry an
+expected label.
 
 ## The dataset
 
-A case is a **labeled** classification case when it has an `expected` field. The
+A case is a labeled classification case when it has an `expected` field. The
 label is that `expected` value; the prediction is the target's output. Both are
-plain strings — the class is whatever text you put there:
+plain strings, so the class is whatever text you put there:
 
 ```jsonl
 {"id": "ticket-1", "input": "I was charged twice this month", "expected": "billing"}
@@ -24,7 +25,7 @@ plain strings — the class is whatever text you put there:
 ```
 
 The `input` is the prompt sent to your target; the `expected` is the true class.
-A case with **no** `expected` (like `ticket-4`) is *unlabeled* — it still runs
+A case with no `expected` (like `ticket-4`) is *unlabeled*. It still runs
 and is still scored by your scorers, but it contributes to no classification
 metric. Unlabeled cases are counted and reported separately so you can see how
 much of the dataset the metrics actually cover.
@@ -46,7 +47,7 @@ run:
   classification: true
 ```
 
-The classification aggregates are computed independently of your `scorers` — the
+The classification aggregates are computed independently of your `scorers`. The
 scorers decide each case's pass/fail, while `classification` reads `expected`
 versus output directly. You do not need any particular scorer for the metrics to
 appear (though `exact` pairs naturally with a label suite, passing a labeled case
@@ -56,7 +57,7 @@ exactly when its prediction is correct).
 
 Two gates read the classification aggregates, so a suite can fail CI when the
 model's accuracy or F1 drops below a floor. Declaring either gate turns the
-aggregates on implicitly — you don't also need `classification: true`:
+aggregates on implicitly, so you don't also need `classification: true`:
 
 ```yaml
 run:
@@ -75,26 +76,26 @@ case fails **or** either metric falls below its floor.
 
 ## What the numbers mean
 
-The label set is the set of **expected** labels observed in the dataset — the
+The label set is the set of `expected` labels observed in the dataset: the
 true classes, and only those. A prediction the model invents that matches no
 expected label is not a class of its own; it simply fails to match its case's
 true class (lowering that class's recall) and enters no other class's tally.
 Every metric is over the labeled cases:
 
-- **Accuracy** — labeled cases predicted correctly, over all labeled cases. One
+- **Accuracy** is labeled cases predicted correctly, over all labeled cases. One
   number for the whole suite.
-- **Precision** of class *c* — of the cases predicted *c*, the fraction that
+- **Precision** of class *c* is, of the cases predicted *c*, the fraction that
   were really *c* (`correct(c) / predicted-as-c`).
-- **Recall** of class *c* — of the cases that were really *c*, the fraction
+- **Recall** of class *c* is, of the cases that were really *c*, the fraction
   predicted *c* (`correct(c) / support(c)`, where support is how many labeled
   cases carry that class).
-- **F1** of class *c* — the harmonic mean of its precision and recall.
-- **Macro-F1** — the plain, **unweighted** mean of the per-class F1 scores. Every
+- **F1** of class *c* is the harmonic mean of its precision and recall.
+- **Macro-F1** is the plain, unweighted mean of the per-class F1 scores. Every
   class counts the same regardless of how many cases it has, so a rare class the
   model ignores drags macro-F1 down as hard as a common one.
 
-Any `0/0` in these ratios is defined as `0.0` — a class no case predicted has
-precision `0.0`, not an error or a blank. A **target-error** case that carries an
+Any `0/0` in these ratios is defined as `0.0`, so a class no case predicted has
+precision `0.0`, not an error or a blank. A target-error case that carries an
 `expected` counts as labeled and wrong: it produced no output, so it matches no
 class, and an error storm sinks accuracy exactly as it should.
 
@@ -145,11 +146,11 @@ classification: accuracy 0.67 · macro-F1 0.67 (3 labeled, 1 unlabeled)
 The per-case `PASS`/`FAIL` lines and the `GATE`/`classification` lines answer
 different questions. The `exact` scorer fails `ticket-2` (a genuinely wrong
 prediction) and `ticket-4` (an unlabeled case has nothing for `exact` to compare
-against) — that is the per-case contract. The classification line, by contrast,
+against). That is the per-case contract. The classification line, by contrast,
 counts `ticket-4` as unlabeled and reports accuracy `0.67` over the three labeled
 cases. The metrics line always follows the gates block, and appears only when the
 run computed classification (via `classification: true` or an `accuracy`/
-`macro_f1` gate) — so a suite that uses neither is byte-identical to before.
+`macro_f1` gate), so a suite that uses neither is byte-identical to before.
 
 ### Zero labeled cases fails loudly
 
@@ -165,12 +166,12 @@ classification: accuracy 0.00 · macro-F1 0.00 (0 labeled, 2 unlabeled)
 ```
 
 This catches the common mistake of gating on classification against a dataset
-that never got its labels — the gate turns red instead of green.
+that never got its labels. The gate turns red instead of green.
 
 ## Labels are trimmed, then matched case-sensitively
 
 A label matches its prediction when the two strings are **equal after trimming
-surrounding whitespace** — and that is the *only* normalization v1 applies. So
+surrounding whitespace**, and that is the *only* normalization v1 applies. So
 `" billing "` and `billing` are the same class, but `Billing`, `billing.`, and
 `billing (charged twice)` are three different classes from `billing`. Matching
 is case-sensitive; there is no lowercasing, no punctuation stripping, no synonym
@@ -179,14 +180,14 @@ folding.
 Real models rarely emit a bare label on their own. Constrain and normalize the
 prediction before it reaches the metric, in whichever layer you already control:
 
-- **In the target.** Prompt the model to answer with exactly one label and
+- In the target. Prompt the model to answer with exactly one label and
   nothing else (`Reply with only one of: billing, technical, other.`), optionally
   with `params: { temperature: 0 }` and a tight `max_tokens`. For an [`http`
   target](/evalcore/guides/evaluating-rest-apis/) wrapping your own classifier,
   return the normalized label from the endpoint and point `response_path` at it.
-- **In a scorer.** A [`subprocess` scorer](/evalcore/reference/subprocess-protocol/)
+- In a scorer. A [`subprocess` scorer](/evalcore/reference/subprocess-protocol/)
   can lowercase, strip, or map the output however you like and decide the
-  per-case pass/fail — but note the classification **aggregates** read the raw
+  per-case pass/fail. Note that the classification aggregates read the raw
   (trimmed) output, not a scorer's transformed view, so normalization that must
   reach accuracy/F1 belongs in the target's output itself.
 
@@ -194,19 +195,17 @@ prediction before it reaches the metric, in whichever layer you already control:
 
 Under [`run.trials`](/evalcore/guides/trials-and-statistics/) a case runs several
 times, but classification is a single-prediction-per-case metric. The prediction
-it scores is the case-level surfaced output — the first successful trial — not a
-vote across trials. Accuracy and F1 therefore describe one representative
+it scores is the case-level surfaced output, meaning the first successful trial,
+not a vote across trials. Accuracy and F1 therefore describe one representative
 prediction per case, while the trials machinery still measures how *often* the
 case passes your scorers. Aggregating a label across trials (majority-vote
 prediction) is intentionally out of scope for v1.
 
 ## See also
 
-- [Gates and baselines](/evalcore/guides/gates-and-baselines/) — how the
+- [Gates and baselines](/evalcore/guides/gates-and-baselines/): how the
   `accuracy` and `macro_f1` gates fold into the exit code.
-- [Configuration reference](/evalcore/reference/configuration/#run-block) — the
+- [Configuration reference](/evalcore/reference/configuration/#run-block): the
   `run.classification` flag and the classification gate schemas.
-- [Trials and statistics](/evalcore/guides/trials-and-statistics/) — the
+- [Trials and statistics](/evalcore/guides/trials-and-statistics/): the
   multi-trial machinery the prediction limitation above refers to.
-</content>
-</invoke>

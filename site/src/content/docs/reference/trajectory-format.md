@@ -32,7 +32,7 @@ Top-level fields:
 | Field | Type | Required | Meaning |
 |---|---|---|---|
 | `steps` | array | yes | The tool calls, in chronological order. |
-| `final_output` | string | no | The agent's final answer, graded by text/judge scorers. When present it MUST be a string — a non-string value is a loading error, not a silently dropped field. |
+| `final_output` | string | no | The agent's final answer, graded by text/judge scorers. When present it MUST be a string; a non-string value is a loading error rather than a silently dropped field. |
 
 Each step:
 
@@ -43,14 +43,14 @@ Each step:
 | `output` | any JSON | no | The call's result. |
 
 LLM completions, retrievals modeled as plain spans, and other non-tool activity
-are **not** steps — a trajectory describes what the agent *did*. Producers may
+are **not** steps, because a trajectory describes what the agent *did*. Producers may
 include extra fields on a step; consumers ignore fields they don't understand.
 
 ## Accepted input formats
 
 The `trace` target auto-detects and normalizes two formats:
 
-1. **Native** — the format above, verbatim (`{"steps": [...]}`).
+1. **Native**: the format above, verbatim (`{"steps": [...]}`).
 2. **OTel JSON export** (`{"resourceSpans": [...]}`), mapped per span as below.
 
 ### OTel / OpenInference mapping
@@ -81,11 +81,12 @@ Root-span selection and extraction rules:
   trace this is just that root; on a flat export where every span is a candidate
   (e.g. a planner LLM emitting an interim thought before the responder answers),
   the last thing said is the answer, not the first.
-- **Precedence** when both attributes are present on the chosen span:
+- Precedence when both attributes are present on the chosen span:
   `output.value` (OpenInference) first, then `gen_ai.completion` (OTel GenAI).
-- The final answer is kept as a **raw string** — a stringified-JSON answer is not
-  unwrapped, since the final answer is text, not a payload to address fields on.
-  No candidate carries one, so there is no final answer.
+- The final answer is kept as a raw string. A stringified-JSON answer is not
+  unwrapped, since the final answer is text rather than a payload to address
+  fields on. If no root candidate carries one of these attributes, the trace has
+  no final answer.
 - Spans are ordered by `startTimeUnixNano`; spans without timestamps keep
   document order after timestamped ones.
 - String-valued step inputs/outputs that parse as JSON **are** unwrapped, so
@@ -98,7 +99,7 @@ Root-span selection and extraction rules:
 
 When a trace carries a final answer, the `trace` target's text output **is that
 answer**, so `judge`, `contains`, `regex`, and `exact` scorers grade the agent's
-actual answer — not the trajectory JSON. The `trajectory` scorer always operates
+actual answer, not the trajectory JSON. The `trajectory` scorer always operates
 on the steps. Both can run on the same case: a judge grades whether the answer
 was right while trajectory rules check whether the path was safe. When a trace
 carries no final answer, the text output stays the serialized trajectory JSON,
@@ -128,18 +129,18 @@ scorers:
 
 Holds iff at least one step calls `T` **and** satisfies every `with` constraint.
 
-- `with:` — map of argument field to [matcher](#field-matchers). A call matches
-  only if **all** listed fields match.
-- `after: U` — only steps strictly after the **first** call of `U` count. If `U`
-  never runs, the rule **fails** (the required precondition never happened).
+- `with:` is a map of argument field to [matcher](#field-matchers). A call
+  matches only if **all** listed fields match.
+- `after: U` counts only steps strictly after the **first** call of `U`. If `U`
+  never runs, the rule fails, because the required precondition never happened.
 
 ### `must_not_call: T`
 
 Holds iff no step calls `T`.
 
-- `before: U` — only steps before the **first** call of `U` are considered. If
-  `U` never runs, **every** call of `T` violates the rule (conservative: the
-  guard `T` was waiting for never happened).
+- `before: U` considers only steps before the **first** call of `U`. If `U`
+  never runs, **every** call of `T` violates the rule. This is deliberately
+  conservative: the guard `T` was waiting for never happened.
 
 ### `max_steps: N`
 
@@ -153,9 +154,9 @@ with:
   amount: { equals: 42 }            # exact JSON equality
 ```
 
-- `contains` — substring test; non-string fields are compared against their
+- `contains` is a substring test; non-string fields are compared against their
   compact JSON rendering.
-- `equals` — strict JSON equality.
+- `equals` is strict JSON equality.
 - Both may be given; all present constraints must hold.
 - A missing field never matches.
 

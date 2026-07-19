@@ -1,10 +1,10 @@
 ---
 title: Evaluating REST APIs
-description: Point EvalCore at your own deployed app's HTTP/JSON endpoint — {{input}} substitution, response_path JSON Pointers, auth patterns, the headers-are-cached caveat, timeouts and retries, and keyless replay.
+description: "Point EvalCore at your own deployed app's HTTP/JSON endpoint: {{input}} substitution, response_path JSON Pointers, auth patterns, the headers-are-cached caveat, timeouts and retries, and keyless replay."
 ---
 
-The `http` target points EvalCore at any HTTP/JSON API — typically your own
-deployed RAG service or agent behind `POST /chat` — and caches it exactly like
+The `http` target points EvalCore at any HTTP/JSON API, typically your own
+deployed RAG service or agent behind `POST /chat`, and caches it exactly like
 an LLM call. The same commit-the-cassette, replay-in-CI story applies to your
 app's real responses: record once, then gate every PR offline and free.
 
@@ -48,7 +48,7 @@ PASS refund (7ms)
 1 passed, 0 failed, 1 total
 ```
 
-Re-run offline with the server stopped and `--cache replay` — it replays the
+Re-run offline with the server stopped and `--cache replay`. It replays the
 recorded answer with no network and no key:
 
 ```
@@ -62,14 +62,14 @@ PASS refund (7ms)
 Each case's `input` is substituted into the request in two places, with two
 different encodings:
 
-- **Into `url`** — **percent-encoded** (every non-alphanumeric byte), so it is
+- Into `url`, **percent-encoded** (every non-alphanumeric byte), so it is
   safe in a query string or path segment:
 
   ```yaml
   url: "https://api.myapp.com/search?q={{input}}"
   ```
 
-- **Into every string value of `body`** — **verbatim** (keys are never touched):
+- Into every string value of `body`, **verbatim** (keys are never touched):
 
   ```yaml
   body:
@@ -77,12 +77,12 @@ different encodings:
     top_k: 5                       # non-string values pass through untouched
   ```
 
-At least one of `url` or `body` must contain `{{input}}` — otherwise every case
+At least one of `url` or `body` must contain `{{input}}`. Otherwise every case
 would send an identical request, which config validation rejects.
 
 ## Pulling the answer out: `response_path`
 
-On a 2xx response, `response_path` is an **RFC 6901 JSON Pointer** into the JSON
+On a 2xx response, `response_path` is an RFC 6901 JSON Pointer into the JSON
 body. It must start with `/`:
 
 ```yaml
@@ -90,8 +90,8 @@ response_path: /answer            # {"answer": "..."} -> the answer string
 response_path: /data/0/text       # nested: {"data": [{"text": "..."}]}
 ```
 
-Omit `response_path` to score the **raw response body text** — useful for plain
-`text/plain` endpoints. A pointer that resolves to JSON `null` yields the literal
+Omit `response_path` to score the raw response body text, which is useful for
+plain `text/plain` endpoints. A pointer that resolves to JSON `null` yields the literal
 string `"null"`; only a pointer that resolves to *nothing* (an absent path) is an
 error for that case.
 
@@ -111,7 +111,7 @@ targets:
 
 ## Auth patterns
 
-Credentials come from an environment variable named by `api_key_env` — never
+Credentials come from an environment variable named by `api_key_env`, never
 inline in YAML. The default sends the key as a bearer token:
 
 ```yaml
@@ -127,19 +127,19 @@ auth_header: x-api-key
 auth_prefix: ""                    # send the raw key, no prefix
 ```
 
-`auth_header`/`auth_prefix` require `api_key_env` — setting them without a key is
-rejected. A static `headers:` entry that collides (case-insensitively) with the
+`auth_header` and `auth_prefix` require `api_key_env`; setting them without a key
+is rejected. A static `headers:` entry that collides (case-insensitively) with the
 auth header is also rejected, since it would send two conflicting header lines.
 
 ## The headers caveat: never put secrets in `headers:`
 
-This is the one rule to internalize. **Header values enter the cache identity**
-— they are hashed into the key and stored in the committed `.evalcore/cache.db`.
+This is the one rule to internalize. **Header values enter the cache identity.**
+They are hashed into the key and stored in the committed `.evalcore/cache.db`.
 Anything you put in `headers:` is persisted in your repo's cassette.
 
-- **Non-secret routing headers** (`x-tenant`, `x-region`, an API version) belong
+- Non-secret routing headers (`x-tenant`, `x-region`, an API version) belong
   in `headers:`.
-- **Secrets** (API keys, tokens) belong in `api_key_env`, which is **excluded**
+- Secrets (API keys, tokens) belong in `api_key_env`, which is excluded
   from the cache identity and never persisted.
 
 ```yaml
@@ -163,18 +163,18 @@ Transient failures (429, 5xx, network, or a timeout) retry with exponential
 backoff honoring `Retry-After`. A timeout aborts the attempt and is treated like
 any transient failure, so a hung endpoint can't wedge a run by pinning a
 concurrency slot. Neither `max_retries` nor `timeout_seconds` is part of the
-cache identity — tuning them keeps existing cassettes valid.
+cache identity, so tuning them keeps existing cassettes valid.
 
 ## Cacheability and keyless replay
 
-The cache identity is the **request shape only**:
+The cache identity is the request shape only:
 `{url, method, headers, body, response_path}`. Secrets, `api_key_env`,
 `auth_header`, `auth_prefix`, `max_retries`, and `timeout_seconds` are all
-excluded. That is what lets `--cache replay` run **offline with no key
-configured** — the identity doesn't depend on the credential, so CI replays the
+excluded. That is what lets `--cache replay` run offline with no key
+configured. The identity doesn't depend on the credential, so CI replays the
 committed cassette without secrets.
 
-A replay cache miss (a request never recorded — usually because you changed the
+A replay cache miss (a request never recorded, usually because you changed the
 `url`, `body`, `headers`, `response_path`, or a case input) fails that case with
 a reason rather than calling out:
 
@@ -185,7 +185,7 @@ FAIL new
 
 ## What's not covered in v1
 
-`http` targets do **no token or cost accounting** — generic APIs have no standard
+`http` targets do no token or cost accounting. Generic APIs have no standard
 usage shape, so there is no `cost:` block and no `$` line for them. If you need
 cost tracking, it lives on `openai-compatible` and `trace` targets; see
 [Cost and budgets](/evalcore/guides/cost-and-budgets/).

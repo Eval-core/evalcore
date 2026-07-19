@@ -1,6 +1,6 @@
 ---
 title: CLI reference
-description: The evalcore command — validate and run, every flag, the exit-code contract, output destinations, and env-var handling.
+description: The evalcore command. Validate and run, every flag, the exit-code contract, output destinations, and env-var handling.
 ---
 
 The `evalcore` binary has three subcommands: `validate` (parse-check a config),
@@ -18,7 +18,7 @@ runs identically from any directory (CI, editors, make).
 
 ## `evalcore validate <config>`
 
-Parses and validates the config without executing anything — no target or scorer
+Parses and validates the config without executing anything. No target or scorer
 is ever run.
 
 | Argument | Description |
@@ -55,7 +55,7 @@ through every scorer, renders a report, and returns an exit code.
 | `--cache` | `auto` \| `replay` \| `live` \| `off` | `auto` | Record/replay cache mode for cacheable targets. See [Cache modes](#cache-modes). |
 | `--baseline` | label | — | Gate on regressions against a stored baseline instead of absolute pass/fail. |
 | `--save-baseline` | label | — | Save this run's results as a named baseline. |
-| `--no-history` | flag | off | Do not append a run-history row for this run (overrides `run.history: true`). The exit code and report bytes are unaffected — history is metadata for [`evalcore serve`](#evalcore-serve). Since v0.7.0. |
+| `--no-history` | flag | off | Do not append a run-history row for this run (overrides `run.history: true`). The exit code and report bytes are unaffected; history is metadata for [`evalcore serve`](#evalcore-serve). Since v0.7.0. |
 
 ### Target selection
 
@@ -73,7 +73,7 @@ either surface needs at least two distinct, defined names. `run.budget_usd`
 applies per arm, and each arm prices with its own target's `cost` rates. The exit
 code is `0` iff **every** arm passes all its cases and gates, else `1`.
 
-A matrix is mutually exclusive with target selection and baselines — each
+A matrix is mutually exclusive with target selection and baselines. Each
 combination is a hard error rather than a silent choice:
 
 ```
@@ -120,7 +120,7 @@ determinism](../cache-and-determinism/) for the full model.
 | Mode | Behavior |
 |---|---|
 | `auto` (default) | Replay hits; on a miss, call live and record the result. |
-| `replay` | Cache only — a miss is a case failure, never a live call. Use in CI for deterministic, zero-cost reruns. |
+| `replay` | Cache only. A miss is a case failure, never a live call. Use in CI for deterministic, zero-cost reruns. |
 | `live` | Always call live and overwrite the recording. |
 | `off` | Bypass the cache entirely. |
 
@@ -147,7 +147,7 @@ run) it goes to **stderr**, keeping the machine reporter's stdout pure.
 `evalcore run` exits `0` when the run passed and `1` otherwise. Gate CI on it.
 
 - **Default** (no `--baseline`): exit `0` iff every case passed.
-- **With `--baseline`**: the gate becomes "no regressions" — exit `0` iff no
+- **With `--baseline`**: the gate becomes "no regressions". Exit `0` iff no
   case regressed and no previously-passing case newly fails. Failures already
   accepted into the baseline are tolerated.
 - **Suite gates are additive.** Regardless of the above, if any configured
@@ -164,7 +164,7 @@ Secrets are never inline in YAML: a target or judge references an environment
 variable by name (`api_key_env`), resolved at build time.
 
 - In modes that may call the network (`auto`, `live`, `off`), a referenced but
-  unset variable is a **build error** — the run fails fast before any case runs:
+  unset variable is a build error, and the run fails fast before any case runs:
   `environment variable <VAR> is not set`.
 - In `--cache replay`, secrets are **optional**: a missing variable resolves to
   no key. Replay-only runs never call the live target, which is what lets CI
@@ -217,14 +217,14 @@ existed.
 
 Times are latency in seconds (three decimals). Failure messages join a case's
 reasons with `; `. Every user-controlled value is XML-escaped. JUnit output does
-not include gate outcomes — the exit code carries the gate result.
+not include gate outcomes; the exit code carries the gate result.
 
 ## `evalcore serve`
 
 Since v0.7.0. Starts a **local, read-only** web viewer over the
 [run history](../../guides/run-history-and-serve/) stored in a `.evalcore/cache.db`
-file. Unlike `validate` and `run`, it takes no config argument — it reads the
-store, not a config.
+file. Unlike `validate` and `run`, it takes no config argument, because it reads the
+store rather than a config.
 
 ```sh
 evalcore serve                              # reads .evalcore/cache.db, binds 127.0.0.1:7878
@@ -242,10 +242,10 @@ On start it prints the URL and runs until interrupted (Ctrl-C):
 serving http://127.0.0.1:7878
 ```
 
-**The bind address is fixed at `127.0.0.1` — localhost is the entire security
+**The bind address is fixed at `127.0.0.1`, and localhost is the entire security
 model.** There is no bind-address knob, no auth (there is no remote access to
-authenticate), and no telemetry. Every route is a `GET` — any other method
-returns `405` — and the viewer only ever reads the store, so nothing it does can
+authenticate), and no telemetry. Every route is a `GET`, and any other method
+returns `405`. The viewer only ever reads the store, so nothing it does can
 mutate history or leave the machine. Pages are self-contained HTML (inline CSS,
 no external requests, no JS) and every stored string is escaped.
 
@@ -254,7 +254,7 @@ Three routes:
 | Route | Shows |
 |---|---|
 | `GET /` | The run listing, newest first: id, time, config, target, passed/failed/total, cost, a pass-rate sparkline, and a "diff vs previous same-target run" link. |
-| `GET /run/{id}` | That run's full detail — byte-for-byte the `--html` report. Unknown id → `404`; a non-integer id → `400`. |
+| `GET /run/{id}` | That run's full detail, byte-for-byte the `--html` report. Unknown id → `404`; a non-integer id → `400`. |
 | `GET /diff?a=<id>&b=<id>` | Any two stored runs compared with the [matrix comparison](../../guides/comparing-models/) view. Missing/non-integer ids → `400`; an unknown id → `404`. |
 
 See the [Run history and serve guide](../../guides/run-history-and-serve/) for the

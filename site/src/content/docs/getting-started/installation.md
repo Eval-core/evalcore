@@ -1,10 +1,10 @@
 ---
 title: Installation
-description: Install EvalCore from crates.io, download a prebuilt binary, or run it as a GitHub Action — plus verifying, upgrading, and a CI installation matrix.
+description: "Install EvalCore from crates.io, download a prebuilt binary, or run it as a GitHub Action, plus verifying, upgrading, and a CI installation matrix."
 ---
 
 EvalCore is a single, dependency-free binary. There is nothing to run as a
-service and no runtime to install alongside it — you install one executable and
+service and no runtime to install alongside it. You install one executable and
 gate CI on its exit code. Pick the path that matches where you are running it.
 
 ## From crates.io
@@ -27,7 +27,7 @@ extract the `evalcore` binary, and put it on your `PATH`:
 
 ```sh
 # Example: download and unpack a release archive, then move the binary
-tar -xzf evalcore-v0.5.0-x86_64-unknown-linux-gnu.tar.gz
+tar -xzf evalcore-v0.7.0-x86_64-unknown-linux-gnu.tar.gz
 mv evalcore /usr/local/bin/
 evalcore --version
 ```
@@ -43,7 +43,7 @@ evalcore --version
 | Linux arm64 / musl | Not yet | install with `cargo install evalcore` |
 
 Windows and other platforms have no prebuilt binary today, but the crate builds
-there — `cargo install evalcore` works anywhere a Rust toolchain does.
+there: `cargo install evalcore` works anywhere a Rust toolchain does.
 
 ## Verify the install
 
@@ -52,9 +52,10 @@ evalcore --version
 evalcore validate examples/quickstart/evals.yaml
 ```
 
-`evalcore validate` parses and checks a config **without running anything** — no
-targets are invoked, no scorers run, no network. It is the fastest way to
-confirm both that the binary works and that a suite is well-formed:
+`evalcore validate` parses and checks a config **without running anything**. No
+targets are invoked, no scorers run, and nothing touches the network. It is the
+fastest way to confirm both that the binary works and that a suite is
+well-formed:
 
 ```
 OK: 1 target(s), 1 dataset(s), 1 scorer(s)
@@ -81,7 +82,7 @@ upgrading, and re-run `evalcore validate` on your suites afterward.
 
 In GitHub Actions, one step installs EvalCore (prebuilt binary, `cargo`
 fallback), runs a suite, writes the report to the job step summary, and exits
-with the suite's gate code — so the job passes or fails with your evals:
+with the suite's gate code, so the job passes or fails with your evals:
 
 ```yaml
 - uses: eval-core/evalcore@v0.7.0
@@ -91,9 +92,9 @@ with the suite's gate code — so the job passes or fails with your evals:
 ```
 
 - `config` points at your `evals.yaml`.
-- `args` are passed straight through to `evalcore run` — here, replay from the
-  committed cassette (offline, keyless, `$0`) and gate against the `main`
-  baseline.
+- `args` are passed straight through to `evalcore run`. Here that means replay
+  from the committed cassette (offline, keyless, `$0`) and gate against the
+  `main` baseline.
 - `version` (optional) pins the release to install; defaults to `latest`.
 
 Pin the action to a released tag (`@v0.7.0`) so CI is reproducible. The
@@ -112,7 +113,7 @@ A minimal non-GitHub install step looks like this:
 
 ```sh
 # GitLab / Jenkins / Buildkite: fetch a pinned release binary
-VERSION=v0.5.0
+VERSION=v0.7.0
 TARGET=x86_64-unknown-linux-gnu
 curl -fsSL "https://github.com/eval-core/evalcore/releases/download/$VERSION/evalcore-$VERSION-$TARGET.tar.gz" \
   | tar -xz -C /usr/local/bin

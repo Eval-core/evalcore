@@ -1,6 +1,6 @@
 ---
 title: Configuration reference
-description: The complete evals.yaml schema — every target, scorer, and run option, with fields, defaults, and the validation rules that reject bad configs.
+description: The complete evals.yaml schema. Every target, scorer, and run option, with fields, defaults, and the validation rules that reject bad configs.
 ---
 
 The `evals.yaml` file is EvalCore's primary interface. This page documents every
@@ -52,9 +52,9 @@ targets:
 
 A non-zero exit becomes a failed case whose error carries the command's trimmed
 stderr. A command that exits without reading stdin is tolerated (a broken-pipe
-write is not treated as an error). Shell targets are never cached — their
-behavior can change without the config string changing, so `cache_identity` is
-`None` and they pass through every `--cache` mode unchanged.
+write is not treated as an error). Shell targets are never cached, because their
+behavior can change without the config string changing. Their `cache_identity`
+is `None` and they pass through every `--cache` mode unchanged.
 
 ### `openai-compatible`
 
@@ -108,8 +108,8 @@ captured from `usage.prompt_tokens` / `usage.completion_tokens` when present.
 
 ### `http`
 
-Since v0.5.0. Calls an arbitrary HTTP/JSON endpoint — typically your own
-deployed app's REST API — so it can be evaluated through the record/replay
+Since v0.5.0. Calls an arbitrary HTTP/JSON endpoint, typically your own
+deployed app's REST API, so it can be evaluated through the record/replay
 cache like any LLM target. `{{input}}` is percent-encoded (every
 non-alphanumeric byte) when substituted into `url`, and substituted verbatim
 into every string **value** of the JSON `body` (object keys are never touched).
@@ -119,7 +119,7 @@ into every string **value** of the JSON `body` (object keys are never touched).
 | `type` | `"http"` | yes | — | Selects this target. |
 | `url` | string | yes | — | Request URL. Must start with `http://` or `https://`. `{{input}}` is percent-encoded when substituted. |
 | `method` | string | no | `"POST"` | One of `GET`, `POST`, `PUT`, `PATCH` (case-insensitive). A `GET` may not carry a `body`. |
-| `headers` | map of string to string | no | none | Static headers, sent verbatim. Keys are matched case-insensitively. Never put secrets here — header values are hashed into the cache identity and persisted in the committed cache. |
+| `headers` | map of string to string | no | none | Static headers, sent verbatim. Keys are matched case-insensitively. Never put secrets here: header values are hashed into the cache identity and persisted in the committed cache. |
 | `api_key_env` | string | no | none | Name of the environment variable holding the API key. Sent in the auth header; never enters the cache. |
 | `auth_header` | string | no | `authorization` | Header the key is sent in. Only valid alongside `api_key_env`. |
 | `auth_prefix` | string | no | `"Bearer "` | Prefix prepended to the key. For an `x-api-key` style header, set `auth_header: x-api-key` and `auth_prefix: ""`. Only valid alongside `api_key_env`. |
@@ -154,14 +154,14 @@ targets:
 - `method` must be one of `GET, POST, PUT, PATCH`, else `method "<m>" is not one
   of GET, POST, PUT, PATCH`.
 - A `GET` request may not carry a `body`: `a GET request may not carry a body`.
-- Neither `url` nor any `body` string may omit `{{input}}` — at least one must
+- Neither `url` nor any `body` string may omit `{{input}}`; at least one must
   contain it, else `neither url nor body contains {{input}}; every case would
   send the same request`.
 - `auth_header` / `auth_prefix` require `api_key_env`, else `auth_header/
   auth_prefix require api_key_env`.
 - When `api_key_env` is set, a `headers:` entry whose name matches the auth
   header (case-insensitively; default `authorization`) is rejected: `header
-  "<name>" collides with the auth header … remove it from headers` — otherwise
+  "<name>" collides with the auth header … remove it from headers`. Otherwise
   two conflicting header lines would be sent.
 - `response_path`, if present, must start with `/` (RFC 6901), else
   `response_path must be an RFC 6901 JSON Pointer starting with '/'`.
@@ -170,7 +170,8 @@ targets:
 A pointer that resolves to a JSON string yields that string; any other resolved
 JSON value is serialized compactly (so `null` yields the literal `"null"`). A
 pointer with **no** value at that path is a case error. `http` targets report no
-tokens and therefore no cost in v1 — generic APIs have no standard usage shape.
+tokens and therefore no cost in v1, because generic APIs have no standard usage
+shape.
 
 ### `trace`
 
@@ -203,7 +204,7 @@ the `trajectory` scorer. Latency and token usage come from the trace itself.
 ### Cost rates
 
 The `cost` block (on `openai-compatible` and `trace` targets) declares USD
-prices per **one million** tokens. EvalCore ships no pricing table — prices
+prices per **one million** tokens. EvalCore ships no pricing table. Prices
 change and differ per deployment, so they are config.
 
 | Field | Type | Required | Description |
@@ -246,8 +247,8 @@ reports `invalid case at <file>:<line>`. A `context` that is not a string or an
 array of strings (a number, an object, a mixed array) is likewise a dataset
 error naming the case's `file:line`.
 
-**Case ids must be unique.** Since v0.7.0, a repeated `id` — across
-all merged datasets — is rejected at load, naming both lines: `duplicate case id
+**Case ids must be unique.** Since v0.7.0, a repeated `id`, across
+all merged datasets, is rejected at load, naming both lines: `duplicate case id
 "<id>" at <file>:<line> (first used at line <n>)`. Ids key baseline matching and
 [matrix comparison](#matrix) rows, so a duplicate would silently collapse two
 cases into one row; failing at load turns that into a clear error. Auto-filled
@@ -354,10 +355,10 @@ format](../trajectory-format/) for full rule semantics.
 
 #### Trajectory rules
 
-Rules are untagged — the distinctive required key selects the variant.
+Rules are untagged; the distinctive required key selects the variant.
 
-**`must_call`** — at least one step calls the named tool (and satisfies every
-`with` constraint):
+**`must_call`** holds when at least one step calls the named tool and satisfies
+every `with` constraint:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -365,14 +366,14 @@ Rules are untagged — the distinctive required key selects the variant.
 | `with` | map of field to [matcher](#field-matcher) | no | Argument constraints; all listed fields must match. |
 | `after` | string | no | Only count calls strictly after the first call of this tool. If that tool never runs, the rule fails. |
 
-**`must_not_call`** — the named tool must never be called:
+**`must_not_call`** requires that the named tool is never called:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `must_not_call` | string | yes | Tool name that must never be called. |
 | `before` | string | no | Only consider calls before the first call of this tool. If that tool never runs, every call of the forbidden tool violates the rule (conservative). |
 
-**`max_steps`** — the trajectory contains at most this many tool calls:
+**`max_steps`** requires the trajectory to contain at most this many tool calls:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -415,7 +416,7 @@ replayed verdicts are deterministic.
 | `model` | string | yes | — | Judge model name. |
 | `rubric` | string | yes | — | What the judge should assess, e.g. "Is the answer grounded in the provided context?". |
 | `api_key_env` | string | no | none | Name of the environment variable holding the judge's API key. |
-| `threshold` | number | no | `0.5` | Minimum score (0.0–1.0) to pass. |
+| `threshold` | number | no | `0.5` | Minimum score (0.0 to 1.0) to pass. |
 
 ```yaml
 scorers:
@@ -450,7 +451,7 @@ A failing score names up to three violations by their JSON pointer, in a
 deterministic (sorted) order, e.g. `/age: -1 is less than the minimum of 0;
 /name: 42 is not of type "string"`.
 
-**Offline by design.** Remote `$ref` resolution is compiled out — validation
+**Offline by design.** Remote `$ref` resolution is compiled out, so validation
 never touches the network. An external `$ref` (`http(s)://…`) is unresolvable
 and fails at construction time, not per case and never over the wire, so
 validation stays deterministic and air-gapped.
@@ -506,7 +507,7 @@ The `run` block is optional; every field has a default.
 | `trials` | integer or [trials block](#trials) | no | `1` | Run each case N times and aggregate. Since v0.7.0. |
 | `classification` | bool | no | `false` | Compute [classification aggregates](#classification) (accuracy, macro-F1, per-class metrics) over labeled cases. Since v0.7.0. |
 | `matrix` | list of target names | no | none | Run the whole suite once per named target and print a side-by-side [comparison](#matrix). At least two distinct names, each defined in `targets`. Since v0.7.0. |
-| `history` | bool | no | `true` | Append one run-history row per executed run (a matrix records one per arm) to `.evalcore/cache.db`, so [`evalcore serve`](../../guides/run-history-and-serve/) can list and diff past runs. `--no-history` overrides to false. Metadata only — the exit code, report bytes, and cache keys are identical either way, and a write failure is a warning, never a run failure. Since v0.7.0. |
+| `history` | bool | no | `true` | Append one run-history row per executed run (a matrix records one per arm) to `.evalcore/cache.db`, so [`evalcore serve`](../../guides/run-history-and-serve/) can list and diff past runs. `--no-history` overrides to false. This is metadata only: the exit code, report bytes, and cache keys are identical either way, and a write failure is a warning, never a run failure. Since v0.7.0. |
 
 ```yaml
 run:
@@ -541,7 +542,7 @@ run:
 Since v0.7.0. Runs every case `count` times and folds the per-trial
 verdicts into one case verdict. Accepts an **integer shorthand** (`trials: 3`,
 meaning `require: all`) or the full `{ count, require }` map. Absent, or
-`trials: 1`, means one trial with `require: all` — byte-identical to a run with
+`trials: 1`, means one trial with `require: all`, byte-identical to a run with
 no trials configured. See the [Trials and statistics
 guide](../../guides/trials-and-statistics/) for aggregation and cache semantics.
 
@@ -583,14 +584,14 @@ run:
 ```
 
 - A case's **label** is its trimmed `expected`; its **prediction** is its trimmed
-  output. Matching is exact and **case-sensitive** — v1 normalizes with `.trim()`
+  output. Matching is exact and **case-sensitive**: v1 normalizes with `.trim()`
   and nothing more (normalize in your target or a scorer).
 - The class set is the observed **expected** labels only. A prediction matching
   no expected label is a false negative for its true class and enters no other
   class's tally. Every `0/0` ratio is defined as `0.0`.
 - Macro-F1 is the **unweighted** mean of the per-class F1 scores (every class
   counts equally, regardless of support).
-- A **target-error** case with `expected` counts as labeled-and-wrong — it
+- A **target-error** case with `expected` counts as labeled-and-wrong. It
   produced no output, so it matches no class, and an error storm sinks accuracy.
 - Multi-trial runs (v1 limitation): the prediction is the case-level surfaced
   output (the first successful trial), not a vote across trials.
@@ -610,7 +611,7 @@ the existing contracts: a run exits non-zero if any case fails (or, with
 with a `1e-9` absolute tolerance, so a run that exactly meets its floor is not
 failed by floating-point rounding. Empty by default; evaluated in list order.
 
-**`pass_rate`** — fraction of cases passing every scorer:
+**`pass_rate`**, the fraction of cases passing every scorer:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -621,7 +622,7 @@ Target-error cases count in the denominator (failures are data), so an error
 storm sinks this gate. An out-of-range `min` is rejected: `pass_rate min must be
 within [0, 1], got <n>`.
 
-**`mean_score`** — mean of scorer `value`:
+**`mean_score`**, the mean of scorer `value`:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -632,11 +633,11 @@ within [0, 1], got <n>`.
 `min` must be finite, else `mean_score min must be finite, got <n>`. A `scorer`
 naming no configured scorer is rejected as a typo: `mean_score scorer "<name>"
 is not among the configured scorers`. Cases whose target errored produce no
-scores, so they contribute nothing to the mean — pair a `mean_score` gate with a
+scores, so they contribute nothing to the mean. Pair a `mean_score` gate with a
 `pass_rate` gate to catch error storms that would otherwise leave a high mean
 intact.
 
-**`accuracy`** — fraction of labeled cases predicted correctly:
+**`accuracy`**, the fraction of labeled cases predicted correctly:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -648,7 +649,7 @@ and turns them on implicitly. An out-of-range `min` is rejected: `accuracy min
 must be within [0, 1], got <n>`. A run with **zero labeled cases** scores `0.0`
 and fails with a `no labeled cases` reason rather than passing vacuously.
 
-**`macro_f1`** — macro-averaged F1 over the observed (expected) label set:
+**`macro_f1`**, macro-averaged F1 over the observed (expected) label set:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -676,8 +677,8 @@ the [CLI reference](../cli/) for how gates fold into the exit code.
 
 Since v0.7.0. `run.matrix: [name, name, …]` runs the whole suite
 **once per named target**, in the listed order, and prints a side-by-side
-comparison — model A vs B, prompt v1 vs v2, one invocation. Requires at least two
-distinct names, each defined in `targets`. Absent (the default): a single-target
+comparison (model A vs B, or prompt v1 vs v2) from one invocation. Requires at
+least two distinct names, each defined in `targets`. Absent (the default): a single-target
 run, byte-identical to before. `--matrix name,name` on the CLI overrides this;
 combining a matrix with `--target`, `--baseline`, or `--save-baseline` is an
 error. See the [Comparing models guide](../../guides/comparing-models/) for a
@@ -688,17 +689,18 @@ run:
   matrix: [gpt, claude]
 ```
 
-- Arms run **sequentially, in list order** (not the alphabetical map order) —
-  deterministic and predictable against rate limits. Within an arm, concurrency,
-  gates, classification, and trials behave exactly as a single run does.
-- **Each arm prices with its own target's [`cost`](#cost-rates) rates**, and
+- Arms run **sequentially, in list order** (not the alphabetical map order), so
+  behavior is deterministic and predictable against rate limits. Within an arm,
+  concurrency, gates, classification, and trials behave exactly as a single run
+  does.
+- Each arm prices with its own target's [`cost`](#cost-rates) rates, and
   `run.budget_usd` applies **per arm** (each arm gets the full budget).
-- **Exit code is `0` iff every arm** passes all its cases *and* every gate holds,
-  else `1`.
+- The exit code is `0` iff **every** arm passes all its cases *and* every gate
+  holds, else `1`.
 - The per-case **winner** in the comparison table is the arm with the strictly
   highest mean case score (mean of that case's scorer values), with a `1e-9` tie
-  tolerance; cases where the top arms tie — or where no arm produced a score —
-  are ties, for any number of arms.
+  tolerance; cases where the top arms tie, or where no arm produced a score, are
+  ties for any number of arms.
 - One cassette store is shared across arms; each arm has its own cache identity,
   so `--cache replay` works per arm. Non-matrix runs take the unchanged
   single-target path.

@@ -1,9 +1,9 @@
 ---
 title: Know when your AI gets worse, before your users do
-description: Change a prompt, swap a model — did anything break? EvalCore records how your AI behaves and checks every change against it, free and offline. The eval engine for AI systems — trials, model comparison, agent trajectories, deterministic $0 CI.
+description: Change a prompt or swap a model. Did anything break? EvalCore records how your AI behaves and checks every change against it, free and offline. The eval engine for AI systems, covering trials, model comparison, agent trajectories, and deterministic $0 CI.
 template: splash
 hero:
-  tagline: Change a prompt, swap a model, update a dependency — did anything break? EvalCore records how your AI behaves and checks every change against it — free, offline, no flaky tests. One small tool, any language.
+  tagline: Change a prompt, swap a model, update a dependency. Did anything break? EvalCore records how your AI behaves and checks every change against it, free and offline, with no flaky tests. One small tool, any language.
   actions:
     - text: Get started
       link: getting-started/quickstart/
@@ -14,15 +14,15 @@ hero:
 ---
 
 <figure class="ec-cast">
-	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore grades a support bot against the policy each answer must cite — four cases pass, a compliance gate holds, and the run exits 0, all offline.">
+	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore grades a support bot against the policy each answer must cite. Four cases pass, a compliance gate holds, and the run exits 0, all offline.">
 		<source src="/evalcore/casts/quickstart.webm" type="video/webm" />
 		<img
 			src="/evalcore/casts/quickstart.gif"
-			alt="Terminal recording: evalcore grades a support bot against the policy each answer must cite — four cases pass, a compliance gate holds, and the run exits 0, all offline."
+			alt="Terminal recording: evalcore grades a support bot against the policy each answer must cite. Four cases pass, a compliance gate holds, and the run exits 0, all offline."
 			loading="lazy"
 		/>
 	</video>
-	<figcaption>One file, one command — a support bot graded against its policy, gated and green. Offline, no keys.</figcaption>
+	<figcaption>One file, one command: a support bot graded against its policy, gated and green. Offline, with no keys.</figcaption>
 </figure>
 
 ## How it works
@@ -32,7 +32,7 @@ replay the recorded cassette in CI forever.
 
 ### <span class="step-n">1</span> Describe the suite in YAML
 
-An eval is a YAML file plus a JSONL dataset — no SDK, no test harness to write.
+An eval is a YAML file plus a JSONL dataset. There is no SDK and no test harness to write.
 Point a target at your app, list the datasets, and stack scorers. Here a `contains`
 check and an [LLM-as-judge](/evalcore/guides/llm-as-judge/) grade every case:
 
@@ -73,10 +73,10 @@ PASS refund-2 (512ms)
 2 passed, 0 failed, 2 total · 2202 tokens · $0.0038
 ```
 
-### <span class="step-n">3</span> Replay forever in CI — $0, offline, deterministic
+### <span class="step-n">3</span> Replay forever in CI: $0, offline, deterministic
 
 Commit the cassette. Now CI runs `--cache replay`: every call is served from the
-recording, so there is no network, no API key, and no flaky judge — calls return
+recording, so there is no network, no API key, and no flaky judge. Calls return
 instantly, and the recorded token and dollar totals are reported as virtual usage:
 
 ```ansi
@@ -114,11 +114,11 @@ jobs:
 	</div>
 	<div class="feature">
 		<h3>Statistical trials</h3>
-		<p>One sample of a stochastic model isn't a measurement. <code>run.trials</code> runs every case N times with <code>all</code> / <code>majority</code> / <code>any</code> verdicts, feeds per-scorer means to your gates, and calls out flaky cases — and replayed trials stay deterministic.</p>
+		<p>One sample of a stochastic model isn't a measurement. <code>run.trials</code> runs every case N times with <code>all</code> / <code>majority</code> / <code>any</code> verdicts, feeds per-scorer means to your gates, and calls out flaky cases. Replayed trials stay deterministic.</p>
 	</div>
 	<div class="feature">
 		<h3>Compare models side by side</h3>
-		<p><code>--matrix gpt,claude</code> runs one suite across several targets in a single invocation: per-case winners, win/tie counts, per-target cost. Model A vs B, prompt v1 vs v2 — one exit code for CI.</p>
+		<p><code>--matrix gpt,claude</code> runs one suite across several targets in a single invocation: per-case winners, win/tie counts, per-target cost. Model A vs B, or prompt v1 vs v2, with one exit code for CI.</p>
 	</div>
 	<div class="feature">
 		<h3>Agent trajectories</h3>
@@ -126,23 +126,23 @@ jobs:
 	</div>
 	<div class="feature">
 		<h3>Gates &amp; baselines</h3>
-		<p>Block regressions, not imperfection. <code>--baseline</code> tolerates accepted failures and fails only on new ones; <code>run.gates</code> adds <code>pass_rate</code> and <code>mean_score</code> floors — plus <code>accuracy</code> and <code>macro_f1</code> for classification suites.</p>
+		<p>Block regressions, not imperfection. <code>--baseline</code> tolerates accepted failures and fails only on new ones; <code>run.gates</code> adds <code>pass_rate</code> and <code>mean_score</code> floors, plus <code>accuracy</code> and <code>macro_f1</code> for classification suites.</p>
 	</div>
 	<div class="feature">
 		<h3>Local run viewer</h3>
-		<p>Every run lands in local history, and <code>evalcore serve</code> opens a read-only viewer over it: pass-rate trends, every run's full report, and a diff between any two runs. Binds localhost — nothing leaves your machine.</p>
+		<p>Every run lands in local history, and <code>evalcore serve</code> opens a read-only viewer over it: pass-rate trends, every run's full report, and a diff between any two runs. It binds localhost, so nothing leaves your machine.</p>
 	</div>
 	<div class="feature">
 		<h3>Any language</h3>
-		<p>Protocols over SDKs. Targets speak <code>openai-compatible</code>, <code>http</code>, or <code>shell</code>; custom scorers speak JSON over stdin/stdout; judges are any OpenAI-compatible endpoint. Rust is the engine — you never write Rust.</p>
+		<p>Protocols over SDKs. Targets speak <code>openai-compatible</code>, <code>http</code>, or <code>shell</code>; custom scorers speak JSON over stdin/stdout; judges are any OpenAI-compatible endpoint. Rust is the engine, but you never write Rust.</p>
 	</div>
 	<div class="feature">
 		<h3>Cost tracking &amp; budgets</h3>
-		<p>Declare <code>cost</code> input/output rates and get per-case tokens and dollars. <code>run.budget_usd</code> stops scheduling new cases once the run hits its cap — replayed runs count their recorded virtual cost too.</p>
+		<p>Declare <code>cost</code> input/output rates and get per-case tokens and dollars. <code>run.budget_usd</code> stops scheduling new cases once the run hits its cap. Replayed runs count their recorded virtual cost too.</p>
 	</div>
 	<div class="feature">
 		<h3>HTML reports</h3>
-		<p>Emit a single self-contained HTML file — every case, score, and diff inline, no assets to host. Drop it into CI artifacts and open the run in a browser.</p>
+		<p>Emit a single self-contained HTML file with every case, score, and diff inline, and no assets to host. Drop it into CI artifacts and open the run in a browser.</p>
 	</div>
 </div>
 

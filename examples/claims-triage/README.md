@@ -5,14 +5,14 @@ queues: `auto`, `property`, `injury`, or `fraud-review`. The failure that costs
 real money is subtle: the model quietly gets a little worse at spotting fraud, a
 few staged claims slip into the `auto` queue and get paid, and nothing looks
 broken because overall accuracy barely moves. This suite gates on the metrics
-that *do* move — **accuracy** and **macro-F1** — and puts **per-class precision
-and recall** in every report, so a drop in fraud recall is visible and gateable.
+that *do* move, accuracy and macro-F1, and puts per-class precision and recall
+in every report, so a drop in fraud recall is visible and gateable.
 
 It runs fully offline. The target is a small shell script, `triage.sh`, that
-keyword-routes a claim description to a label — deliberately misclassifying one
+keyword-routes a claim description to a label. It deliberately misclassifies one
 case (a staged claim whose "collision" wording pulls it into `auto` before the
-fraud signal is ever checked) so the report is interesting while the gates still
-pass.
+fraud signal is ever checked), so the report is interesting while the gates
+still pass.
 
 ## Run it
 
@@ -38,8 +38,8 @@ classification: accuracy 0.89 · macro-F1 0.88 (9 labeled, 0 unlabeled)
 ```
 
 Exit code `0`. Every case emits a valid label (the per-case `regex` scorer), so
-the exit code is driven by the **gates**, not by whether any single prediction
-was right — grading correctness is the gates' job.
+the exit code is driven by the **gates** rather than by whether any single
+prediction was right. Grading correctness is the gates' job.
 
 ## The math (one deliberate miss)
 
@@ -53,17 +53,17 @@ the 9 labeled cases:
 | injury       | 1.00      | 1.00   | 1.00 | 2       |
 | fraud-review | 1.00      | 0.50   | 0.67 | 2       |
 
-- **Accuracy** = 8 correct / 9 = **0.89** — clears the `0.8` floor.
-- **Macro-F1** = mean(0.86, 1.00, 1.00, 0.67) = **0.88** — clears the `0.7` floor.
+- Accuracy = 8 correct / 9 = **0.89**, which clears the `0.8` floor.
+- Macro-F1 = mean(0.86, 1.00, 1.00, 0.67) = **0.88**, which clears the `0.7` floor.
 
 The one miss drags `fraud-review` recall to `0.50` and `auto` precision to
-`0.75` — exactly the fingerprint of fraud leaking into a normal queue. Both
-gates pass today; push the fraud misses higher and macro-F1 sinks below `0.7`
-and the build goes red.
+`0.75`, the fingerprint of fraud leaking into a normal queue. Both gates pass
+today; push the fraud misses higher and macro-F1 sinks below `0.7`, turning the
+build red.
 
 ## Swap in your real classifier
 
-Replace the `shell` target with your live classifier — an `openai-compatible`
-model or your own `http` endpoint — and the cases, labels, and gates stay
+Replace the `shell` target with your live classifier (an `openai-compatible`
+model or your own `http` endpoint) and the cases, labels, and gates stay
 identical. See the [classification
 guide](https://eval-core.github.io/evalcore/guides/classification/).

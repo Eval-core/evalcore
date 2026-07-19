@@ -1,12 +1,12 @@
-# EvalCore Trajectory Spec — v0
+# EvalCore Trajectory Spec, v0
 
-This document specifies (1) the **canonical trajectory format** EvalCore
-normalizes agent traces into, and (2) the **assertion rules** that evaluate a
+This document specifies (1) the canonical trajectory format EvalCore
+normalizes agent traces into, and (2) the assertion rules that evaluate a
 trajectory. It is versioned independently of the EvalCore binary; tools other
 than EvalCore are welcome to produce or consume it.
 
-> Status: v0 — semantics below are stable in intent, field names may still
-> change before v1. Breaking changes will be called out in release notes.
+> Status: v0. The semantics below are stable in intent, but field names may
+> still change before v1. Breaking changes will be called out in release notes.
 
 ## 1. Canonical trajectory format
 
@@ -55,7 +55,7 @@ Notes:
 
 EvalCore's `trace` target auto-detects and normalizes:
 
-1. **Native** — the format above, verbatim (`{"steps": [...]}`).
+1. **Native**: the format above, verbatim (`{"steps": [...]}`).
 2. **OTel JSON export** (`{"resourceSpans": [...]}`), mapping per span:
 
 | Concept | OTel GenAI semconv | OpenInference |
@@ -81,9 +81,9 @@ export (a partial trace rooted at a dropped parent):
   responder answers), the last thing said is the answer, not the first.
 - Precedence when both attributes are present **on the chosen span**:
   `output.value` (OpenInference), then `gen_ai.completion` (OTel GenAI).
-- The value is kept as a **raw string** — a stringified-JSON answer is not
+- The value is kept as a raw string. A stringified-JSON answer is not
   unwrapped, since the final answer is text, not a payload to address fields on.
-  No candidate carries one → no final answer.
+  If no candidate carries one of these attributes, there is no final answer.
 - Spans are ordered by `startTimeUnixNano`; spans without timestamps keep
   document order after timestamped ones.
 - String-valued inputs/outputs that parse as JSON are unwrapped, so matchers
@@ -115,9 +115,9 @@ scorers:
 Holds iff at least one step calls `T` **and** satisfies every `with`
 constraint.
 
-- `with:` — map of argument field → matcher (see §4). A call matches only if
+- `with:` maps an argument field to a matcher (see §4). A call matches only if
   **all** listed fields match.
-- `after: U` — only steps strictly after the **first** call of `U` count.
+- `after: U` counts only steps strictly after the **first** call of `U`.
   If `U` never runs, the rule **fails** (the required precondition never
   happened).
 
@@ -125,7 +125,7 @@ constraint.
 
 Holds iff no step calls `T`.
 
-- `before: U` — only steps before the **first** call of `U` are considered.
+- `before: U` considers only steps before the **first** call of `U`.
   If `U` never runs, **every** call of `T` violates the rule (conservative:
   the guard `T` was waiting for never happened).
 
@@ -146,9 +146,9 @@ with:
   amount: { equals: 42 }            # exact JSON equality
 ```
 
-- `contains` — substring test; non-string fields are compared against their
+- `contains` is a substring test; non-string fields are compared against their
   compact JSON rendering.
-- `equals` — strict JSON equality.
+- `equals` is strict JSON equality.
 - Both may be given; all present constraints must hold.
 - A missing field never matches.
 
@@ -156,10 +156,10 @@ with:
 
 When a trace carries a final answer, the `trace` target's text output **is that
 answer**, so `judge`, `contains`, `regex`, and `exact` scorers grade the
-agent's actual answer — not the trajectory JSON. The `trajectory` scorer always
-operates on the steps. Both can run on the same case: a judge grades whether the
-answer was right while trajectory rules check whether the path was safe — "was
-the answer right *and* was the path safe" in one suite. When a trace carries no
+agent's actual answer rather than the trajectory JSON. The `trajectory` scorer
+always operates on the steps. Both can run on the same case: a judge grades
+whether the answer was right, while trajectory rules check whether the path was
+safe. That covers both questions in one suite. When a trace carries no
 final answer, the text output stays the serialized trajectory JSON (so existing
 suites that grade it with `contains` keep working).
 

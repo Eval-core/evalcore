@@ -1,7 +1,7 @@
 # RAG-metric shims (Ragas / DeepEval)
 
 Drop-in [subprocess scorer](../crates/evalcore-scorers/CLAUDE.md) scripts that let
-you score EvalCore cases with **Ragas** or **DeepEval** RAG metrics
+you score EvalCore cases with Ragas or DeepEval RAG metrics
 (faithfulness, context/contextual recall) when your team is standardized on
 those exact definitions.
 
@@ -16,12 +16,12 @@ wiring one into a suite.
 | Cost | one cached LLM call per case, reused across runs | one **live, billable** LLM call per case, every run |
 | Determinism | deterministic under `--cache replay` | non-deterministic; results move run to run |
 
-**Why.** Each shim metric calls an LLM *itself*, inside Ragas/DeepEval. Those
+Each shim metric calls an LLM *itself*, inside Ragas/DeepEval. Those
 calls do **not** go through EvalCore's record/replay cache, so they cost money
 per case and are not reproducible. That makes them a bad fit for the pull-request
-path, where you want fast, free, deterministic gating. The native `judge`
-scorer — given the same per-case `context` — is the deterministic, **cached**
-alternative and belongs on the PR path.
+path, where you want fast, free, deterministic gating. Given the same per-case
+`context`, the native `judge` scorer is the deterministic, cached alternative,
+and it belongs on the PR path.
 
 Reach for these shims when you specifically need Ragas' or DeepEval's metric
 definitions (e.g. to match an existing dashboard or paper), and run them in a
@@ -41,14 +41,14 @@ shims/
     contextual_recall.py   # DeepEval ContextualRecallMetric   (needs context + expected)
 ```
 
-Each script speaks EvalCore's subprocess scorer protocol: it reads one JSON
-object on stdin —
+Each script speaks EvalCore's subprocess scorer protocol. It reads one JSON
+object on stdin:
 
 ```json
 {"input": "...", "output": "...", "expected": "...|null", "context": ["...", "..."]}
 ```
 
-— and writes one JSON object on stdout: `{"score": float, "passed": bool, "reason": str}`.
+It then writes one JSON object on stdout: `{"score": float, "passed": bool, "reason": str}`.
 `context` is the list of retrieved chunks EvalCore attaches per case; it is
 omitted when a case has none.
 
@@ -68,14 +68,14 @@ so `--check` (below) runs without any of these packages installed.
 ## Provider credentials
 
 Ragas and DeepEval call an LLM through their own clients, which read provider
-keys (e.g. `OPENAI_API_KEY`) from the **environment**. Export the key before
+keys (e.g. `OPENAI_API_KEY`) from the environment. Export the key before
 running a real suite:
 
 ```sh
 export OPENAI_API_KEY=sk-...
 ```
 
-The shim scripts never read, handle, or print key values — they only rely on the
+The shim scripts never read, handle, or print key values. They rely on the
 libraries picking the key up from the environment.
 
 ## Wiring into `evals.yaml`
@@ -92,7 +92,7 @@ require per-case `context`.
 
 ### Context is required
 
-These are RAG metrics — they need the retrieved chunks. If a case reaches a shim
+These are RAG metrics, so they need the retrieved chunks. If a case reaches a shim
 without `context`, the script exits non-zero with:
 
 ```
@@ -104,9 +104,9 @@ metrics) before wiring these in.
 
 ## `--check` self-test
 
-Every script supports `--check`, a **fully offline** self-test that exercises
-the protocol path — read stdin, validate the required `input`/`output` fields,
-emit a well-formed verdict — using a canned fake result. It does **not** import
+Every script supports `--check`, a fully offline self-test that runs the protocol
+path against a canned fake result: read stdin, validate the required
+`input`/`output` fields, emit a well-formed verdict. It does **not** import
 Ragas/DeepEval and does **not** call an LLM, so it needs no packages and no API
 key. This is what EvalCore's own CI runs.
 

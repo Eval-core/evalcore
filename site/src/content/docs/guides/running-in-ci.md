@@ -1,11 +1,11 @@
 ---
 title: Running in CI
-description: The full EvalCore CI story — commit cassettes, replay offline at $0, gate on regressions, split PR from nightly drift detection, and integrate via the GitHub Action, JUnit, GitLab, or Jenkins.
+description: "The full EvalCore CI story: commit cassettes, replay offline at $0, gate on regressions, split PR from nightly drift detection, and integrate via the GitHub Action, JUnit, GitLab, or Jenkins."
 ---
 
 EvalCore is built to run in CI on every pull request: **offline, free, and
-deterministic**, gating the job on the exit code. This guide walks the whole
-story end-to-end and ends with copy-paste workflows for GitHub Actions
+deterministic**, with the job gated on the exit code. This guide walks the whole
+story end to end and ends with copy-paste workflows for GitHub Actions
 (PR + nightly), GitLab, and Jenkins.
 
 ## 1. Commit the cassettes
@@ -28,7 +28,7 @@ git commit -m "Record eval cassettes"
 
 Baselines live in the same store file, so committing `.evalcore/` carries both
 the cassettes and any accepted baselines into CI. Treat `.evalcore/cache.db`
-like a lockfile — a reviewed artifact that pins behavior. See
+like a lockfile: a reviewed artifact that pins behavior. See
 [Record / replay](/evalcore/guides/record-replay/) for the full lifecycle.
 
 ## 2. Replay offline, keyless, at $0
@@ -42,12 +42,12 @@ evalcore run evals.yaml --cache replay
 ```
 
 Because replay never touches the network, missing API keys are fine in this
-mode — that is exactly what lets CI replay a committed cache with no secrets
+mode. That is what lets CI replay a committed cache with no secrets
 configured.
 
 ## 3. Gate on regressions, not perfection
 
-Real eval suites are rarely 100% green — what you want to block is *getting
+Real eval suites are rarely 100% green, so what you want to block is *getting
 worse*. Save an accepted state, then gate against it:
 
 ```sh
@@ -67,14 +67,14 @@ baseline gate: FAIL (1 regressed, 0 new failing)
 ```
 
 Combine both flags for a **rolling baseline** (`--baseline main --save-baseline
-main`): compare against the accepted state first, then re-record it. Full
-semantics — regressed vs new-failing vs fixed vs removed, and when to
-re-baseline — are in [Gates and baselines](/evalcore/guides/gates-and-baselines/).
+main`): compare against the accepted state first, then re-record it. The full
+semantics (regressed vs new-failing vs fixed vs removed, and when to
+re-baseline) are in [Gates and baselines](/evalcore/guides/gates-and-baselines/).
 
 ## 4. Add suite gates as floors
 
 Baselines and per-case scorers ask "did any single case fail?" Suite gates add
-an absolute floor over the *whole* run — "at least 95% of cases pass", "the
+an absolute floor over the *whole* run: "at least 95% of cases pass", or "the
 judge's mean score is at least 0.8":
 
 ```yaml
@@ -97,8 +97,8 @@ GATE PASS mean_score(contains) >= 0.4 (actual 0.50)
 
 Gates are **additive absolute floors**: the run exits `1` if the existing
 contract fails (any case failed, or with `--baseline` a regression) **or** any
-gate falls below its floor. JUnit output is unchanged — the exit code carries
-the gate result.
+gate falls below its floor. JUnit output is unchanged, because the exit code
+carries the gate result.
 
 ## 5. The GitHub Action
 
@@ -114,7 +114,7 @@ writes the report to the job step summary, and exits with the gate's code:
 
 `config` points at your suite; `args` are passed straight to `evalcore run`.
 Because the step exits with the suite's code, the job passes or fails with your
-evals — no extra scripting.
+evals, without any extra scripting.
 
 ### A full PR workflow
 
@@ -145,7 +145,8 @@ offline and keyless. The run is free and deterministic on every PR.
 Exit codes gate the job; an HTML report is what an engineer opens to see *why*.
 The GitHub Action produces one automatically via its `html-artifact` input
 (default `"evalcore-report"`): it passes `--html` for you and uploads the file
-as a CI artifact **even when the run fails** — reports matter most on a failure.
+as a CI artifact **even when the run fails**, since reports matter most on a
+failure.
 
 ```yaml
 - uses: eval-core/evalcore@v0.7.0
@@ -164,11 +165,11 @@ self-contained document. Full details in
 There are two distinct failure modes, and they belong on two different
 schedules:
 
-- **Your changes** — a prompt edit, a scorer threshold, a dropped case. Caught
-  on the **PR path** with `--cache replay`, offline and deterministic.
-- **Model drift** — the provider silently changes the model behind the same
+- **Your changes**: a prompt edit, a scorer threshold, a dropped case. Caught
+  on the PR path with `--cache replay`, offline and deterministic.
+- **Model drift**: the provider silently changes the model behind the same
   name, so the *same request* now returns a *different response*. This must
-  **not** flake your PRs. Catch it on a **schedule** with `--cache live`, which
+  **not** flake your PRs. Catch it on a schedule with `--cache live`, which
   re-records against the live provider and surfaces the diff.
 
 A real nightly drift-detection workflow:
@@ -197,7 +198,7 @@ jobs:
 ```
 
 The nightly job is the *only* place that needs the API key and spends money.
-When it goes red, a real model change has moved your evals — you review the
+When it goes red, a real model change has moved your evals. Review the
 re-recorded cassette diff, and if you accept it, commit the refreshed
 `.evalcore/cache.db` (and re-baseline if appropriate). The PR path never touches
 the network.
@@ -213,7 +214,7 @@ evalcore run evals.yaml --cache replay --reporter junit --output results.xml
 
 With `--output`, the report is written to the file and a one-line summary goes
 to stderr; the process still exits `0`/`1` on the same contract, so the job gate
-is unchanged. (Suite-gate outcomes are carried by the exit code — JUnit output
+is unchanged. (Suite-gate outcomes are carried by the exit code; JUnit output
 itself is unchanged by gates.)
 
 ### GitLab CI
@@ -224,7 +225,7 @@ evals:
   image: debian:stable-slim
   before_script:
     - apt-get update && apt-get install -y curl
-    - curl -fsSL "https://github.com/eval-core/evalcore/releases/download/v0.5.0/evalcore-v0.5.0-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C /usr/local/bin
+    - curl -fsSL "https://github.com/eval-core/evalcore/releases/download/v0.7.0/evalcore-v0.7.0-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C /usr/local/bin
   script:
     - evalcore run evals/evals.yaml --cache replay --baseline main --reporter junit --output report.xml
   artifacts:

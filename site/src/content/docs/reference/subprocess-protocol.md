@@ -1,12 +1,12 @@
 ---
 title: Subprocess scorer protocol
-description: The any-language scorer contract — JSON on stdin, a verdict on stdout, error handling, and worked Python and Node examples.
+description: The any-language scorer contract. JSON on stdin, a verdict on stdout, error handling, and worked Python and Node examples.
 ---
 
 The `subprocess` scorer is EvalCore's any-language escape hatch. It runs a
 command once per case, hands it the case as JSON on **stdin**, and reads a
 verdict as JSON from **stdout**. Any language that can read stdin and write
-stdout can implement a scorer — no Rust required.
+stdout can implement a scorer, so no Rust is required.
 
 This is versioned API surface (protocol **v0**). Field names and semantics are
 stable; changes are breaking.
@@ -39,7 +39,7 @@ The scorer receives a single JSON object on stdin:
 | `input` | string | The case's input, as sent to the target. |
 | `output` | string | The target's output text for this case. |
 | `expected` | any JSON, or `null` | The case's `expected` field, verbatim. `null` when the case has none. |
-| `context` | list of strings | The case's retrieved RAG context chunks. **Present only when the case carries context** — omitted entirely otherwise, so a contextless payload keeps its original shape. Since v0.6.0. |
+| `context` | list of strings | The case's retrieved RAG context chunks. Present only when the case carries context, and omitted entirely otherwise, so a contextless payload keeps its original shape. Since v0.6.0. |
 
 Object keys are serialized in **alphabetical order** (`context`, `expected`,
 `input`, `output`), so a contextless case's payload is byte-identical to the
@@ -68,12 +68,12 @@ three fields are read.
 
 ## Error handling
 
-Failures are data — a misbehaving scorer surfaces as a failing/errored score,
-never a panic and never a crashed run.
+Failures are data. A misbehaving scorer surfaces as a failing or errored score
+rather than a panic or a crashed run.
 
 | Condition | Result |
 |---|---|
-| Non-zero exit | The case's score errors; the message includes the exit status and the command's trimmed **stderr**. |
+| Non-zero exit | The case's score errors; the message includes the exit status and the command's trimmed stderr. |
 | Invalid / non-JSON stdout | Errors: `scorer "<cmd>" printed invalid verdict JSON: "<stdout>"`. |
 | `score` outside `0.0..=1.0` | Errors: `scorer "<cmd>" returned score <n> outside 0.0..=1.0`. |
 | Spawn failure | Errors: `failed to spawn subprocess scorer: <cmd>`. |
@@ -81,7 +81,7 @@ never a panic and never a crashed run.
 The engine converts a scorer error into a failing `Score` with the reason
 prefixed `scorer error: …`, so one bad scorer never aborts the suite.
 
-## Worked example — Python
+## Worked example: Python
 
 ```python
 #!/usr/bin/env python3
@@ -110,7 +110,7 @@ scorers:
     cmd: python3 scorers/coverage.py
 ```
 
-## Worked example — Node
+## Worked example: Node
 
 ```js
 #!/usr/bin/env node
@@ -136,5 +136,5 @@ scorers:
     cmd: node scorers/contains.js
 ```
 
-Both examples read stdin to completion before writing, and emit exactly one JSON
-object with a required `score` — the shape the protocol requires.
+Both examples read stdin to completion before writing, then emit exactly one
+JSON object with a required `score`, as the protocol requires.

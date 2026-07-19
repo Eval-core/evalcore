@@ -1,6 +1,6 @@
 ---
 title: Cache & determinism
-description: The record/replay cache — location, cache-key contents per target type, the four modes, the cassette-commit workflow, baseline storage, and EvalCore's determinism guarantees.
+description: The record/replay cache. Location, cache-key contents per target type, the four modes, the cassette-commit workflow, baseline storage, and EvalCore's determinism guarantees.
 ---
 
 EvalCore's record/replay cache makes reruns free, offline, and deterministic:
@@ -12,7 +12,7 @@ the determinism guarantees the cache is built on.
 ## Cache location
 
 The cache is a single SQLite file at `.evalcore/cache.db`, resolved relative to
-the config file's directory. It is a project artifact — like a VCR cassette —
+the config file's directory. It is a project artifact, like a VCR cassette,
 and committing it is the intended workflow. The directory and file are created
 on demand: a purely local run (a `shell` target, no judge, no baseline) never
 opens the store, so no `.evalcore/` directory appears.
@@ -29,15 +29,15 @@ A cache key is the SHA-256 of the canonical request JSON:
 ```
 
 `serde_json` serializes objects with **sorted keys**, which is what makes the
-canonical string stable — the `preserve_order` feature is banned workspace-wide
+canonical string stable. The `preserve_order` feature is banned workspace-wide
 because enabling it would silently invalidate every cache on disk. The
 `identity` is the target's `cache_identity()`; anything that changes what would
 be sent must be inside it, and secrets must never be.
 
-Two design rules govern every identity: **unset optional fields are omitted**
-(not serialized as `null`), so adding a new config field never invalidates
-existing cassettes; and **secrets and call-mechanics are excluded**, so they
-never get persisted and changing them never re-records.
+Two design rules govern every identity. Unset optional fields are omitted
+rather than serialized as `null`, so adding a new config field never
+invalidates existing cassettes. Secrets and call mechanics are excluded, so
+they never get persisted and changing them never re-records.
 
 ### `openai-compatible` identity
 
@@ -51,10 +51,10 @@ never get persisted and changing them never re-records.
 | `url`, `model` | yes |
 | `system` | yes, when set (omitted otherwise) |
 | `params` | yes, when set and non-empty (omitted otherwise) |
-| `api_key_env` / the resolved key | **no** — a secret |
-| `max_retries` | **no** — changes how we call, not what the model answers |
-| `timeout_seconds` | **no** — operational knob (since v0.5.0, excluded so older cassettes keep their keys) |
-| `cost` rates | **no** — accounting, not request content |
+| `api_key_env` / the resolved key | **no** (a secret) |
+| `max_retries` | **no** (changes how we call, not what the model answers) |
+| `timeout_seconds` | **no** (operational knob; excluded since v0.5.0 so older cassettes keep their keys) |
+| `cost` rates | **no** (accounting, not request content) |
 
 ### `http` identity
 
@@ -70,12 +70,12 @@ never get persisted and changing them never re-records.
 | `headers` | yes, when non-empty; names lowercased and sorted |
 | `body` (the pre-substitution template) | yes, when set |
 | `response_path` | yes, when set |
-| `api_key_env` / the resolved key | **no** — a secret |
+| `api_key_env` / the resolved key | **no** (a secret) |
 | `auth_header`, `auth_prefix` | **no** |
 | `max_retries`, `timeout_seconds` | **no** |
 
-Because header **values** are in the identity — and thus hashed into the
-committed `.evalcore/cache.db` — never put secrets in `headers:`. Use
+Header values are part of the identity, and are therefore hashed into the
+committed `.evalcore/cache.db`, so never put secrets in `headers:`. Use
 `api_key_env`, which never enters the cache. A `headers:` name that collides
 case-insensitively with the auth header is rejected at config validation (see
 the [http validation rules](../configuration/#http)).
@@ -95,9 +95,9 @@ reference](../cli/#cache-modes).
 | Mode | Behavior |
 |---|---|
 | `auto` (default) | Replay on a hit; on a miss, call live and record the result. |
-| `replay` | Cache only — a miss fails the case (`cache miss for case "<id>" in replay mode — record it first with --cache auto (or live)`), and it never calls live. |
+| `replay` | Cache only. A miss fails the case (`cache miss for case "<id>" in replay mode — record it first with --cache auto (or live)`), and it never calls live. |
 | `live` | Always call live and overwrite the recording. |
-| `off` | Bypass the cache entirely — no reads, no writes. |
+| `off` | Bypass the cache entirely: no reads, no writes. |
 
 Replayed outputs are returned **verbatim**, including the recorded
 `latency_ms` and any recorded token usage, so cost accounting stays consistent
@@ -112,22 +112,23 @@ The cache is meant to be recorded once and committed:
    auto` (records misses) or `--cache live` (re-records everything).
 2. Commit `.evalcore/cache.db` alongside the config and datasets.
 3. In CI, run `evalcore run evals.yaml --cache replay`. Replay never calls the
-   network and never reads API keys — a miss is a failure, so CI is
+   network and never reads API keys. A miss is a failure, so CI is
    deterministic and free.
 
 Because `--cache replay` uses the optional-secret policy, unset `api_key_env`
-variables are fine there — the committed cassette carries every recorded answer.
+variables are fine there, because the committed cassette carries every
+recorded answer.
 
 ## Determinism guarantees
 
 Identical inputs produce identical outputs everywhere:
 
 - **Dataset order.** Results stay in dataset order even though cases run
-  concurrently — the engine buffers completions back into input order. Reports
+  concurrently, because the engine buffers completions back into input order. Reports
   and diffs are therefore stable.
 - **Pure reporters.** Every reporter is a pure `&RunSummary -> String` function
-  — no I/O, no clock, no environment — so identical runs render byte-identical
-  reports (they are snapshot-tested).
+  with no I/O, no clock reads, and no environment access, so identical runs
+  render byte-identical reports (they are snapshot-tested).
 - **Sorted JSON keys.** Canonical request JSON and every rendered JSON payload
   sort object keys (`preserve_order` is banned), so cache keys and reports don't
   drift with map iteration order.
@@ -136,8 +137,9 @@ Identical inputs produce identical outputs everywhere:
 - **Deterministic retries.** Transient failures back off on a fixed schedule
   (500ms, 1s, 2s, … capped at 10s, honoring `Retry-After`) with no jitter.
 
-A corrupt cache entry is surfaced as an error telling you to delete the cache
-file — never a silent live call, which would un-determinize a replay run.
+A corrupt cache entry surfaces as an error telling you to delete the cache
+file. EvalCore never falls back to a silent live call, which would
+un-determinize a replay run.
 
 ## Baselines
 

@@ -13,8 +13,8 @@ npm run build     # production build to ./dist/
 npm run preview   # preview the production build locally
 ```
 
-Content lives in `src/content/docs/` — each `.md`/`.mdx` file is a route based on
-its path. The landing page is `src/content/docs/index.mdx` (Starlight `splash`
+Content lives in `src/content/docs/`, where each `.md`/`.mdx` file is a route
+based on its path. The landing page is `src/content/docs/index.mdx` (Starlight `splash`
 template).
 
 ## Base path
@@ -22,7 +22,7 @@ template).
 `astro.config.mjs` sets `site: https://eval-core.github.io` and `base: /evalcore`
 so the site serves correctly under the GitHub Pages repo subpath. When a custom
 domain lands, flip `base` to `/` and point `site` at the custom domain. Internal
-links in the content include the `/evalcore` prefix — update them if the base
+links in the content include the `/evalcore` prefix, so update them if the base
 changes.
 
 ## Demo tape

@@ -1,17 +1,17 @@
 ---
 title: Core concepts
-description: The EvalCore mental model — the run pipeline, targets, datasets, scorers, gates, reporters, the exit-code contract, failures-as-data, and determinism.
+description: "The EvalCore mental model: the run pipeline, targets, datasets, scorers, gates, reporters, the exit-code contract, failures-as-data, and determinism."
 ---
 
-An EvalCore suite has four moving parts, declared in one `evals.yaml`: **targets**
-produce outputs, **datasets** supply inputs, **scorers** judge the outputs, and a
-**run** block ties it together with concurrency, budgets, and gates. Everything a
-feature does starts as config surface — the YAML file is the interface.
+An EvalCore suite has four moving parts, declared in one `evals.yaml`: targets
+produce outputs, datasets supply inputs, scorers judge the outputs, and a `run`
+block ties it together with concurrency, budgets, and gates. Every feature starts
+as config surface, because the YAML file is the interface.
 
 ## The run pipeline
 
 Every run flows through the same stages, in order. Cases move through the middle
-in dataset order and results come back in that same order — position is
+in dataset order and results come back in that same order. Position is
 load-bearing.
 
 ```text
@@ -40,15 +40,15 @@ load-bearing.
                  (+ baseline diff)                    (+ gates, + baseline)
 ```
 
-- The **target** runs once per case; cacheable targets consult the cassette
+- The target runs once per case; cacheable targets consult the cassette
   first (see [Record / replay](/evalcore/guides/record-replay/)).
-- Every **scorer** runs on every case's output.
-- **Gates** and the **baseline** diff are computed over the whole `RunSummary`
+- Every scorer runs on every case's output.
+- Gates and the baseline diff are computed over the whole `RunSummary`
   after the last case finishes.
-- **Reporters** are pure functions of the summary; the **exit code** folds the
+- Reporters are pure functions of the summary; the exit code folds the
   per-case, baseline, and gate verdicts together.
 
-## Targets — what's evaluated
+## Targets: what's evaluated
 
 A target is the thing under test. You select one per run (with `--target <name>`
 when a suite defines several; with one target it is implicit). There are four
@@ -57,8 +57,8 @@ types:
 | Type | What it does |
 |---|---|
 | `openai-compatible` | POSTs to `{url}/chat/completions` in the OpenAI wire format. Supports `model`, `system`, pass-through `params`, `api_key_env`, retries, `timeout_seconds`, and `cost` rates. |
-| `http` | Calls any HTTP/JSON endpoint — typically your own deployed app's REST API — and caches it like an LLM call. `{{input}}` is substituted into the `url` and `body`; `response_path` pulls the answer out of the JSON. |
-| `shell` | Runs a command with the case input piped to stdin; stdout is the output. Never cached — it runs your local code. |
+| `http` | Calls any HTTP/JSON endpoint (typically your own deployed app's REST API) and caches it like an LLM call. `{{input}}` is substituted into the `url` and `body`; `response_path` pulls the answer out of the JSON. |
+| `shell` | Runs a command with the case input piped to stdin; stdout is the output. Never cached, because it runs your local code. |
 | `trace` | Ingests a recorded agent trace (native or OTel/OpenInference) named by each case, instead of invoking anything. Pair with the `trajectory` scorer. |
 
 ```yaml
@@ -74,7 +74,7 @@ Secrets never live in the YAML: `api_key_env` names an environment variable,
 resolved at run time. Full field-by-field docs are in the
 [configuration reference](/evalcore/reference/configuration/).
 
-## Datasets — the inputs
+## Datasets: the inputs
 
 Datasets are JSONL files, one test case per line, merged in listed order. Each
 case has an `id` and, depending on the target, an `input` (and optionally an
@@ -90,28 +90,28 @@ For `trace` targets, each case names a trace file instead of an input:
 {"id": "refund-flow", "trace": "traces/run1.json"}
 ```
 
-Results always come back in dataset order — determinism is the product.
+Results always come back in dataset order. Determinism is the product.
 
-## Scorers — how outputs are judged
+## Scorers: how outputs are judged
 
 Every scorer runs on every case. They form a ladder from cheap and deterministic
 to fully custom:
 
-- **Deterministic checks** — `contains` (substring, with `case_sensitive`),
+- Deterministic checks: `contains` (substring, with `case_sensitive`),
   `exact` (equals `value`, or the case's `expected` field), `regex` (matches a
   pattern). No network, instant, perfectly reproducible.
-- **`subprocess`** — the any-language escape hatch. Your command receives
+- `subprocess` is the any-language escape hatch. Your command receives
   `{"input", "output", "expected"}` as JSON on stdin and prints
   `{"score": 0.0..=1.0, "passed"?: bool, "reason"?: string}` on stdout. Write
-  scorers in Python, Node, Go — anything that reads stdin and writes stdout.
-  See [Custom scorers](/evalcore/guides/custom-scorers/).
-- **`judge`** — LLM-as-judge. Grades the output against a `rubric` using any
+  scorers in Python, Node, Go, or anything else that reads stdin and writes
+  stdout. See [Custom scorers](/evalcore/guides/custom-scorers/).
+- `judge` is LLM-as-judge. It grades the output against a `rubric` using any
   OpenAI-compatible endpoint, with a configurable pass `threshold`. Judge calls
-  go through the record/replay cache, so replayed verdicts are deterministic —
+  go through the record/replay cache, so replayed verdicts are deterministic,
   which is what makes LLM-graded suites usable as CI gates. See
   [LLM-as-judge](/evalcore/guides/llm-as-judge/).
-- **`trajectory`** — asserts on an agent's path (tool calls, ordering, step
-  budget). Requires a `trace` target. See
+- `trajectory` asserts on an agent's path (tool calls, ordering, step
+  budget). It requires a `trace` target. See
   [Agents and traces](/evalcore/guides/agents-and-traces/).
 
 ```yaml
@@ -128,7 +128,7 @@ scorers:
     threshold: 0.7
 ```
 
-## Runs — concurrency, budgets, gates
+## Runs: concurrency, budgets, gates
 
 The optional `run` block controls execution:
 
@@ -144,13 +144,13 @@ run:
       min: 0.8
 ```
 
-- **`concurrency`** bounds how many cases run at once (default 4). It never
-  changes results — order is preserved regardless.
-- **`budget_usd`** stops dispatching new cases once accumulated cost reaches the
+- `concurrency` bounds how many cases run at once (default 4). It never
+  changes results, since order is preserved regardless.
+- `budget_usd` stops dispatching new cases once accumulated cost reaches the
   cap (requires the target to declare `cost` rates). Skipped cases are reported
-  as failures with a reason — the run completes rather than aborting. See
+  as failures with a reason, so the run completes rather than aborting. See
   [Cost and budgets](/evalcore/guides/cost-and-budgets/).
-- **`gates`** are absolute floors over the whole run — `pass_rate` (fraction of
+- `gates` are absolute floors over the whole run: `pass_rate` (fraction of
   cases passing every scorer, in `[0,1]`) and `mean_score` (mean scorer value,
   optionally restricted to one `scorer`). See
   [Gates and baselines](/evalcore/guides/gates-and-baselines/).
@@ -160,13 +160,13 @@ run:
 `evalcore run` exits **`0` when every case passes** and **`1` otherwise**. Two
 mechanisms extend that contract additively:
 
-- With `--baseline`, the contract flips to "no regressions" — failures already
+- With `--baseline`, the contract flips to "no regressions". Failures already
   accepted into the baseline are tolerated, but a regression or a new failing
   case exits `1`.
-- `run.gates` add absolute floors — dropping below any floor also exits `1`,
+- `run.gates` add absolute floors. Dropping below any floor also exits `1`,
   even when it is not a per-case failure or a regression.
 
-Users gate CI on this exit code — nothing else. The full truth table is in
+Users gate CI on this exit code and nothing else. The full truth table is in
 [Gates and baselines](/evalcore/guides/gates-and-baselines/).
 
 ## Failures are data
@@ -174,7 +174,7 @@ Users gate CI on this exit code — nothing else. The full truth table is in
 A run never panics and one bad case never aborts the suite. Errors are captured
 and reported, not thrown:
 
-- A **target error** (a 500, a timeout, a budget skip, a replay cache miss)
+- A target error (a 500, a timeout, a budget skip, a replay cache miss)
   becomes a failed case with the error as its reason and no scores:
 
   ```text
@@ -182,8 +182,8 @@ and reported, not thrown:
        target error: cache miss for case "new" in replay mode — record it first with --cache auto (or live)
   ```
 
-- A **scorer error** (a subprocess that crashes, an un-parseable judge verdict)
-  becomes a *failing score* with a reason — the other scorers on that case still
+- A scorer error (a subprocess that crashes, an un-parseable judge verdict)
+  becomes a *failing score* with a reason. The other scorers on that case still
   run.
 
 The run always finishes, reports every case in dataset order, and lets the exit
@@ -193,16 +193,16 @@ stack trace.
 
 ## Determinism is the product
 
-Identical inputs produce identical outputs everywhere. This is not a nice-to-have
-— it is what makes an eval suite a *test* rather than a dashboard:
+Identical inputs produce identical outputs everywhere. That property is what
+makes an eval suite a *test* rather than a dashboard:
 
-- Results stay in **dataset order**, no matter the concurrency.
-- Reporters are **pure functions** of the run summary — the same summary renders
+- Results stay in dataset order, no matter the concurrency.
+- Reporters are pure functions of the run summary. The same summary renders
   byte-for-byte identical terminal, JSON, JUnit, and HTML output.
 - Nothing user-visible reads the clock except latency measurement.
-- The **record/replay cache** is built on this: cache keys hash the canonical
+- The record/replay cache is built on this: cache keys hash the canonical
   request, so the *same* request always replays the *same* recorded response.
-  Change the model, prompt, params, or input and the key changes — a stale
+  Change the model, prompt, params, or input and the key changes, so a stale
   recording can never masquerade as a fresh one. See
   [Record / replay](/evalcore/guides/record-replay/) and the
   [cache and determinism reference](/evalcore/reference/cache-and-determinism/).

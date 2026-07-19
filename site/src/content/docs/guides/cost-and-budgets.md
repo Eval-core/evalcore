@@ -4,14 +4,14 @@ description: Declare token rates, read per-case and total cost, cap spend with b
 ---
 
 EvalCore reports token usage and cost per case and across the run, and can stop a
-run before it overspends. There is **no shipped pricing table** — you declare
+run before it overspends. There is no shipped pricing table. You declare
 your provider's rates in config, where code review can see them, and a stale
 table can't produce confidently-wrong dollars.
 
 ## Declaring rates
 
-Add a `cost:` block to an `openai-compatible` or `trace` target, in USD **per 1
-million tokens**:
+Add a `cost:` block to an `openai-compatible` or `trace` target, in USD per 1
+million tokens:
 
 ```yaml
 targets:
@@ -26,7 +26,7 @@ targets:
 ```
 
 Without a `cost:` block, EvalCore still reports token counts when the provider
-returns usage, but no `$` figure — it will not invent a price.
+returns usage, but no `$` figure. It will not invent a price.
 
 ## The formula
 
@@ -50,9 +50,9 @@ runs simply have no token/cost line.
 
 Cost is tracked at both granularities:
 
-- **Per case** — each case's cost rides along in the JSON report (`cost_usd`) and
+- Per case: each case's cost rides along in the JSON report (`cost_usd`) and
   appears in the `--html` report's per-case row.
-- **Totals** — the tokens and `$` on the summary line, and in the HTML header.
+- Totals: the tokens and `$` on the summary line, and in the HTML header.
 
 Because reporters are pure functions of recorded usage, these numbers are
 deterministic: the same run renders the same dollars every time.
@@ -60,7 +60,7 @@ deterministic: the same run renders the same dollars every time.
 ## Budgets: `run.budget_usd`
 
 Cap what a run may spend with `run.budget_usd`. Once accumulated cost reaches the
-cap, EvalCore **stops dispatching new cases** — but the run completes and exits
+cap, EvalCore stops dispatching new cases, but the run completes and exits
 cleanly rather than aborting mid-flight:
 
 ```yaml
@@ -70,20 +70,20 @@ run:
 
 Semantics to internalize:
 
-- **The run completes.** Cases already in flight finish; new ones are not
+- The run completes. Cases already in flight finish; new ones are not
   started once the budget is exhausted.
-- **Skipped cases are failures with a reason** — "failures are data." They count
-  as failed cases, so the run exits `1`, and you can see exactly which cases were
-  skipped and why in the report.
-- **A budget requires rates.** `budget_usd` needs the target to declare `cost:`
-  rates — cost is measured from token usage, so without rates there's nothing to
-  accumulate against.
-- **Validation** rejects a non-positive `budget_usd`.
+- Skipped cases are failures with a reason, following the "failures are data"
+  rule. They count as failed cases, so the run exits `1`, and you can see exactly
+  which cases were skipped and why in the report.
+- A budget requires rates. `budget_usd` needs the target to declare `cost:`
+  rates, since cost is measured from token usage and without rates there's
+  nothing to accumulate against.
+- Validation rejects a non-positive `budget_usd`.
 
 ## Cost in replay mode: recorded usage, $0 actual
 
-A replayed run reports the **recorded** token usage and cost from the cassette —
-so cost stays visible in CI even though the *actual* spend is `$0` (nothing was
+A replayed run reports the recorded token usage and cost from the cassette, so
+cost stays visible in CI even though the *actual* spend is `$0` (nothing was
 called). This is deliberate: your CI report shows what the suite *would* cost at
 your declared rates, while replay itself is free.
 
@@ -98,7 +98,7 @@ whether you record or replay.
 ## Trace-run costs from span tokens
 
 Agent-trace runs have no live call to meter, so their cost comes from the token
-usage **found in the trace spans**. Declare `cost:` on the `trace` target and
+usage found in the trace spans. Declare `cost:` on the `trace` target and
 EvalCore prices the summed span usage:
 
 ```yaml
@@ -110,7 +110,7 @@ targets:
       output_per_1m: 1.60
 ```
 
-The shipped agent-trace example demonstrates this — one case's OTel trace carries
+The shipped agent-trace example shows this. One case's OTel trace carries
 `220` input + `48` output tokens, so the run reports:
 
 ```
@@ -122,11 +122,11 @@ extracted from spans.
 
 ## Known gap: judge calls aren't counted
 
-In v0.5.0, **LLM-judge calls are not yet included in cost totals or budgets**.
+**LLM-judge calls are not yet included in cost totals or budgets.**
 The reported tokens and `$` reflect the *target's* usage only. A judge-heavy
 suite spends real money on grading that the `$` line does not show, and those
-calls do not count against `run.budget_usd`. This is a documented roadmap gap —
-budget for judge calls separately for now. See
+calls do not count against `run.budget_usd`. This is a documented roadmap gap.
+Budget for judge calls separately for now. See
 [LLM-as-judge](/evalcore/guides/llm-as-judge/).
 
 For field-level details, see the

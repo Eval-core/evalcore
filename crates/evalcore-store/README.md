@@ -1,6 +1,6 @@
 # evalcore-store
 
-Internal component of **[EvalCore](https://crates.io/crates/evalcore)** — snapshot testing for AI behavior: a single-binary, config-first eval runner for LLM apps and agents.
+Internal component of **[EvalCore](https://crates.io/crates/evalcore)**, snapshot testing for AI behavior: a single-binary, config-first eval runner for LLM apps and agents.
 
 You probably want the `evalcore` CLI itself:
 
