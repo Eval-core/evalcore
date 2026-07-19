@@ -1,0 +1,32 @@
+---
+// "Latest release" chip. Ships with the version the site was built against,
+// then asks the GitHub API for the real latest tag and swaps it in — so the
+// page never shows a stale number for longer than one fetch. Fails silent:
+// on rate limit or offline, the build-time version stands.
+interface Props {
+	fallback?: string;
+}
+const { fallback = 'v0.7.5' } = Astro.props;
+---
+
+<p class="ec-release-badge">
+	<span class="ec-release-dot" aria-hidden="true"></span>
+	Latest release:
+	<a href="https://github.com/eval-core/evalcore/releases/latest"><code data-ec-release>{fallback}</code></a>
+</p>
+
+<script>
+	const el = document.querySelector('[data-ec-release]');
+	if (el) {
+		fetch('https://api.github.com/repos/eval-core/evalcore/releases/latest', {
+			headers: { Accept: 'application/vnd.github+json' },
+		})
+			.then((r) => (r.ok ? r.json() : null))
+			.then((release) => {
+				if (release?.tag_name) el.textContent = release.tag_name;
+			})
+			.catch(() => {
+				/* offline or rate-limited: build-time version stands */
+			});
+	}
+</script>

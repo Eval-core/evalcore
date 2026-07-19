@@ -106,7 +106,7 @@ One step installs the release binary (with a `cargo` fallback), runs the suite,
 writes the report to the job step summary, and exits with the gate's code:
 
 ```yaml
-- uses: eval-core/evalcore@v0.7.0
+- uses: eval-core/evalcore@v0.7.5
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
@@ -129,7 +129,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4        # brings the committed .evalcore/cache.db
-      - uses: eval-core/evalcore@v0.7.0
+      - uses: eval-core/evalcore@v0.7.5
         with:
           config: evals/evals.yaml
           args: --cache replay --baseline main
@@ -149,7 +149,7 @@ as a CI artifact **even when the run fails**, since reports matter most on a
 failure.
 
 ```yaml
-- uses: eval-core/evalcore@v0.7.0
+- uses: eval-core/evalcore@v0.7.5
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
@@ -187,7 +187,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: eval-core/evalcore@v0.7.0
+      - uses: eval-core/evalcore@v0.7.5
         with:
           config: evals/evals.yaml
           # live: call the real provider and re-record; compare to the accepted
@@ -225,7 +225,7 @@ evals:
   image: debian:stable-slim
   before_script:
     - apt-get update && apt-get install -y curl
-    - curl -fsSL "https://github.com/eval-core/evalcore/releases/download/v0.7.0/evalcore-v0.7.0-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C /usr/local/bin
+    - curl -fsSL "https://github.com/eval-core/evalcore/releases/download/v0.7.5/evalcore-v0.7.5-x86_64-unknown-linux-gnu.tar.gz" | tar -xz -C /usr/local/bin
   script:
     - evalcore run evals/evals.yaml --cache replay --baseline main --reporter junit --output report.xml
   artifacts:

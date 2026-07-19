@@ -1,9 +1,11 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/evalcore-lockup-dark.png">
-    <img src="assets/evalcore-lockup.png" alt="EvalCore" width="380">
+    <source media="(prefers-color-scheme: dark)" srcset="design/assets/mark-dark.svg">
+    <img src="design/assets/mark.svg" alt="" width="88" height="88">
   </picture>
 </p>
+
+<h1 align="center">EvalCore</h1>
 
 <p align="center">
   <strong>Know when your AI gets worse, before your users do.</strong>
@@ -12,8 +14,12 @@
 <p align="center">
   <a href="https://github.com/eval-core/evalcore/actions/workflows/ci.yml"><img src="https://github.com/eval-core/evalcore/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://crates.io/crates/evalcore"><img src="https://img.shields.io/crates/v/evalcore.svg" alt="crates.io"></a>
-  <a href="https://eval-core.github.io/evalcore/"><img src="https://img.shields.io/badge/docs-eval--core.github.io-blue" alt="Documentation"></a>
+  <a href="https://evalcore.cc"><img src="https://img.shields.io/badge/docs-evalcore.cc-2dd4a0" alt="Documentation"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-informational" alt="Apache-2.0"></a>
+</p>
+
+<p align="center">
+  <img src="design/assets/social-preview.png" alt="EvalCore: snapshot testing for AI behavior. Know when your AI gets worse, before your users do." width="760">
 </p>
 
 <p align="center">
@@ -22,8 +28,8 @@
 
 ---
 
-Change a prompt, swap a model, bump a dependency. Did anything break? You usually
-find out from a user.
+EvalCore is snapshot testing for AI behavior. Change a prompt, swap a model,
+bump a dependency. Did anything break? You usually find out from a user.
 
 EvalCore records how your AI behaves and checks every change against that
 recording. It is one binary, driven by a YAML file, and it runs offline for $0,
@@ -33,8 +39,8 @@ weekly job someone remembers to run.
 You never write Rust to use it. Targets speak HTTP or shell, custom scorers speak
 JSON over stdin and stdout, and judges are any OpenAI-compatible endpoint.
 
-**[Documentation](https://eval-core.github.io/evalcore/)** ·
-[Quickstart](https://eval-core.github.io/evalcore/getting-started/quickstart/) ·
+**[Documentation](https://evalcore.cc/)** ·
+[Quickstart](https://evalcore.cc/getting-started/quickstart/) ·
 [crates.io](https://crates.io/crates/evalcore) ·
 [Releases](https://github.com/eval-core/evalcore/releases) ·
 [Changelog](CHANGELOG.md)
@@ -62,7 +68,7 @@ cargo install evalcore
 
 Or download a prebuilt binary for Linux x64 or macOS (x64 / arm64) from the
 [releases page](https://github.com/eval-core/evalcore/releases). Full options in
-the [installation guide](https://eval-core.github.io/evalcore/getting-started/installation/).
+the [installation guide](https://evalcore.cc/getting-started/installation/).
 
 ## Quickstart
 
@@ -197,7 +203,7 @@ never at odds with the exit code. `evalcore run` exits **0** when the verdict is
 Other output formats: `--reporter json` for the full result tree,
 `--reporter junit` for CI test panels, and `--html report.html` for a
 self-contained page you can attach to a pull request. See the
-[CLI reference](https://eval-core.github.io/evalcore/reference/cli/).
+[CLI reference](https://evalcore.cc/reference/cli/).
 
 ## How it works
 
@@ -266,17 +272,17 @@ bad case never aborts the suite.
 
 | You want to | Use | Guide |
 |---|---|---|
-| Block regressions instead of demanding perfection | `--baseline` | [Gates and baselines](https://eval-core.github.io/evalcore/guides/gates-and-baselines/) |
-| Set a quality floor over the whole run | `run.gates` | [Gates and baselines](https://eval-core.github.io/evalcore/guides/gates-and-baselines/) |
-| Stop trusting a single lucky sample | `run.trials` | [Trials and statistics](https://eval-core.github.io/evalcore/guides/trials-and-statistics/) |
-| Decide whether the cheaper model is good enough | `--matrix a,b` | [Comparing models](https://eval-core.github.io/evalcore/guides/comparing-models/) |
-| Grade what an agent *did*, not just what it said | `trace` + `trajectory` | [Agents and traces](https://eval-core.github.io/evalcore/guides/agents-and-traces/) |
-| Evaluate your own deployed REST API | `type: http` | [Evaluating REST APIs](https://eval-core.github.io/evalcore/guides/evaluating-rest-apis/) |
-| Grade against retrieved context | case `context` | [RAG evaluation](https://eval-core.github.io/evalcore/guides/rag-evaluation/) |
-| Score with a rubric no assertion can express | `type: judge` | [LLM-as-judge](https://eval-core.github.io/evalcore/guides/llm-as-judge/) |
-| Track spend and cap it | `cost` + `budget_usd` | [Cost and budgets](https://eval-core.github.io/evalcore/guides/cost-and-budgets/) |
-| Score in Python, or any language | `type: subprocess` | [Custom scorers](https://eval-core.github.io/evalcore/guides/custom-scorers/) |
-| Browse past runs and diff any two | `evalcore serve` | [Run history](https://eval-core.github.io/evalcore/guides/run-history-and-serve/) |
+| Block regressions instead of demanding perfection | `--baseline` | [Gates and baselines](https://evalcore.cc/guides/gates-and-baselines/) |
+| Set a quality floor over the whole run | `run.gates` | [Gates and baselines](https://evalcore.cc/guides/gates-and-baselines/) |
+| Stop trusting a single lucky sample | `run.trials` | [Trials and statistics](https://evalcore.cc/guides/trials-and-statistics/) |
+| Decide whether the cheaper model is good enough | `--matrix a,b` | [Comparing models](https://evalcore.cc/guides/comparing-models/) |
+| Grade what an agent *did*, not just what it said | `trace` + `trajectory` | [Agents and traces](https://evalcore.cc/guides/agents-and-traces/) |
+| Evaluate your own deployed REST API | `type: http` | [Evaluating REST APIs](https://evalcore.cc/guides/evaluating-rest-apis/) |
+| Grade against retrieved context | case `context` | [RAG evaluation](https://evalcore.cc/guides/rag-evaluation/) |
+| Score with a rubric no assertion can express | `type: judge` | [LLM-as-judge](https://evalcore.cc/guides/llm-as-judge/) |
+| Track spend and cap it | `cost` + `budget_usd` | [Cost and budgets](https://evalcore.cc/guides/cost-and-budgets/) |
+| Score in Python, or any language | `type: subprocess` | [Custom scorers](https://evalcore.cc/guides/custom-scorers/) |
+| Browse past runs and diff any two | `evalcore serve` | [Run history](https://evalcore.cc/guides/run-history-and-serve/) |
 
 Three of these are worth seeing in their real output.
 
@@ -353,7 +359,7 @@ case, and a case passes only when all of them pass.
 Judge and similarity calls go through the same record/replay cache as targets, so
 LLM-graded suites replay deterministically and for free. Every field of every
 type is documented in the
-[configuration reference](https://eval-core.github.io/evalcore/reference/configuration/).
+[configuration reference](https://evalcore.cc/reference/configuration/).
 
 ## Running in CI
 
@@ -375,7 +381,7 @@ HTML report uploads even when the suite fails, which is when it matters.
 
 The action is a convenience, not a requirement. The binary's exit code is the
 whole contract, so any CI system works. See
-[Running in CI](https://eval-core.github.io/evalcore/guides/running-in-ci/) for
+[Running in CI](https://evalcore.cc/guides/running-in-ci/) for
 GitLab, Jenkins, and bare-shell setups.
 
 ## Design principles

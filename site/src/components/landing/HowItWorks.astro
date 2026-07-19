@@ -33,19 +33,19 @@
 					<div class="ec-editor-bar"><span class="ec-editor-name">evals.yaml</span></div>
 					<div class="ec-yaml">
 						<div class="ec-yaml-seg">
-							<span class="ec-seg-chip">Target — your app</span>
+							<span class="ec-seg-chip">Target: your app</span>
 							<pre><span class="y-key">targets</span>:
   <span class="y-key">support-bot</span>:
     <span class="y-key">type</span>: <span class="y-str">openai-compatible</span>
     <span class="y-key">model</span>: <span class="y-str">gpt-4.1-mini</span></pre>
 						</div>
 						<div class="ec-yaml-seg">
-							<span class="ec-seg-chip">Dataset — your cases</span>
+							<span class="ec-seg-chip">Dataset: your cases</span>
 							<pre><span class="y-key">datasets</span>:
   - <span class="y-key">file</span>: <span class="y-str">cases.jsonl</span></pre>
 						</div>
 						<div class="ec-yaml-seg">
-							<span class="ec-seg-chip">Scorers — what "good" means</span>
+							<span class="ec-seg-chip">Scorers: what "good" means</span>
 							<pre><span class="y-key">scorers</span>:
   - <span class="y-key">type</span>: <span class="y-str">contains</span>
     <span class="y-key">value</span>: <span class="y-str">refund</span>
@@ -74,13 +74,15 @@
 			<figure class="ec-step-visual">
 				<div class="ec-shot">
 					<div class="ec-shot-bar"><span>$ evalcore run evals.yaml</span></div>
-					<pre class="ec-shot-body"><span class="t-pass">✓ PASS</span> late-refund <span class="t-dim">(843ms)</span>
-<span class="t-pass">✓ PASS</span> fee-dispute <span class="t-dim">(512ms)</span>
+					<pre class="ec-shot-body"><span class="t-pass">PASS</span> late-refund <span class="t-dim">(843ms)</span>
+<span class="t-pass">PASS</span> fee-dispute <span class="t-dim">(512ms)</span>
 
-<span class="t-bold t-pass">2 passed, 0 failed, 2 total</span> <span class="t-dim">· 2202 tokens · $0.0038</span></pre>
+2 passed, 0 failed, 2 total <span class="t-dim">· 2202 tokens · $0.0038</span>
+
+<span class="t-bold t-pass">✔ PASSED</span></pre>
 					<div class="ec-shot-note">
 						<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/><path d="M8 13.6 h8"/></svg>
-						recorded to <code>.evalcore/cache.db</code> — commit it
+						recorded to <code>.evalcore/cache.db</code>, commit it
 					</div>
 				</div>
 			</figure>

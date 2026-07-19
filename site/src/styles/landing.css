@@ -126,38 +126,65 @@
 }
 
 /* ---- Buttons ------------------------------------------------------------ */
+/* Squared, calm, instrument-like. Focus is a visible ring; active presses in
+ * place. No pills, no lift, no white flash. */
 .ec-btn {
 	display: inline-flex;
 	align-items: center;
+	justify-content: center;
 	gap: 0.5rem;
-	padding: 0.625rem 1.25rem;
-	border-radius: 999px;
+	padding: 0.625rem 1.375rem;
+	border: 1px solid transparent;
+	border-radius: var(--radius);
 	font-size: var(--fs-sm);
 	font-weight: 600;
 	text-decoration: none;
+	-webkit-tap-highlight-color: transparent;
 	transition:
-		transform var(--dur-fast) var(--ease-out),
-		box-shadow var(--dur-fast) var(--ease-out),
+		background var(--dur-fast) var(--ease-out),
 		border-color var(--dur-fast) var(--ease-out),
-		background var(--dur-fast) var(--ease-out);
+		color var(--dur-fast) var(--ease-out);
+}
+.ec-btn:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: 2px;
 }
 .ec-btn-primary {
 	background: var(--sl-color-accent);
-	color: var(--sl-color-text-invert);
-	box-shadow: 0 6px 24px -8px var(--accent-line);
+	color: #fff;
+	box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%);
 }
 .ec-btn-primary:hover {
-	transform: translateY(-1px);
-	box-shadow: 0 10px 32px -8px var(--accent-line);
+	background: var(--sl-color-accent-high);
+	color: #fff;
+}
+.ec-btn-primary:active {
+	background: var(--sl-color-accent-high);
+	box-shadow: inset 0 2px 4px rgb(0 0 0 / 20%);
 }
 .ec-btn-secondary {
-	border: var(--border);
+	border-color: var(--sl-color-hairline);
 	color: var(--sl-color-text);
-	background: color-mix(in srgb, var(--sl-color-bg) 60%, transparent);
+	background: var(--surface-raised);
 }
 .ec-btn-secondary:hover {
 	border-color: var(--sl-color-gray-4);
 	color: var(--heading);
+	background: var(--surface-raised);
+}
+.ec-btn-secondary:active {
+	background: var(--surface);
+}
+
+.ec-hero-license {
+	margin: var(--sp-4) 0 0;
+	font-size: var(--fs-xs);
+	color: var(--muted);
+}
+.ec-hero-license a {
+	color: inherit;
+	text-decoration: underline;
+	text-underline-offset: 2px;
 }
 
 /* ---- Proof strip -------------------------------------------------------- */
@@ -256,7 +283,7 @@
 /* Terminal text roles — shared by the hero terminal, walkthrough shots, and
  * the feature explorer (injected HTML, so these stay global). */
 .t-pass {
-	color: var(--sl-color-accent);
+	color: var(--pass);
 }
 .t-fail {
 	color: var(--fail);
@@ -513,8 +540,8 @@
 	padding: var(--sp-4);
 }
 .ec-replay-col-accent {
-	border-color: var(--accent-line);
-	background: var(--accent-soft);
+	border-color: var(--pass-line);
+	background: var(--pass-soft);
 }
 .ec-replay-label {
 	display: block;
@@ -535,7 +562,7 @@
 	color: var(--sl-color-text);
 }
 .ec-replay-col-accent ul {
-	color: var(--sl-color-text-accent);
+	color: var(--pass);
 }
 .ec-replay-arrow {
 	color: var(--muted);
@@ -561,9 +588,9 @@
 	gap: 0.45rem;
 	padding: 0.25rem 0.75rem;
 	border-radius: 999px;
-	border: 1px solid var(--accent-line);
-	background: var(--accent-soft);
-	color: var(--sl-color-text-accent);
+	border: 1px solid var(--pass-line);
+	background: var(--pass-soft);
+	color: var(--pass);
 	font-family: var(--sl-font-mono);
 	font-size: var(--fs-xs);
 	font-weight: 600;
@@ -572,7 +599,7 @@
 	width: 7px;
 	height: 7px;
 	border-radius: 50%;
-	background: var(--sl-color-accent);
+	background: var(--pass);
 }
 
 /* ---- Feature explorer --------------------------------------------------- */
@@ -618,9 +645,10 @@
 .fx-panel {
 	display: grid;
 	grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-	gap: var(--sp-6);
-	padding: var(--sp-6);
+	gap: var(--sp-7);
+	padding: var(--sp-7);
 	align-items: center;
+	min-height: 21rem;
 }
 .sl-markdown-content .fx-panel-copy h3 {
 	margin: 0 0 var(--sp-3);
@@ -680,7 +708,7 @@
  * viewBox text renders at the same optical size as the DOM visuals. */
 .fx-svg {
 	width: 100%;
-	max-width: 420px;
+	max-width: 480px;
 	height: auto;
 	display: block;
 	margin-inline: auto;
@@ -739,12 +767,12 @@
 	stroke-width: 1.5;
 }
 .fx-node.is-ok {
-	stroke: var(--accent-line);
-	fill: var(--accent-soft);
+	stroke: var(--pass-line);
+	fill: var(--pass-soft);
 }
 .fx-check path {
 	fill: none;
-	stroke: var(--sl-color-accent);
+	stroke: var(--pass);
 	stroke-width: 2.4;
 	stroke-linecap: round;
 	stroke-linejoin: round;
@@ -785,7 +813,7 @@
 	border-radius: 50%;
 }
 .fx-dots i.is-pass {
-	background: var(--sl-color-accent);
+	background: var(--pass);
 }
 .fx-dots i.is-fail {
 	background: var(--fail);
@@ -802,9 +830,9 @@
 	white-space: nowrap;
 }
 .fx-tag.is-pass {
-	color: var(--sl-color-text-accent);
-	border-color: var(--accent-line);
-	background: var(--accent-soft);
+	color: var(--pass);
+	border-color: var(--pass-line);
+	background: var(--pass-soft);
 }
 .fx-tag.is-fail {
 	color: var(--fail);
@@ -875,7 +903,7 @@
 	position: absolute;
 	inset: 0 auto 0 0;
 	border-radius: 999px;
-	background: linear-gradient(90deg, var(--accent-line), var(--sl-color-accent));
+	background: linear-gradient(90deg, var(--pass-line), var(--pass));
 }
 .fx-meter-mark {
 	position: absolute;
@@ -935,7 +963,7 @@
 	border-radius: 50%;
 }
 .fx-report-row.is-pass::before {
-	background: var(--sl-color-accent);
+	background: var(--pass);
 }
 .fx-report-row.is-fail::before {
 	background: var(--fail);
@@ -954,7 +982,7 @@
 }
 .fx-spark polyline {
 	fill: none;
-	stroke: var(--sl-color-accent);
+	stroke: var(--pass);
 	stroke-width: 2;
 	stroke-linecap: round;
 	stroke-linejoin: round;
@@ -1068,28 +1096,30 @@
 	justify-content: center;
 	width: 1.9rem;
 	height: 1.9rem;
-	border: var(--border);
-	border-radius: 999px;
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
 	background: transparent;
 	color: var(--muted);
 	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
 	transition:
 		color var(--dur-fast) var(--ease-out),
 		border-color var(--dur-fast) var(--ease-out);
 }
 .ec-copy:hover {
 	color: var(--heading);
-	border-color: var(--sl-color-gray-4);
+	border-color: var(--sl-color-hairline);
+	background: var(--surface);
 }
 .ec-copy .ec-copy-check {
 	display: none;
-	color: var(--sl-color-accent);
+	color: var(--pass);
 }
 .ec-copy.is-copied .ec-copy-icon {
 	display: none;
 }
 .ec-copy.is-copied {
-	border-color: var(--accent-line);
+	border-color: var(--pass-line);
 }
 .ec-copy.is-copied .ec-copy-check {
 	display: block;

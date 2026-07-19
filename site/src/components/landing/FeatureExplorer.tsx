@@ -124,38 +124,38 @@ function MatrixVisual() {
 
 function TrajectoryVisual() {
 	return (
-		<svg viewBox="0 0 320 190" className="fx-svg" aria-hidden="true">
+		<svg viewBox="0 0 400 210" className="fx-svg" aria-hidden="true">
 			<g className="fx-muted-stroke">
-				<path d="M100 60 h20" markerEnd="url(#fx-arr2)" />
-				<path d="M196 60 h20" markerEnd="url(#fx-arr2)" />
+				<path d="M116 58 h30" markerEnd="url(#fx-arr2)" />
+				<path d="M252 58 h30" markerEnd="url(#fx-arr2)" />
 			</g>
 			{[
-				['search_kb', 28, true],
-				['get_policy', 124, true],
-				['refund', 220, true],
-			].map(([name, x, ok]) => (
+				['search_kb', 18],
+				['get_policy', 154],
+				['refund', 290],
+			].map(([name, x]) => (
 				<g key={String(name)}>
-					<rect x={Number(x)} y="42" width="72" height="36" rx="9" className={ok ? 'fx-node is-ok' : 'fx-node'} />
-					<text x={Number(x) + 36} y="64" className="fx-label" textAnchor="middle">
+					<rect x={Number(x)} y="38" width="94" height="40" rx="10" className="fx-node is-ok" />
+					<text x={Number(x) + 47} y="62" className="fx-label" textAnchor="middle">
 						{name}
 					</text>
 				</g>
 			))}
 			<g className="fx-check">
-				<path d="M40 110 l7 7 12 -14" />
-				<text x="70" y="118" className="fx-note">
+				<path d="M24 120 l7 7 12 -14" />
+				<text x="58" y="128" className="fx-note">
 					must_call order held
 				</text>
 			</g>
 			<g className="fx-cross">
-				<path d="M42 140 l12 12 M54 140 l-12 12" />
-				<text x="70" y="150" className="fx-note">
+				<path d="M26 152 l12 12 M38 152 l-12 12" />
+				<text x="58" y="162" className="fx-note">
 					must_not_call: delete_user
 				</text>
 			</g>
 			<g className="fx-check">
-				<path d="M40 170 l7 7 12 -14" />
-				<text x="70" y="178" className="fx-note">
+				<path d="M24 188 l7 7 12 -14" />
+				<text x="58" y="196" className="fx-note">
 					3 steps ≤ max_steps 6
 				</text>
 			</g>
@@ -187,7 +187,7 @@ function GatesVisual() {
 					<span className="fx-tag is-pass">no regressions</span>
 				</div>
 				<ul className="fx-gate-list">
-					<li className="t-dim">known-fail tone-2 — tolerated</li>
+					<li className="t-dim">known-fail tone-2, tolerated</li>
 					<li className="t-pass">fixed greeting-3</li>
 				</ul>
 			</div>
@@ -231,7 +231,7 @@ function CostVisual() {
 				<i className="fx-meter-mark" style={{ left: '80%' }} />
 			</div>
 			<div className="fx-cost-row">
-				<span className="fx-note">budget_usd 0.01 — stop scheduling at the cap</span>
+				<span className="fx-note">budget_usd 0.01 stops scheduling at the cap</span>
 			</div>
 			<div className="fx-cost-replay">
 				<span className="t-pass">replayed run</span>
@@ -244,12 +244,12 @@ function CostVisual() {
 function ProtocolsVisual() {
 	return (
 		<svg viewBox="0 0 320 190" className="fx-svg" aria-hidden="true">
-			{/* Elbow connectors first, staggered so no two share a lane. */}
+			{/* Elbow connectors, staggered lanes, detached 4px from every box. */}
 			<g className="fx-muted-stroke">
-				<path d="M69 40 V90 H116" />
-				<path d="M251 40 V90 H204" />
-				<path d="M79 150 V106 H116" />
-				<path d="M241 150 V106 H204" />
+				<path d="M69 44 V90 H112" />
+				<path d="M251 44 V90 H208" />
+				<path d="M79 146 V106 H112" />
+				<path d="M241 146 V106 H208" />
 				<rect x="14" y="10" width="110" height="30" rx="8" />
 				<rect x="196" y="10" width="110" height="30" rx="8" />
 				<rect x="14" y="150" width="130" height="30" rx="8" />
@@ -310,7 +310,7 @@ const FEATURES: Feature[] = [
 		id: 'agents',
 		label: 'Agent traces',
 		title: 'Grade the path, not just the answer',
-		body: 'Feed recorded OTel or OpenInference traces to a trace target and score the trajectory: which tools ran, in what order, within what step budget — alongside final-answer scorers.',
+		body: 'Feed recorded OTel or OpenInference traces to a trace target and score the trajectory: which tools ran, in what order, within what step budget, alongside final-answer scorers.',
 		chip: 'type: trajectory',
 		href: '/guides/agents-and-traces/',
 		visual: <TrajectoryVisual />,
@@ -346,7 +346,7 @@ const FEATURES: Feature[] = [
 		id: 'protocols',
 		label: 'Any language',
 		title: 'Protocols over SDKs',
-		body: 'Targets speak HTTP or shell. Custom scorers speak JSON over stdin/stdout. Judges are any OpenAI-compatible endpoint. Rust is the engine — you never write it, link it, or install it as a library.',
+		body: 'Targets speak HTTP or shell. Custom scorers speak JSON over stdin/stdout. Judges are any OpenAI-compatible endpoint. Rust is the engine; you never write it, link it, or install it as a library.',
 		chip: 'type: shell',
 		href: '/getting-started/core-concepts/',
 		visual: <ProtocolsVisual />,

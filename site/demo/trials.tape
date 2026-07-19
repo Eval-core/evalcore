@@ -11,7 +11,7 @@ Output site/public/casts/trials.gif
 Output site/public/casts/trials.webm
 
 Source site/demo/theme.tape
-Set Height 720
+Set Height 800
 
 Hide
 Type 'export PS1="$ "'

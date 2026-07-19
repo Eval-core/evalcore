@@ -11,7 +11,7 @@ Output site/public/casts/quickstart.gif
 Output site/public/casts/quickstart.webm
 
 Source site/demo/theme.tape
-Set Height 800
+Set Height 880
 
 # Pin `evalcore` to the freshly built release binary and use a clean prompt,
 # without showing the plumbing on screen. Aliasing the absolute path (rather

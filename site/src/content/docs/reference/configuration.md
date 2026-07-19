@@ -255,7 +255,7 @@ reports `invalid case at <file>:<line>`. A `context` that is not a string or an
 array of strings (a number, an object, a mixed array) is likewise a dataset
 error naming the case's `file:line`.
 
-**Case ids must be unique.** Since v0.7.0, a repeated `id`, across
+**Case ids must be unique.** Since v0.7.5, a repeated `id`, across
 all merged datasets, is rejected at load, naming both lines: `duplicate case id
 "<id>" at <file>:<line> (first used at line <n>)`. Ids key baseline matching and
 [matrix comparison](#matrix) rows, so a duplicate would silently collapse two
@@ -438,7 +438,7 @@ scorers:
 
 ### `json-schema`
 
-Since v0.7.0. Passes iff the output parses as JSON **and** validates
+Since v0.7.5. Passes iff the output parses as JSON **and** validates
 against a JSON Schema (draft 2020-12). Non-JSON output is a failing score with a
 reason, never an error. The schema file is read and compiled once in the factory,
 so a bad or unreadable schema fails the whole run before any case executes (the
@@ -471,7 +471,7 @@ unresolvable remote `$ref` each fails the run, naming the file).
 
 ### `similarity`
 
-Since v0.7.0. Embeds the case's `expected` answer and the output
+Since v0.7.5. Embeds the case's `expected` answer and the output
 through an OpenAI-compatible `/embeddings` endpoint and passes iff their **cosine
 similarity** is at least `threshold`. Embedding calls go through the
 record/replay cache, so replayed scores are deterministic, offline, and keyless.
@@ -512,10 +512,10 @@ The `run` block is optional; every field has a default.
 | `concurrency` | integer | no | `4` | Maximum in-flight cases. Must be at least 1. |
 | `budget_usd` | number | no | none | Abort scheduling new cases once accumulated cost reaches this (USD). Requires the target to declare `cost` rates. Must be positive. |
 | `gates` | list of [gate](#gates) | no | `[]` | Suite-level aggregate acceptance criteria. Evaluated in list order. |
-| `trials` | integer or [trials block](#trials) | no | `1` | Run each case N times and aggregate. Since v0.7.0. |
-| `classification` | bool | no | `false` | Compute [classification aggregates](#classification) (accuracy, macro-F1, per-class metrics) over labeled cases. Since v0.7.0. |
-| `matrix` | list of target names | no | none | Run the whole suite once per named target and print a side-by-side [comparison](#matrix). At least two distinct names, each defined in `targets`. Since v0.7.0. |
-| `history` | bool | no | `true` | Append one run-history row per executed run (a matrix records one per arm) to `.evalcore/cache.db`, so [`evalcore serve`](../../guides/run-history-and-serve/) can list and diff past runs. `--no-history` overrides to false. This is metadata only: the exit code, report bytes, and cache keys are identical either way, and a write failure is a warning, never a run failure. Since v0.7.0. |
+| `trials` | integer or [trials block](#trials) | no | `1` | Run each case N times and aggregate. Since v0.7.5. |
+| `classification` | bool | no | `false` | Compute [classification aggregates](#classification) (accuracy, macro-F1, per-class metrics) over labeled cases. Since v0.7.5. |
+| `matrix` | list of target names | no | none | Run the whole suite once per named target and print a side-by-side [comparison](#matrix). At least two distinct names, each defined in `targets`. Since v0.7.5. |
+| `history` | bool | no | `true` | Append one run-history row per executed run (a matrix records one per arm) to `.evalcore/cache.db`, so [`evalcore serve`](../../guides/run-history-and-serve/) can list and diff past runs. `--no-history` overrides to false. This is metadata only: the exit code, report bytes, and cache keys are identical either way, and a write failure is a warning, never a run failure. Since v0.7.5. |
 
 ```yaml
 run:
@@ -547,7 +547,7 @@ run:
 
 ### Trials
 
-Since v0.7.0. Runs every case `count` times and folds the per-trial
+Since v0.7.5. Runs every case `count` times and folds the per-trial
 verdicts into one case verdict. Accepts an **integer shorthand** (`trials: 3`,
 meaning `require: all`) or the full `{ count, require }` map. Absent, or
 `trials: 1`, means one trial with `require: all`, byte-identical to a run with
@@ -579,7 +579,7 @@ and similarity calls re-key per trial the same way.
 
 ### Classification
 
-Since v0.7.0. `classification: true` computes label-prediction
+Since v0.7.5. `classification: true` computes label-prediction
 metrics over the **labeled** cases (those with an `expected` field): accuracy,
 macro-averaged F1, and a per-class precision/recall/F1/support table. Off by
 default; also turned on implicitly by an [`accuracy` or `macro_f1`
@@ -652,7 +652,7 @@ intact.
 | `type` | `"accuracy"` | yes | Selects this gate. |
 | `min` | number | yes | Minimum accuracy, within `[0, 1]`. |
 
-Since v0.7.0. Reads the run's [classification aggregates](#classification)
+Since v0.7.5. Reads the run's [classification aggregates](#classification)
 and turns them on implicitly. An out-of-range `min` is rejected: `accuracy min
 must be within [0, 1], got <n>`. A run with **zero labeled cases** scores `0.0`
 and fails with a `no labeled cases` reason rather than passing vacuously.
@@ -664,7 +664,7 @@ and fails with a `no labeled cases` reason rather than passing vacuously.
 | `type` | `"macro_f1"` | yes | Selects this gate. |
 | `min` | number | yes | Minimum macro-F1, within `[0, 1]`. |
 
-Since v0.7.0. Like `accuracy`, reads the classification aggregates,
+Since v0.7.5. Like `accuracy`, reads the classification aggregates,
 turns them on implicitly, and fails loudly on zero labeled cases. An out-of-range
 `min` is rejected: `macro_f1 min must be within [0, 1], got <n>`.
 
@@ -683,7 +683,7 @@ the [CLI reference](../cli/) for how gates fold into the exit code.
 
 ### Matrix
 
-Since v0.7.0. `run.matrix: [name, name, …]` runs the whole suite
+Since v0.7.5. `run.matrix: [name, name, …]` runs the whole suite
 **once per named target**, in the listed order, and prints a side-by-side
 comparison (model A vs B, or prompt v1 vs v2) from one invocation. Requires at
 least two distinct names, each defined in `targets`. Absent (the default): a single-target

@@ -227,7 +227,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r shims/ragas/requirements.txt
-      - uses: eval-core/evalcore@v0.7.0
+      - uses: eval-core/evalcore@v0.7.5
         with:
           config: evals/rag-nightly.yaml
           # Target answers replay from the committed cassette; the shim scorers

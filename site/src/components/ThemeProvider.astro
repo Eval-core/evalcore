@@ -1,0 +1,31 @@
+---
+// Starlight `ThemeProvider` override. First visit is LIGHT by deliberate
+// choice (not system preference); the header toggle pins light/dark in the
+// same `starlight-theme` key Starlight reads, so nothing else changes.
+// Runs inline before paint: no flash of the wrong theme.
+---
+
+<script is:inline>
+	window.StarlightThemeProvider = (() => {
+		const stored = (() => {
+			try {
+				return localStorage.getItem('starlight-theme');
+			} catch {
+				return null;
+			}
+		})();
+		const theme = stored === 'dark' || stored === 'light' ? stored : 'light';
+		document.documentElement.dataset.theme = theme;
+		return {
+			updatePickedTheme(picked) {
+				const next = picked === 'dark' ? 'dark' : 'light';
+				try {
+					localStorage.setItem('starlight-theme', next);
+				} catch {
+					/* private mode: theme just won't persist */
+				}
+				document.documentElement.dataset.theme = next;
+			},
+		};
+	})();
+</script>

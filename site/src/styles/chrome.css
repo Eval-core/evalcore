@@ -182,15 +182,15 @@ starlight-toc a[aria-current='true']::before {
 	color: var(--muted);
 }
 
-/* Copy button: compact ghost square that only appears on hover/focus; the
- * icon swaps to a check via expressive-code's own feedback state, restyled as
- * a small mint pill instead of the stock oversized tooltip. */
+/* Copy button: compact ghost square that only appears on hover/focus. Code
+ * blocks are always dark, so these are fixed dark values, not theme vars. The
+ * copied feedback is a small pill in the pass color. */
 .expressive-code .copy button {
 	width: 2rem;
 	height: 2rem;
 	border-radius: var(--radius-sm);
-	background: color-mix(in srgb, var(--sl-color-bg) 65%, transparent) !important;
-	border: 1px solid var(--sl-color-hairline);
+	background: rgb(14 14 17 / 70%) !important;
+	border: 1px solid #2a2a30;
 	backdrop-filter: blur(6px);
 	opacity: 0;
 	transition:
@@ -203,16 +203,16 @@ starlight-toc a[aria-current='true']::before {
 	opacity: 1;
 }
 .expressive-code .copy button:hover {
-	border-color: var(--sl-color-gray-4);
+	border-color: #5c5c66;
 }
 .expressive-code .copy button::after {
-	background-color: var(--muted);
+	background-color: #9d9da6;
 }
 .expressive-code .copy .feedback {
-	--tooltip-bg: var(--surface-raised);
-	background: var(--surface-raised);
-	border: 1px solid var(--sl-color-hairline);
-	color: var(--sl-color-text-accent);
+	--tooltip-bg: #18181d;
+	background: #18181d;
+	border: 1px solid rgb(45 212 160 / 35%);
+	color: #2dd4a0;
 	font-size: var(--fs-xs);
 	font-weight: 500;
 	padding-inline: 0.5rem;

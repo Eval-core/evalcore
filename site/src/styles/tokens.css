@@ -1,10 +1,11 @@
 /* EvalCore design tokens — the single source of truth.
  *
- * Identity: "verdict mint" on near-black. The accent is the color of a passing
- * run (exit 0): it marks what passes, gates, or is active — never decoration.
- * Everything downstream (base, chrome, landing, components) pulls from here.
- * No raw px/rem values live in those files; if a value is worth using twice it
- * is worth a token.
+ * Identity: iris on near-white, light-first. Iris (blue-violet) is the brand
+ * accent: the color of judgment, precision, and trust — links, active states,
+ * buttons, the gate line in the mark. Green is NOT the brand: it is the
+ * semantic color of a passing run, used only where something passed, exactly
+ * like red marks a failure. Everything downstream (base, chrome, landing,
+ * components) pulls from here; no raw px/rem values live in those files.
  */
 
 /* ---- Typefaces + scales (theme-independent) ----------------------------- */
@@ -58,63 +59,9 @@
 	--dur-slow: 600ms;
 }
 
-/* ---- Dark palette (Starlight default :root) ----------------------------- *
- * bg #0a0a0b · surface #131316 · text #c9c9cf · accent #2dd4a0 (verdict mint) */
-:root {
-	--sl-color-white: #f4f4f5;
-	--sl-color-gray-1: #e4e4e7;
-	--sl-color-gray-2: #c9c9cf;
-	--sl-color-gray-3: #9d9da6;
-	--sl-color-gray-4: #5c5c66;
-	--sl-color-gray-5: #2a2a30;
-	--sl-color-gray-6: #131316;
-	--sl-color-gray-7: #101013;
-	--sl-color-black: #0a0a0b;
-
-	/* Verdict mint — the passing-run accent. Full Starlight accent scale is
-	 * overridden so no indigo default can leak through. */
-	--sl-color-accent-low: #0c2b21;
-	--sl-color-accent: #2dd4a0;
-	--sl-color-accent-high: #8ceccb;
-
-	--sl-color-text: #c9c9cf;
-	--sl-color-text-accent: #2dd4a0;
-	--sl-color-text-invert: #0a0a0b;
-	--sl-color-bg: #0a0a0b;
-	--sl-color-bg-nav: rgb(10 10 11 / 72%);
-	--sl-color-bg-sidebar: #0a0a0b;
-	--sl-color-bg-inline-code: #1b1b20;
-	--sl-color-hairline: #232329;
-	--sl-color-hairline-light: #1c1c21;
-	--sl-color-hairline-shade: #1c1c21;
-
-	--muted: #9d9da6;
-	--heading: #f4f4f5;
-	--accent-hover: #8ceccb;
-	--selection-bg: rgb(45 212 160 / 24%);
-	--code-bg: #101014;
-
-	/* Accent derivatives — soft fills and lines, never full-strength washes. */
-	--accent-soft: rgb(45 212 160 / 10%);
-	--accent-line: rgb(45 212 160 / 35%);
-	--fail: #f8746e;
-	--fail-soft: rgb(248 116 110 / 12%);
-	--warn: #eab308;
-	/* Secondary syntax hue: keeps hand-drawn code from reading all-mint. */
-	--code-blue: #8cc7ff;
-
-	/* Glass: translucent window chrome for terminals and framed media. */
-	--glass-bg: rgb(19 19 22 / 78%);
-	--glass-border: rgb(255 255 255 / 9%);
-	--glass-highlight: rgb(255 255 255 / 4%);
-	--surface: #131316;
-	--surface-raised: #18181d;
-	--shadow-lg: 0 24px 64px -24px rgb(0 0 0 / 70%);
-	--cast-shadow: var(--shadow-lg);
-}
-
-/* ---- Light palette ------------------------------------------------------ *
- * bg #fcfcfd · surface #f4f4f6 · text #3d3d46 · accent #087a5c (AA on white) */
+/* ---- Light palette (the default) ---------------------------------------- *
+ * bg #fcfcfd · surface #f4f4f6 · text #3d3d46 · accent #4f46e5 (iris) */
+:root,
 :root[data-theme='light'] {
 	--sl-color-white: #131316;
 	--sl-color-gray-1: #1f1f26;
@@ -126,15 +73,17 @@
 	--sl-color-gray-7: #f8f8fa;
 	--sl-color-black: #fcfcfd;
 
-	--sl-color-accent-low: #d9f5eb;
-	--sl-color-accent: #087a5c;
-	--sl-color-accent-high: #065c46;
+	/* Iris — judgment, precision, trust. Full Starlight accent scale is
+	 * overridden so no default can leak through. */
+	--sl-color-accent-low: #e8e8fc;
+	--sl-color-accent: #4f46e5;
+	--sl-color-accent-high: #3730a3;
 
 	--sl-color-text: #3d3d46;
-	--sl-color-text-accent: #087a5c;
+	--sl-color-text-accent: #4f46e5;
 	--sl-color-text-invert: #fcfcfd;
 	--sl-color-bg: #fcfcfd;
-	--sl-color-bg-nav: rgb(252 252 253 / 78%);
+	--sl-color-bg-nav: rgb(252 252 253 / 80%);
 	--sl-color-bg-sidebar: #fcfcfd;
 	--sl-color-bg-inline-code: #eeeef1;
 	--sl-color-hairline: #e4e4e9;
@@ -143,22 +92,89 @@
 
 	--muted: #6b6b76;
 	--heading: #131316;
-	--accent-hover: #065c46;
-	--selection-bg: rgb(8 122 92 / 16%);
+	--accent-hover: #3730a3;
+	--selection-bg: rgb(79 70 229 / 14%);
 	--code-bg: #f6f6f8;
 
-	--accent-soft: rgb(8 122 92 / 8%);
-	--accent-line: rgb(8 122 92 / 30%);
+	--accent-soft: rgb(79 70 229 / 7%);
+	--accent-line: rgb(79 70 229 / 30%);
+
+	/* Semantic verdict colors — data only, never brand chrome. */
+	--pass: #0b8a66;
+	--pass-soft: rgb(11 138 102 / 9%);
+	--pass-line: rgb(11 138 102 / 32%);
 	--fail: #d33e36;
 	--fail-soft: rgb(211 62 54 / 10%);
 	--warn: #a16207;
 	--code-blue: #0b63b8;
 
-	--glass-bg: rgb(255 255 255 / 78%);
+	--glass-bg: rgb(255 255 255 / 80%);
 	--glass-border: rgb(19 19 22 / 10%);
 	--glass-highlight: rgb(255 255 255 / 60%);
 	--surface: #f4f4f6;
 	--surface-raised: #ffffff;
 	--shadow-lg: 0 24px 64px -32px rgb(19 19 22 / 22%);
 	--cast-shadow: var(--shadow-lg);
+
+	--sl-shadow-sm: 0 1px 2px rgb(19 19 22 / 6%);
+	--sl-shadow-md: 0 8px 24px -12px rgb(19 19 22 / 12%);
+	--sl-shadow-lg: var(--shadow-lg);
+}
+
+/* ---- Dark palette -------------------------------------------------------- *
+ * bg #0a0a0b · surface #131316 · text #c9c9cf · accent #818cf8 (iris) */
+:root[data-theme='dark'] {
+	--sl-color-white: #f4f4f5;
+	--sl-color-gray-1: #e4e4e7;
+	--sl-color-gray-2: #c9c9cf;
+	--sl-color-gray-3: #9d9da6;
+	--sl-color-gray-4: #5c5c66;
+	--sl-color-gray-5: #2a2a30;
+	--sl-color-gray-6: #131316;
+	--sl-color-gray-7: #101013;
+	--sl-color-black: #0a0a0b;
+
+	--sl-color-accent-low: #1b1c3a;
+	--sl-color-accent: #818cf8;
+	--sl-color-accent-high: #c7d2fe;
+
+	--sl-color-text: #c9c9cf;
+	--sl-color-text-accent: #818cf8;
+	--sl-color-text-invert: #0a0a0b;
+	--sl-color-bg: #0a0a0b;
+	--sl-color-bg-nav: rgb(10 10 11 / 74%);
+	--sl-color-bg-sidebar: #0a0a0b;
+	--sl-color-bg-inline-code: #1b1b20;
+	--sl-color-hairline: #232329;
+	--sl-color-hairline-light: #1c1c21;
+	--sl-color-hairline-shade: #1c1c21;
+
+	--muted: #9d9da6;
+	--heading: #f4f4f5;
+	--accent-hover: #c7d2fe;
+	--selection-bg: rgb(129 140 248 / 26%);
+	--code-bg: #101014;
+
+	--accent-soft: rgb(129 140 248 / 10%);
+	--accent-line: rgb(129 140 248 / 35%);
+
+	--pass: #2dd4a0;
+	--pass-soft: rgb(45 212 160 / 10%);
+	--pass-line: rgb(45 212 160 / 35%);
+	--fail: #f8746e;
+	--fail-soft: rgb(248 116 110 / 12%);
+	--warn: #eab308;
+	--code-blue: #8cc7ff;
+
+	--glass-bg: rgb(19 19 22 / 78%);
+	--glass-border: rgb(255 255 255 / 9%);
+	--glass-highlight: rgb(255 255 255 / 4%);
+	--surface: #131316;
+	--surface-raised: #18181d;
+	--shadow-lg: 0 24px 64px -24px rgb(0 0 0 / 70%);
+	--cast-shadow: var(--shadow-lg);
+
+	--sl-shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+	--sl-shadow-md: 0 8px 24px -12px rgb(0 0 0 / 60%);
+	--sl-shadow-lg: var(--shadow-lg);
 }

@@ -11,7 +11,7 @@ Output site/public/casts/matrix.gif
 Output site/public/casts/matrix.webm
 
 Source site/demo/theme.tape
-Set Height 1360
+Set Height 1440
 
 Hide
 Type 'export PS1="$ "'

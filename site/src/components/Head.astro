@@ -1,0 +1,45 @@
+---
+// Starlight `Head` override: everything Starlight already emits (title,
+// description, canonical, sitemap link), plus the social card, icon set, and
+// structured data. The banner is one static file at /og.png so X, Slack, and
+// link unfurlers everywhere show the same card.
+import Default from '@astrojs/starlight/components/Head.astro';
+
+const site = 'https://evalcore.cc';
+const ogImage = `${site}/og.png`;
+
+const jsonLd = JSON.stringify({
+	'@context': 'https://schema.org',
+	'@type': 'SoftwareApplication',
+	name: 'EvalCore',
+	applicationCategory: 'DeveloperApplication',
+	operatingSystem: 'macOS, Linux, Windows',
+	url: site,
+	license: 'https://www.apache.org/licenses/LICENSE-2.0',
+	description:
+		'Snapshot testing for AI behavior: record how your LLM app or agent behaves, then replay the recording in CI on every change. Offline, deterministic, $0.',
+	offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+	author: [
+		{ '@type': 'Person', name: 'Abhishek Manyam' },
+		{ '@type': 'Person', name: 'Kuladeep Mantri' },
+	],
+});
+---
+
+<Default><slot /></Default>
+
+<meta property="og:image" content={ogImage} />
+<meta property="og:image:width" content="1280" />
+<meta property="og:image:height" content="640" />
+<meta property="og:site_name" content="EvalCore" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content={ogImage} />
+<meta name="author" content="Abhishek Manyam, Kuladeep Mantri" />
+<meta
+	name="keywords"
+	content="LLM evals, AI testing, eval runner, snapshot testing, LLM regression testing, agent evaluation, record replay, CI for AI, EvalCore"
+/>
+<link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<script type="application/ld+json" set:html={jsonLd} is:inline></script>

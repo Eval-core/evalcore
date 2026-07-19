@@ -9,20 +9,22 @@
 <div class="ec-term" data-ec-term>
 	<div class="ec-term-bar">
 		<span class="ec-term-lights" aria-hidden="true"><i></i><i></i><i></i></span>
-		<span class="ec-term-title">evalcore — bash</span>
+		<span class="ec-term-title">evalcore · bash</span>
 		<span class="ec-term-spacer" aria-hidden="true"></span>
 	</div>
 	<div class="ec-term-body" role="img" aria-label="Terminal: evalcore runs a four-case suite live, every case passes and the gate holds; the same run replays from the cassette at zero milliseconds and zero dollars.">
 		<pre class="ec-term-screen" data-screen aria-hidden="true"></pre>
 		<noscript>
 			<pre class="ec-term-screen">$ evalcore run evals.yaml
-<span class="t-pass">✓ PASS</span> late-refund <span class="t-dim">(11ms)</span>
-<span class="t-pass">✓ PASS</span> fee-dispute <span class="t-dim">(10ms)</span>
-<span class="t-pass">✓ PASS</span> card-lost <span class="t-dim">(10ms)</span>
-<span class="t-pass">✓ PASS</span> wire-eta <span class="t-dim">(9ms)</span>
+<span class="t-pass">PASS</span> late-refund <span class="t-dim">(11ms)</span>
+<span class="t-pass">PASS</span> fee-dispute <span class="t-dim">(10ms)</span>
+<span class="t-pass">PASS</span> card-lost <span class="t-dim">(10ms)</span>
+<span class="t-pass">PASS</span> wire-eta <span class="t-dim">(9ms)</span>
 
-<span class="t-bold t-pass">4 passed, 0 failed, 4 total</span>
-GATE <span class="t-pass">✓ PASS</span> pass_rate &gt;= 0.95 <span class="t-dim">(actual 1.00)</span></pre>
+4 passed, 0 failed, 4 total
+GATE <span class="t-pass">PASS</span> pass_rate &gt;= 0.95 <span class="t-dim">(actual 1.00)</span>
+
+<span class="t-bold t-pass">✔ PASSED</span></pre>
 		</noscript>
 	</div>
 </div>
@@ -32,29 +34,31 @@ GATE <span class="t-pass">✓ PASS</span> pass_rate &gt;= 0.95 <span class="t-di
 	const ACTS: [string, number][][] = [
 		[
 			['<span class="t-prompt">$</span> <span class="t-cmd">evalcore run evals.yaml</span>', 0],
-			['<span class="t-pass">✓ PASS</span> late-refund <span class="t-dim">(11ms)</span>', 500],
-			['<span class="t-pass">✓ PASS</span> fee-dispute <span class="t-dim">(10ms)</span>', 160],
-			['<span class="t-pass">✓ PASS</span> card-lost <span class="t-dim">(10ms)</span>', 160],
-			['<span class="t-pass">✓ PASS</span> wire-eta <span class="t-dim">(9ms)</span>', 160],
+			['<span class="t-pass">PASS</span> late-refund <span class="t-dim">(11ms)</span>', 500],
+			['<span class="t-pass">PASS</span> fee-dispute <span class="t-dim">(10ms)</span>', 160],
+			['<span class="t-pass">PASS</span> card-lost <span class="t-dim">(10ms)</span>', 160],
+			['<span class="t-pass">PASS</span> wire-eta <span class="t-dim">(9ms)</span>', 160],
 			['', 120],
-			['<span class="t-bold t-pass">4 passed, 0 failed, 4 total</span>', 240],
+			['4 passed, 0 failed, 4 total', 240],
 			[
-				'GATE <span class="t-pass">✓ PASS</span> pass_rate &gt;= 0.95 <span class="t-dim">(actual 1.00)</span>',
+				'GATE <span class="t-pass">PASS</span> pass_rate &gt;= 0.95 <span class="t-dim">(actual 1.00)</span>',
 				240,
 			],
+			['', 140],
+			['<span class="t-bold t-pass">✔ PASSED</span>', 320],
 		],
 		[
 			[
 				'<span class="t-prompt">$</span> <span class="t-cmd">evalcore run evals.yaml --cache replay</span>',
 				0,
 			],
-			['<span class="t-pass">✓ PASS</span> late-refund <span class="t-dim">(0ms)</span>', 320],
-			['<span class="t-pass">✓ PASS</span> fee-dispute <span class="t-dim">(0ms)</span>', 90],
-			['<span class="t-pass">✓ PASS</span> card-lost <span class="t-dim">(0ms)</span>', 90],
-			['<span class="t-pass">✓ PASS</span> wire-eta <span class="t-dim">(0ms)</span>', 90],
+			['<span class="t-pass">PASS</span> late-refund <span class="t-dim">(0ms)</span>', 320],
+			['<span class="t-pass">PASS</span> fee-dispute <span class="t-dim">(0ms)</span>', 90],
+			['<span class="t-pass">PASS</span> card-lost <span class="t-dim">(0ms)</span>', 90],
+			['<span class="t-pass">PASS</span> wire-eta <span class="t-dim">(0ms)</span>', 90],
 			['', 120],
-			['<span class="t-bold t-pass">4 passed, 0 failed, 4 total</span> <span class="t-dim">· offline · $0</span>', 240],
-			['<span class="t-dim"># no network, no keys, no flaky judges</span>', 420],
+			['4 passed, 0 failed, 4 total <span class="t-dim">· offline · $0</span>', 240],
+			['<span class="t-bold t-pass">✔ PASSED</span> <span class="t-dim"># no network, no keys, no flaky judges</span>', 380],
 		],
 	];
 

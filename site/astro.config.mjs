@@ -23,7 +23,9 @@ export default defineConfig({
 			// GitHub button, compact pagination, split footer (mega on the
 			// landing, slim on docs), and the custom landing hero.
 			components: {
+				Head: './src/components/Head.astro',
 				SiteTitle: './src/components/SiteTitle.astro',
+				ThemeProvider: './src/components/ThemeProvider.astro',
 				ThemeSelect: './src/components/ThemeToggle.astro',
 				SocialIcons: './src/components/GitHubButton.astro',
 				Pagination: './src/components/Pagination.astro',
@@ -54,27 +56,35 @@ export default defineConfig({
 			// Code blocks: quiet monochrome surfaces, hairline border, no frame
 			// shadow, no fake traffic lights (chrome.css hides the terminal dots;
 			// CastFrame owns showpiece windows). The site's own mono/sans families.
+			// Code blocks are ALWAYS dark, in both themes: a dark instrument panel
+			// on a light page reads as the thing being operated, and syntax colors
+			// keep their full contrast. All chrome colors are fixed dark values
+			// for the same reason — these never follow the page theme.
 			expressiveCode: {
-				themes: ['github-light', 'github-dark'],
+				themes: ['github-dark'],
+				useDarkModeMediaQuery: false,
 				styleOverrides: {
 					borderRadius: 'var(--radius)',
-					borderColor: 'var(--sl-color-hairline)',
-					codeBackground: 'var(--code-bg)',
+					borderColor: '#26262c',
+					codeBackground: '#0e0e11',
 					codeFontFamily: 'var(--sl-font-mono)',
 					uiFontFamily: 'var(--sl-font)',
 					frames: {
 						shadowColor: 'transparent',
-						editorTabBarBackground: 'var(--code-bg)',
-						editorActiveTabBackground: 'var(--code-bg)',
-						editorTabBarBorderBottomColor: 'var(--sl-color-hairline)',
+						editorTabBarBackground: '#0e0e11',
+						editorActiveTabBackground: '#0e0e11',
+						editorTabBarBorderBottomColor: '#26262c',
 						// The active file-tab indicator defaults to the theme accent;
 						// force it to the text color so the tab reads active without
 						// turning the code chrome accent-colored.
-						editorActiveTabIndicatorTopColor: 'var(--sl-color-text)',
-						editorActiveTabBorderColor: 'var(--sl-color-hairline)',
-						terminalBackground: 'var(--code-bg)',
-						terminalTitlebarBackground: 'var(--code-bg)',
-						terminalTitlebarBorderBottomColor: 'var(--sl-color-hairline)',
+						editorActiveTabIndicatorTopColor: '#e4e4e7',
+						editorActiveTabBorderColor: '#26262c',
+						editorTabBarInactiveForeground: '#9d9da6',
+						editorActiveTabForeground: '#e4e4e7',
+						terminalBackground: '#0e0e11',
+						terminalTitlebarBackground: '#0e0e11',
+						terminalTitlebarBorderBottomColor: '#26262c',
+						terminalTitlebarForeground: '#9d9da6',
 					},
 				},
 			},

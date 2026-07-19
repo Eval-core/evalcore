@@ -4,6 +4,7 @@ description: "Install EvalCore from a prebuilt binary, crates.io, or as a GitHub
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
+import ReleaseBadge from '../../../components/ReleaseBadge.astro';
 
 EvalCore is a single, dependency-free binary. There is nothing to run as a
 service and no runtime to install alongside it. You install one executable and
@@ -12,17 +13,17 @@ the whole block: each one downloads, installs, and checks the binary in place.
 
 ## Install
 
-<p class="ec-release-badge"><span class="ec-release-dot" aria-hidden="true"></span> Latest release: <a href="https://github.com/eval-core/evalcore/releases/latest"><code>v0.7.0</code></a></p>
+<ReleaseBadge />
 
 <Tabs syncKey="install">
 	<TabItem label="macOS" icon="apple">
 		Downloads the right build for your Mac, whether Apple Silicon or Intel, and puts it on your `PATH`:
 
 		```sh
-		VERSION=v0.7.0
+		VERSION=v0.7.5
 		TARGET="$([ "$(uname -m)" = arm64 ] && echo aarch64-apple-darwin || echo x86_64-apple-darwin)"
-		curl -fsSL "https://github.com/eval-core/evalcore/releases/download/$VERSION/evalcore-$VERSION-$TARGET.tar.gz" | tar -xz
-		sudo mv evalcore /usr/local/bin/
+		curl -fsSL "https://github.com/eval-core/evalcore/releases/download/$VERSION/evalcore-$VERSION-$TARGET.tar.gz" \
+		  | sudo tar -xz -C /usr/local/bin
 		evalcore --version
 		```
 	</TabItem>
@@ -30,9 +31,10 @@ the whole block: each one downloads, installs, and checks the binary in place.
 		Prebuilt binaries are published for x86_64:
 
 		```sh
-		VERSION=v0.7.0
-		curl -fsSL "https://github.com/eval-core/evalcore/releases/download/$VERSION/evalcore-$VERSION-x86_64-unknown-linux-gnu.tar.gz" | tar -xz
-		sudo mv evalcore /usr/local/bin/
+		VERSION=v0.7.5
+		TARGET=x86_64-unknown-linux-gnu
+		curl -fsSL "https://github.com/eval-core/evalcore/releases/download/$VERSION/evalcore-$VERSION-$TARGET.tar.gz" \
+		  | sudo tar -xz -C /usr/local/bin
 		evalcore --version
 		```
 
@@ -101,7 +103,7 @@ How you upgrade depends on how you installed:
   on your `PATH` (re-run the download and move step above).
 - **crates.io:** `cargo install evalcore --locked --force` rebuilds the latest
   published version over the old one.
-- **GitHub Action:** bump the pinned tag (`eval-core/evalcore@v0.7.0`), or set
+- **GitHub Action:** bump the pinned tag (`eval-core/evalcore@v0.7.5`), or set
   the `version:` input to a specific release tag or `latest`.
 
 EvalCore is pre-1.0: minor versions may change config or CLI surface. Check the
@@ -115,7 +117,7 @@ fallback), runs a suite, writes the report to the job step summary, and exits
 with the suite's gate code, so the job passes or fails with your evals:
 
 ```yaml
-- uses: eval-core/evalcore@v0.7.0
+- uses: eval-core/evalcore@v0.7.5
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
@@ -127,19 +129,19 @@ with the suite's gate code, so the job passes or fails with your evals:
   baseline.
 - `version` (optional) pins the release to install; defaults to `latest`.
 
-Pin the action to a released tag (`@v0.7.0`) so CI is reproducible. On other
+Pin the action to a released tag (`@v0.7.5`) so CI is reproducible. On other
 runners, install the binary in a script:
 
 | Where you run | Recommended install | Why |
 |---|---|---|
-| GitHub Actions | The `eval-core/evalcore@v0.7.0` Action | Installs the binary, adds a step summary, and carries the exit code for you. |
+| GitHub Actions | The `eval-core/evalcore@v0.7.5` Action | Installs the binary, adds a step summary, and carries the exit code for you. |
 | GitLab CI / Jenkins / Buildkite | Download the release binary in a script | No Rust toolchain on the runner; fast and pinned. |
 | Any runner with Rust | `cargo install evalcore --locked` | Works everywhere, including Windows, at the cost of a build. |
 | Air-gapped / self-hosted | Vendor the binary into your image | Fully offline; no download at job time. |
 
 ```sh
 # GitLab / Jenkins / Buildkite: fetch a pinned release binary
-VERSION=v0.7.0
+VERSION=v0.7.5
 TARGET=x86_64-unknown-linux-gnu
 curl -fsSL "https://github.com/eval-core/evalcore/releases/download/$VERSION/evalcore-$VERSION-$TARGET.tar.gz" \
   | tar -xz -C /usr/local/bin

@@ -27,7 +27,7 @@ body {
  * top margin read as an empty box after every h2 — spacing alone does the
  * sectioning now. */
 .sl-markdown-content h2 {
-	margin-top: var(--sp-8);
+	margin-top: var(--sp-7);
 	font-size: var(--fs-xl);
 }
 .sl-markdown-content h2 + * {

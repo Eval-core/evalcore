@@ -16,7 +16,7 @@ const href = (link = '') =>
 		? link
 		: `${base.replace(/\/$/, '')}/${link.replace(/^\//, '')}`;
 
-const proof = ['$0 in CI', 'offline replay', 'no telemetry', 'any language'];
+const proof = ['$0 in CI', 'offline replay', 'deterministic', 'any language'];
 ---
 
 <section class="ec-hero">
@@ -48,6 +48,10 @@ const proof = ['$0 in CI', 'offline replay', 'no telemetry', 'any language'];
 			</div>
 		)
 	}
+
+	<p class="ec-hero-license">
+		Open source under <a href="https://github.com/eval-core/evalcore/blob/main/LICENSE">Apache-2.0</a>. No signup, no server, no telemetry.
+	</p>
 
 	<ul class="ec-hero-proof" aria-label="At a glance">
 		{

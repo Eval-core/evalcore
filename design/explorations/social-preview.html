@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>social preview render</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@450;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; box-sizing:border-box; }
+  body { width:1280px; height:640px; overflow:hidden; background:#0a0a0b; font-family:'Geist',sans-serif; position:relative; }
+  .dots { position:absolute; inset:0; background-image:radial-gradient(rgba(157,157,166,.35) 1.5px, transparent 1.5px); background-size:32px 32px; mask-image:radial-gradient(ellipse 60% 55% at 50% 40%, black 25%, transparent 75%); -webkit-mask-image:radial-gradient(ellipse 60% 55% at 50% 40%, black 25%, transparent 75%); }
+  .glow { position:absolute; left:50%; top:8%; translate:-50% 0; width:760px; height:420px; background:radial-gradient(ellipse at center, rgba(45,212,160,.12), transparent 65%); }
+  .wrap { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:34px; }
+  .lockup { display:flex; align-items:center; gap:22px; }
+  .lockup span { font-size:64px; font-weight:600; letter-spacing:-0.03em; color:#f4f4f5; }
+  h1 { font-size:40px; font-weight:450; letter-spacing:-0.02em; color:#c9c9cf; text-align:center; line-height:1.25; }
+  h1 b { color:#f4f4f5; font-weight:600; }
+  .strip { display:flex; gap:34px; font-family:'JetBrains Mono',monospace; font-size:17px; color:#9d9da6; }
+  .strip i { color:#2dd4a0; font-style:normal; margin-right:8px; }
+</style>
+</head>
+<body>
+  <div class="dots"></div>
+  <div class="glow"></div>
+  <div class="wrap">
+    <div class="lockup">
+      <svg width="84" height="84" viewBox="0 0 64 64"><rect x="10" y="13" width="34" height="10" rx="5" fill="#f4f4f5"/><rect x="10" y="27" width="24" height="10" rx="5" fill="#f4f4f5"/><rect x="10" y="41" width="30" height="10" rx="5" fill="#f4f4f5"/><rect x="50" y="11" width="6" height="42" rx="3" fill="#818cf8"/></svg>
+      <span>EvalCore</span>
+    </div>
+    <h1>Snapshot testing for AI behavior.<br><b>Know when your AI gets worse, before your users do.</b></h1>
+    <div class="strip">
+      <span><i>✓</i>$0 in CI</span>
+      <span><i>✓</i>offline replay</span>
+      <span><i>✓</i>no telemetry</span>
+      <span><i>✓</i>any language</span>
+    </div>
+  </div>
+</body>
+</html>
