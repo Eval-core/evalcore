@@ -1,0 +1,84 @@
+---
+// Starlight `Pagination` override: compact prev/next chips instead of the
+// stock full-width cards. Eyebrow says the direction; the page title stays at
+// body size so the links never dominate the page they close.
+const { pagination } = Astro.locals.starlightRoute;
+const { prev, next } = pagination;
+---
+
+{
+	(prev || next) && (
+		<nav class="ec-pagination" aria-label="Previous and next pages">
+			{prev ? (
+				<a href={prev.href} rel="prev" class="ec-page-link ec-page-prev">
+					<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M15 5l-7 7 7 7" />
+					</svg>
+					<span>
+						<small>Previous</small>
+						{prev.label}
+					</span>
+				</a>
+			) : (
+				<span />
+			)}
+			{next && (
+				<a href={next.href} rel="next" class="ec-page-link ec-page-next">
+					<span>
+						<small>Next</small>
+						{next.label}
+					</span>
+					<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M9 5l7 7-7 7" />
+					</svg>
+				</a>
+			)}
+		</nav>
+	)
+}
+
+<style>
+	.ec-pagination {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: var(--sp-4);
+		margin-top: var(--sp-8);
+	}
+	.ec-page-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.625rem;
+		padding: 0.5rem 0.875rem;
+		border: 1px solid var(--sl-color-hairline);
+		border-radius: var(--radius);
+		text-decoration: none;
+		color: var(--sl-color-text);
+		transition:
+			border-color var(--dur-fast) var(--ease-out),
+			color var(--dur-fast) var(--ease-out);
+	}
+	.ec-page-link:hover {
+		border-color: var(--sl-color-gray-4);
+		color: var(--heading);
+	}
+	.ec-page-link svg {
+		color: var(--muted);
+		flex-shrink: 0;
+	}
+	.ec-page-link span {
+		display: flex;
+		flex-direction: column;
+		font-size: var(--fs-sm);
+		font-weight: 500;
+		line-height: var(--lh-snug);
+	}
+	.ec-page-next span {
+		text-align: end;
+	}
+	.ec-page-link small {
+		font-size: var(--fs-xs);
+		color: var(--muted);
+		font-weight: 400;
+	}
+</style>

@@ -1,0 +1,30 @@
+---
+// Starlight `SiteTitle` override: mark + wordmark lockup. The wordmark is set
+// in the site font at heading color; the mark's gate line is the only accent.
+import Logo from './Logo.astro';
+
+const base = import.meta.env.BASE_URL;
+const href = base.endsWith('/') ? base : `${base}/`;
+---
+
+<a {href} class="ec-site-title" aria-label="EvalCore, back to home">
+	<Logo size={26} />
+	<span>EvalCore</span>
+</a>
+
+<style>
+	.ec-site-title {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.625rem;
+		text-decoration: none;
+		color: var(--heading);
+		font-weight: 600;
+		font-size: 1.125rem;
+		letter-spacing: -0.02em;
+	}
+	.ec-site-title :global(svg) {
+		color: var(--heading);
+		flex-shrink: 0;
+	}
+</style>

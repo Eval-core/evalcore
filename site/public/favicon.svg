@@ -1,8 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <style>
-    path { fill: #111111; }
-    @media (prefers-color-scheme: dark) { path { fill: #ededed; } }
+    .bar { fill: #131316; }
+    @media (prefers-color-scheme: dark) { .bar { fill: #f4f4f5; } }
   </style>
-  <!-- Monogram "E": the wordmark is the brand; this is its minimal initial. -->
-  <path d="M8 6 H23 V9.6 H11.6 V14.4 H21 V18 H11.6 V22.4 H23 V26 H8 Z"/>
+  <rect class="bar" x="10" y="13" width="34" height="10" rx="5"/>
+  <rect class="bar" x="10" y="27" width="24" height="10" rx="5"/>
+  <rect class="bar" x="10" y="41" width="30" height="10" rx="5"/>
+  <rect x="50" y="11" width="5" height="42" rx="2.5" fill="#2dd4a0"/>
 </svg>

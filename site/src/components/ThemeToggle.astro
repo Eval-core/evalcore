@@ -1,0 +1,103 @@
+---
+// Starlight `ThemeSelect` override: a two-state sun/moon button instead of the
+// stock dropdown. First visit follows the system preference (Starlight's
+// ThemeProvider handles that); pressing the button pins an explicit choice in
+// the same `starlight-theme` storage key the provider reads, so no flash and
+// no divergence from Starlight's theming pipeline.
+---
+
+<ec-theme-toggle>
+	<button type="button" aria-live="polite" class="ec-theme-btn" title="Toggle theme">
+		<svg
+			aria-hidden="true"
+			class="ec-icon-sun"
+			width="16"
+			height="16"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+		>
+			<circle cx="12" cy="12" r="4.5"></circle>
+			<path
+				d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M18.7 5.3L17 7M7 17l-1.7 1.7"
+			></path>
+		</svg>
+		<svg
+			aria-hidden="true"
+			class="ec-icon-moon"
+			width="16"
+			height="16"
+			viewBox="0 0 24 24"
+			fill="currentColor"
+		>
+			<path d="M20.6 14.6A8.8 8.8 0 0 1 9.4 3.4a.7.7 0 0 0-.9-.9 10.2 10.2 0 1 0 13 13 .7.7 0 0 0-.9-.9Z"></path>
+		</svg>
+	</button>
+</ec-theme-toggle>
+
+<style>
+	.ec-theme-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		padding: 0;
+		border: 1px solid var(--sl-color-hairline);
+		border-radius: 999px;
+		background: transparent;
+		color: var(--muted);
+		cursor: pointer;
+		transition:
+			color var(--dur-fast) var(--ease-out),
+			border-color var(--dur-fast) var(--ease-out),
+			background var(--dur-fast) var(--ease-out);
+	}
+	.ec-theme-btn:hover {
+		color: var(--heading);
+		border-color: var(--sl-color-gray-4);
+		background: var(--glass-highlight);
+	}
+	/* Dark shows the sun (press for light); light shows the moon. */
+	.ec-icon-moon {
+		display: none;
+	}
+	:global([data-theme='light']) .ec-icon-moon {
+		display: block;
+	}
+	:global([data-theme='light']) .ec-icon-sun {
+		display: none;
+	}
+</style>
+
+<script>
+	class EcThemeToggle extends HTMLElement {
+		connectedCallback() {
+			const button = this.querySelector('button');
+			if (!button) return;
+			this.#syncLabel(button);
+			button.addEventListener('click', () => {
+				const next =
+					document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+				document.documentElement.dataset.theme = next;
+				try {
+					localStorage.setItem('starlight-theme', next);
+				} catch {
+					/* private mode: theme just won't persist */
+				}
+				this.#syncLabel(button);
+			});
+		}
+
+		#syncLabel(button: HTMLButtonElement) {
+			const current = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+			const target = current === 'light' ? 'dark' : 'light';
+			button.setAttribute('aria-label', `Switch to ${target} theme`);
+		}
+	}
+	if (!customElements.get('ec-theme-toggle')) {
+		customElements.define('ec-theme-toggle', EcThemeToggle);
+	}
+</script>

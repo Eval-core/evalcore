@@ -1,0 +1,23 @@
+---
+// The EvalCore mark: three score bars forming an E, measured against the
+// accent gate line. Inline SVG so it inherits text color per theme; only the
+// gate line carries the accent.
+interface Props {
+	size?: number;
+}
+const { size = 28 } = Astro.props;
+---
+
+<svg
+	width={size}
+	height={size}
+	viewBox="0 0 64 64"
+	fill="none"
+	aria-hidden="true"
+	class="ec-logo"
+>
+	<rect x="10" y="13" width="34" height="10" rx="5" fill="currentColor"></rect>
+	<rect x="10" y="27" width="24" height="10" rx="5" fill="currentColor"></rect>
+	<rect x="10" y="41" width="30" height="10" rx="5" fill="currentColor"></rect>
+	<rect x="50" y="11" width="5" height="42" rx="2.5" fill="var(--sl-color-accent, #2dd4a0)"></rect>
+</svg>

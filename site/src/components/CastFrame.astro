@@ -1,0 +1,114 @@
+---
+// Glass terminal window for VHS casts and code demos. The window chrome is
+// built here in CSS (traffic lights, translucent titlebar) so recordings no
+// longer carry baked-in window pixels — tapes render with `Set WindowBar` off
+// and this frame wraps them at display size.
+interface Props {
+	/** Basename under /casts/, e.g. "quickstart" -> quickstart.webm + .gif */
+	cast?: string;
+	/** Titlebar label, e.g. "evalcore run evals.yaml" */
+	title?: string;
+	/** Accessible description of what the recording shows. */
+	alt?: string;
+	/** Optional caption below the window. */
+	caption?: string;
+}
+const { cast, title = 'terminal', alt = '', caption } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<figure class="ec-window">
+	<div class="ec-window-frame">
+		<div class="ec-window-bar">
+			<span class="ec-window-lights" aria-hidden="true">
+				<i class="ec-light ec-light-close"></i>
+				<i class="ec-light ec-light-min"></i>
+				<i class="ec-light ec-light-max"></i>
+			</span>
+			<span class="ec-window-title">{title}</span>
+			<span class="ec-window-spacer" aria-hidden="true"></span>
+		</div>
+		<div class="ec-window-body">
+			{
+				cast ? (
+					<video autoplay loop muted playsinline aria-label={alt}>
+						<source src={`${base}/casts/${cast}.webm`} type="video/webm" />
+						<img src={`${base}/casts/${cast}.gif`} alt={alt} loading="lazy" />
+					</video>
+				) : (
+					<slot />
+				)
+			}
+		</div>
+	</div>
+	{caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+	.ec-window {
+		margin: 0;
+	}
+	.ec-window-frame {
+		border: 1px solid var(--glass-border);
+		border-radius: var(--radius-lg);
+		background: var(--glass-bg);
+		backdrop-filter: blur(14px);
+		-webkit-backdrop-filter: blur(14px);
+		box-shadow:
+			inset 0 1px 0 var(--glass-highlight),
+			var(--shadow-lg);
+		overflow: hidden;
+	}
+	.ec-window-bar {
+		display: flex;
+		align-items: center;
+		gap: var(--sp-3);
+		padding: 0.625rem var(--sp-4);
+		border-bottom: 1px solid var(--glass-border);
+	}
+	.ec-window-lights {
+		display: inline-flex;
+		gap: 7px;
+		flex: 1 0 0;
+	}
+	.ec-light {
+		width: 11px;
+		height: 11px;
+		border-radius: 50%;
+	}
+	.ec-light-close {
+		background: #ff5f57;
+	}
+	.ec-light-min {
+		background: #febc2e;
+	}
+	.ec-light-max {
+		background: #28c840;
+	}
+	.ec-window-title {
+		font-family: var(--sl-font-mono);
+		font-size: var(--fs-xs);
+		color: var(--muted);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.ec-window-spacer {
+		flex: 1 0 0;
+	}
+	.ec-window-body {
+		background: color-mix(in srgb, var(--sl-color-bg) 55%, transparent);
+	}
+	.ec-window-body :global(video),
+	.ec-window-body :global(img) {
+		display: block;
+		width: 100%;
+		height: auto;
+	}
+	figcaption {
+		margin-top: var(--sp-3);
+		text-align: center;
+		font-size: var(--fs-sm);
+		color: var(--muted);
+	}
+</style>

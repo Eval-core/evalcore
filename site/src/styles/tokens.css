@@ -1,16 +1,15 @@
 /* EvalCore design tokens — the single source of truth.
  *
+ * Identity: "verdict mint" on near-black. The accent is the color of a passing
+ * run (exit 0): it marks what passes, gates, or is active — never decoration.
  * Everything downstream (base, chrome, landing, components) pulls from here.
  * No raw px/rem values live in those files; if a value is worth using twice it
- * is worth a token. The palettes are carried over unchanged from the previous
- * theme — they are well-considered and the AA contrast work is already done.
- * The spacing and type scales are the new part: the old stylesheet had neither,
- * which is the primary reason the site read as assembled rather than designed.
+ * is worth a token.
  */
 
 /* ---- Typefaces + scales (theme-independent) ----------------------------- */
 :root {
-	--sl-font: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+	--sl-font: 'Geist Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 	--sl-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
 	/* Spacing — 4px base, geometric. Vertical rhythm comes entirely from these. */
@@ -31,93 +30,132 @@
 	--fs-lg: 1.125rem;
 	--fs-xl: 1.375rem;
 	--fs-2xl: 1.75rem;
-	--fs-3xl: clamp(2.25rem, 5vw, 3.25rem);
+	--fs-3xl: clamp(2.5rem, 5.5vw, 3.6rem);
 
-	--lh-tight: 1.2;
-	--lh-snug: 1.4;
+	--lh-tight: 1.15;
+	--lh-snug: 1.45;
 	--lh-normal: 1.7;
 
-	--radius: 6px;
-	--radius-sm: 4px;
+	--tracking-tight: -0.03em;
+	--tracking-wide: 0.08em;
+
+	--radius-sm: 6px;
+	--radius: 10px;
+	--radius-lg: 16px;
 
 	/* Resolves against the current theme's --sl-color-hairline at use time. */
 	--border: 1px solid var(--sl-color-hairline);
 
 	/* Content measures. The splash column is wider than the reading measure so
-	 * the hero and feature grid fill wide desktops; prose stays comfortable. */
+	 * the hero and feature sections fill wide desktops; prose stays comfortable. */
 	--measure-prose: 46rem;
-	--measure-splash: 1120px;
+	--measure-splash: 1152px;
+
+	/* Motion */
+	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+	--dur-fast: 150ms;
+	--dur: 250ms;
+	--dur-slow: 600ms;
 }
 
 /* ---- Dark palette (Starlight default :root) ----------------------------- *
- * bg #0b0b0c · text #ededed · border #262626 · muted #999 · accent #fb923c
- * code surface #151517 */
+ * bg #0a0a0b · surface #131316 · text #c9c9cf · accent #2dd4a0 (verdict mint) */
 :root {
-	--sl-color-white: #ededed;
-	--sl-color-gray-1: #e2e2e2;
-	--sl-color-gray-2: #c2c2c2;
-	--sl-color-gray-3: #999999;
-	--sl-color-gray-4: #5a5a5c;
-	--sl-color-gray-5: #2b2b2e;
-	--sl-color-gray-6: #1a1a1c;
-	--sl-color-gray-7: #141416;
-	--sl-color-black: #0b0b0c;
+	--sl-color-white: #f4f4f5;
+	--sl-color-gray-1: #e4e4e7;
+	--sl-color-gray-2: #c9c9cf;
+	--sl-color-gray-3: #9d9da6;
+	--sl-color-gray-4: #5c5c66;
+	--sl-color-gray-5: #2a2a30;
+	--sl-color-gray-6: #131316;
+	--sl-color-gray-7: #101013;
+	--sl-color-black: #0a0a0b;
 
-	/* Burnt orange accent — links, active nav, focus. Full Starlight accent
-	 * scale is overridden so no indigo/blue default can leak through. */
-	--sl-color-accent-low: #3a1e0e;
-	--sl-color-accent: #fb923c;
-	--sl-color-accent-high: #fdba74;
+	/* Verdict mint — the passing-run accent. Full Starlight accent scale is
+	 * overridden so no indigo default can leak through. */
+	--sl-color-accent-low: #0c2b21;
+	--sl-color-accent: #2dd4a0;
+	--sl-color-accent-high: #8ceccb;
 
-	--sl-color-text: #ededed;
-	--sl-color-text-accent: #fb923c;
-	--sl-color-bg: #0b0b0c;
-	--sl-color-bg-nav: #0b0b0c;
-	--sl-color-bg-sidebar: #0b0b0c;
-	--sl-color-bg-inline-code: #151517;
-	--sl-color-hairline: #262626;
-	--sl-color-hairline-light: #262626;
-	--sl-color-hairline-shade: #1c1c1e;
+	--sl-color-text: #c9c9cf;
+	--sl-color-text-accent: #2dd4a0;
+	--sl-color-text-invert: #0a0a0b;
+	--sl-color-bg: #0a0a0b;
+	--sl-color-bg-nav: rgb(10 10 11 / 72%);
+	--sl-color-bg-sidebar: #0a0a0b;
+	--sl-color-bg-inline-code: #1b1b20;
+	--sl-color-hairline: #232329;
+	--sl-color-hairline-light: #1c1c21;
+	--sl-color-hairline-shade: #1c1c21;
 
-	--muted: #999999;
-	--accent-hover: #fdba74;
-	--selection-bg: rgb(251 146 60 / 28%);
-	--code-bg: #151517;
-	--cast-shadow: 0 1px 3px rgb(0 0 0 / 45%);
+	--muted: #9d9da6;
+	--heading: #f4f4f5;
+	--accent-hover: #8ceccb;
+	--selection-bg: rgb(45 212 160 / 24%);
+	--code-bg: #101014;
+
+	/* Accent derivatives — soft fills and lines, never full-strength washes. */
+	--accent-soft: rgb(45 212 160 / 10%);
+	--accent-line: rgb(45 212 160 / 35%);
+	--fail: #f8746e;
+	--fail-soft: rgb(248 116 110 / 12%);
+	--warn: #eab308;
+
+	/* Glass: translucent window chrome for terminals and framed media. */
+	--glass-bg: rgb(19 19 22 / 78%);
+	--glass-border: rgb(255 255 255 / 9%);
+	--glass-highlight: rgb(255 255 255 / 4%);
+	--surface: #131316;
+	--surface-raised: #18181d;
+	--shadow-lg: 0 24px 64px -24px rgb(0 0 0 / 70%);
+	--cast-shadow: var(--shadow-lg);
 }
 
 /* ---- Light palette ------------------------------------------------------ *
- * bg #ffffff · text #111 · border #e5e5e5 · muted #666 · accent #c2410c
- * code surface #f6f6f7 */
+ * bg #fcfcfd · surface #f4f4f6 · text #3d3d46 · accent #087a5c (AA on white) */
 :root[data-theme='light'] {
-	--sl-color-white: #111111;
-	--sl-color-gray-1: #1a1a1a;
-	--sl-color-gray-2: #333333;
-	--sl-color-gray-3: #666666;
-	--sl-color-gray-4: #8c8c8c;
-	--sl-color-gray-5: #d4d4d4;
-	--sl-color-gray-6: #ececec;
-	--sl-color-gray-7: #f6f6f7;
-	--sl-color-black: #ffffff;
+	--sl-color-white: #131316;
+	--sl-color-gray-1: #1f1f26;
+	--sl-color-gray-2: #3d3d46;
+	--sl-color-gray-3: #6b6b76;
+	--sl-color-gray-4: #9d9da6;
+	--sl-color-gray-5: #dcdce1;
+	--sl-color-gray-6: #f4f4f6;
+	--sl-color-gray-7: #f8f8fa;
+	--sl-color-black: #fcfcfd;
 
-	/* Burnt orange accent (darker for AA contrast on white). */
-	--sl-color-accent-low: #ffedd5;
-	--sl-color-accent: #c2410c;
-	--sl-color-accent-high: #7c2d12;
+	--sl-color-accent-low: #d9f5eb;
+	--sl-color-accent: #087a5c;
+	--sl-color-accent-high: #065c46;
 
-	--sl-color-text: #111111;
-	--sl-color-text-accent: #c2410c;
-	--sl-color-bg: #ffffff;
-	--sl-color-bg-nav: #ffffff;
-	--sl-color-bg-sidebar: #ffffff;
-	--sl-color-bg-inline-code: #f6f6f7;
-	--sl-color-hairline: #e5e5e5;
-	--sl-color-hairline-light: #e5e5e5;
-	--sl-color-hairline-shade: #eeeeee;
+	--sl-color-text: #3d3d46;
+	--sl-color-text-accent: #087a5c;
+	--sl-color-text-invert: #fcfcfd;
+	--sl-color-bg: #fcfcfd;
+	--sl-color-bg-nav: rgb(252 252 253 / 78%);
+	--sl-color-bg-sidebar: #fcfcfd;
+	--sl-color-bg-inline-code: #eeeef1;
+	--sl-color-hairline: #e4e4e9;
+	--sl-color-hairline-light: #ececf0;
+	--sl-color-hairline-shade: #ececf0;
 
-	--muted: #666666;
-	--accent-hover: #9a3412;
-	--selection-bg: #ffedd5;
-	--code-bg: #f6f6f7;
-	--cast-shadow: 0 1px 3px rgb(0 0 0 / 8%);
+	--muted: #6b6b76;
+	--heading: #131316;
+	--accent-hover: #065c46;
+	--selection-bg: rgb(8 122 92 / 16%);
+	--code-bg: #f6f6f8;
+
+	--accent-soft: rgb(8 122 92 / 8%);
+	--accent-line: rgb(8 122 92 / 30%);
+	--fail: #d33e36;
+	--fail-soft: rgb(211 62 54 / 10%);
+	--warn: #a16207;
+
+	--glass-bg: rgb(255 255 255 / 78%);
+	--glass-border: rgb(19 19 22 / 10%);
+	--glass-highlight: rgb(255 255 255 / 60%);
+	--surface: #f4f4f6;
+	--surface-raised: #ffffff;
+	--shadow-lg: 0 24px 64px -32px rgb(19 19 22 / 22%);
+	--cast-shadow: var(--shadow-lg);
 }

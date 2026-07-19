@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import react from '@astrojs/react';
 
 // https://astro.build/config
 export default defineConfig({
@@ -9,30 +10,31 @@ export default defineConfig({
 	site: 'https://evalcore.cc',
 	base: '/',
 	integrations: [
+		// React powers the interactive landing islands (feature explorer,
+		// animated terminal). Docs pages stay zero-JS Astro.
+		react(),
 		starlight({
 			title: 'EvalCore',
 			description:
-				'The eval engine for AI systems: measure, compare, and regression-gate LLM apps and agents with one config-first binary.',
-			favicon: '/favicon.png',
-			// Site-wide footer strip (links every repo artifact the site never
-			// surfaced). Wraps Starlight's default footer so docs pages keep
-			// their prev/next pagination.
+				'Snapshot testing for AI behavior: measure, compare, and regression-gate LLM apps and agents with one config-first binary.',
+			favicon: '/favicon.svg',
+			// Every visible piece of Starlight chrome is overridden so the docs
+			// read as this site, not as a themed default: lockup, theme toggle,
+			// GitHub button, compact pagination, split footer (mega on the
+			// landing, slim on docs), and the custom landing hero.
 			components: {
+				SiteTitle: './src/components/SiteTitle.astro',
+				ThemeSelect: './src/components/ThemeToggle.astro',
+				SocialIcons: './src/components/GitHubButton.astro',
+				Pagination: './src/components/Pagination.astro',
 				Hero: './src/components/Hero.astro',
 				Footer: './src/components/Footer.astro',
-			},
-			// The mark: orbit-and-check symbol next to the wordmark. Light/dark
-			// variants because the near-black strokes would vanish on the dark bg.
-			logo: {
-				light: './src/assets/logo-light.png',
-				dark: './src/assets/logo-dark.png',
-				alt: 'EvalCore',
 			},
 			// Self-hosted fonts (no external requests). Order matters: fonts first,
 			// then the design system. The five style files load in dependency
 			// order — tokens define the variables every later file reads.
 			customCss: [
-				'@fontsource-variable/inter',
+				'@fontsource-variable/geist',
 				'@fontsource/jetbrains-mono/400.css',
 				'@fontsource/jetbrains-mono/500.css',
 				'@fontsource/jetbrains-mono/700.css',
@@ -49,8 +51,9 @@ export default defineConfig({
 					href: 'https://github.com/eval-core/evalcore',
 				},
 			],
-			// Code blocks: quiet monochrome surfaces, hairline border, one 6px
-			// radius, no frame shadow, and the site's own mono/sans families.
+			// Code blocks: quiet monochrome surfaces, hairline border, no frame
+			// shadow, no fake traffic lights (chrome.css hides the terminal dots;
+			// CastFrame owns showpiece windows). The site's own mono/sans families.
 			expressiveCode: {
 				themes: ['github-light', 'github-dark'],
 				styleOverrides: {
@@ -64,9 +67,9 @@ export default defineConfig({
 						editorTabBarBackground: 'var(--code-bg)',
 						editorActiveTabBackground: 'var(--code-bg)',
 						editorTabBarBorderBottomColor: 'var(--sl-color-hairline)',
-						// The active file-tab indicator defaults to the theme accent,
-						// which leaked orange into code chrome (D15). Force it to the
-						// text color so the tab reads active without the accent.
+						// The active file-tab indicator defaults to the theme accent;
+						// force it to the text color so the tab reads active without
+						// turning the code chrome accent-colored.
 						editorActiveTabIndicatorTopColor: 'var(--sl-color-text)',
 						editorActiveTabBorderColor: 'var(--sl-color-hairline)',
 						terminalBackground: 'var(--code-bg)',

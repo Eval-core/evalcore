@@ -1,4 +1,4 @@
-/* Component vocabulary — asides, cards, tabs, and code surfaces.
+/* Component vocabulary — asides, cards, tabs, and steps.
  *
  * Defined once and used everywhere. Divergence in these is what makes a site
  * feel like unrelated pages, so a guide, the reference, and the landing page
@@ -6,14 +6,15 @@
  */
 
 /* ---- Asides ------------------------------------------------------------- */
-/* Flat --code-bg surface, a 2px semantic left rule, one radius. Used for every
+/* Flat surface, a 2px semantic left rule, one radius. Used for every
  * "Known gap" / "Limitation" section so those read as one treatment. */
 /* Starlight 0.41.3 */
 .starlight-aside {
 	padding: var(--sp-4);
 	border-radius: var(--radius);
+	border: 1px solid var(--sl-color-hairline-light);
 	border-inline-start: 2px solid var(--sl-color-asides-border);
-	background: var(--code-bg);
+	background: var(--surface);
 	color: var(--sl-color-text);
 }
 .starlight-aside__title {
@@ -30,8 +31,7 @@
 }
 
 /* ---- Cards (CardGrid) --------------------------------------------------- */
-/* Bordered surfaces with a whisper of fill and an accent-lit hover. Same
- * vocabulary on the landing and in the docs. */
+/* Bordered surfaces with a whisper of fill and an accent-lit hover. */
 /* Starlight 0.41.3 */
 .card-grid {
 	grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -54,15 +54,15 @@
 	padding: var(--sp-5);
 	background: color-mix(in srgb, var(--sl-color-text) 2%, transparent);
 	transition:
-		border-color 160ms ease,
-		transform 160ms ease,
-		background 160ms ease,
-		box-shadow 160ms ease;
+		border-color var(--dur-fast) var(--ease-out),
+		transform var(--dur-fast) var(--ease-out),
+		background var(--dur-fast) var(--ease-out),
+		box-shadow var(--dur-fast) var(--ease-out);
 }
 .sl-markdown-content .card:hover {
 	border-color: color-mix(in srgb, var(--sl-color-accent) 42%, var(--sl-color-hairline));
 	background: color-mix(in srgb, var(--sl-color-text) 4%, transparent);
-	box-shadow: 0 14px 32px -20px rgb(0 0 0 / 55%);
+	box-shadow: var(--sl-shadow-md, 0 14px 32px -20px rgb(0 0 0 / 55%));
 }
 @media (prefers-reduced-motion: no-preference) {
 	.sl-markdown-content .card:hover {
@@ -75,7 +75,7 @@
 .card .title {
 	font-size: var(--fs-base);
 	font-weight: 600;
-	color: var(--sl-color-text);
+	color: var(--heading);
 }
 .card .sl-markdown-content,
 .card p {
@@ -85,33 +85,66 @@
 }
 
 /* ---- Tabs --------------------------------------------------------------- */
-/* Hairline strip; active tab carries a 2px orange bottom rule and text color.
- * Inactive tabs are muted. No pills, no filled tabs. */
+/* Segmented control: a hairline pill strip with a filled active segment.
+ * Replaces the old underline tabs whose accent-colored rule read as a stray
+ * highlight box. */
 /* Starlight 0.41.3 — <starlight-tabs> is an element, not a class. */
 starlight-tabs [role='tablist'] {
-	border-bottom: var(--border);
+	display: inline-flex;
+	gap: var(--sp-1);
+	padding: var(--sp-1);
+	border: var(--border);
+	border-radius: 999px;
+	background: var(--surface);
+	margin-bottom: var(--sp-4);
+	overflow-x: auto;
+}
+/* Starlight's own li.tab borders would double-frame the segments. */
+starlight-tabs .tab {
+	border: 0;
+	padding: 0;
 }
 starlight-tabs [role='tab'] {
-	border-bottom: 2px solid transparent;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+	border: 0;
+	/* Starlight draws its underline as a box-shadow; none of it survives here. */
+	box-shadow: none;
+	border-radius: 999px;
+	padding: 0.375rem 0.875rem;
 	color: var(--muted);
 	font-size: var(--fs-sm);
+	font-weight: 500;
+	white-space: nowrap;
+	transition:
+		color var(--dur-fast) var(--ease-out),
+		background var(--dur-fast) var(--ease-out);
+}
+starlight-tabs [role='tab']:hover {
+	color: var(--sl-color-text);
 }
 starlight-tabs [role='tab'][aria-selected='true'] {
-	border-bottom-color: var(--sl-color-accent);
-	color: var(--sl-color-text);
+	background: var(--surface-raised);
+	color: var(--heading);
+	border: 0;
+	box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
 }
 
 /* ---- Steps -------------------------------------------------------------- */
-/* Starlight's Steps draws a vertical rule and numbered markers. Keep the marker
- * monochrome so the accent stays reserved for links and active states. */
+/* Starlight's Steps draws a vertical rule and numbered markers. Marker stays
+ * monochrome; the connecting rule is hairline. */
 /* Starlight 0.41.3 */
 .sl-steps > li::before {
-	background: var(--code-bg) !important;
+	background: var(--surface) !important;
 	border: var(--border) !important;
-	color: var(--sl-color-text) !important;
+	color: var(--heading) !important;
+	font-weight: 600 !important;
 }
 
-/* ---- Code surfaces (expressive-code) ------------------------------------ */
-/* Frame radius/border/background are set in astro.config's expressiveCode
- * styleOverrides. The active file-tab indicator is forced monochrome there too
- * (D15) so no orange leaks into code chrome. */
+/* ---- File tree, badges, misc -------------------------------------------- */
+/* Starlight 0.41.3 */
+.sl-markdown-content .sl-badge {
+	border-radius: 999px;
+	font-weight: 500;
+}

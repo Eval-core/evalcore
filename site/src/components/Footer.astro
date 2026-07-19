@@ -1,16 +1,17 @@
 ---
-// Site-wide footer: the credibility strip for an open-source launch. Rendered
-// on every page above Starlight's default footer, which still carries the
-// prev/next pagination on docs pages (via <Default>). Styles: chrome.css.
-import Default from '@astrojs/starlight/components/Footer.astro';
+// Starlight `Footer` override. Two shapes, one component:
+//  - landing (template: splash): the full four-column footer with the lockup —
+//    it lives here and only here, so docs pages stop repeating it;
+//  - docs pages: one slim hairline row, because the page just ended with
+//    pagination and doesn't need a second site map.
+import Logo from './Logo.astro';
+
+const route = Astro.locals.starlightRoute;
+const isSplash = route.entry.data.template === 'splash';
 
 const repo = 'https://github.com/eval-core/evalcore';
-// Base-aware internal links: follow astro.config's `base`, so they keep working
-// if it ever flips from /evalcore to /.
-// BASE_URL may or may not carry a trailing slash; normalise so there is exactly
-// one between the base and the path.
 const base = import.meta.env.BASE_URL;
-const docs = (p) => `${base.replace(/\/$/, '')}/${p.replace(/^\//, '')}`;
+const docs = (p: string) => `${base.replace(/\/$/, '')}/${p.replace(/^\//, '')}`;
 
 const columns = [
 	{
@@ -47,29 +48,43 @@ const columns = [
 ];
 ---
 
-<div class="ec-footer">
-	<div class="ec-footer-cols">
-		{
-			columns.map((col) => (
-				<div class="ec-footer-col">
-					<h2>{col.title}</h2>
-					<ul>
-						{col.links.map((link) => (
-							<li>
-								<a href={link.href}>{link.label}</a>
-							</li>
-						))}
-					</ul>
-					{col.title === 'Legal' && (
-						<p class="ec-footer-note">No telemetry. No signup. No server.</p>
-					)}
+{
+	isSplash ? (
+		<footer class="ec-footer">
+			<div class="ec-footer-cols">
+				<div class="ec-footer-brand">
+					<span class="ec-footer-lockup">
+						<Logo size={24} />
+						<span>EvalCore</span>
+					</span>
+					<p>Snapshot testing for AI behavior. Free and open source, Apache-2.0.</p>
 				</div>
-			))
-		}
-	</div>
-	<div class="ec-footer-baseline">
-		EvalCore is free and open source under the Apache-2.0 license.
-	</div>
-</div>
-
-<Default><slot /></Default>
+				{columns.map((col) => (
+					<div class="ec-footer-col">
+						<h2>{col.title}</h2>
+						<ul>
+							{col.links.map((link) => (
+								<li>
+									<a href={link.href}>{link.label}</a>
+								</li>
+							))}
+						</ul>
+					</div>
+				))}
+			</div>
+			<div class="ec-footer-baseline">
+				<span>No telemetry. No signup. No server.</span>
+				<span>Apache-2.0</span>
+			</div>
+		</footer>
+	) : (
+		<footer class="ec-docs-footer">
+			<span>Apache-2.0</span>
+			<span class="ec-docs-footer-links">
+				<a href={repo}>GitHub</a>
+				<a href="https://crates.io/crates/evalcore">crates.io</a>
+				<a href={`${repo}/issues`}>Issues</a>
+			</span>
+		</footer>
+	)
+}

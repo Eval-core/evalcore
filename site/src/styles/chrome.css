@@ -1,5 +1,5 @@
 /* Site chrome — the frame around the content: header, sidebar, right-rail TOC,
- * pagination, and the footer strip.
+ * code-frame chrome, and the footers.
  *
  * Selectors that target Starlight-owned classes are marked with the version so
  * the next Starlight upgrade has an audit list. Never target an astro-* hash
@@ -7,9 +7,37 @@
  */
 
 /* ---- Header ------------------------------------------------------------- */
+/* Translucent glass bar: blur + tinted bg from tokens, hairline underneath.
+ * Starlight positions it; we only reskin the surface. */
 /* Starlight 0.41.3 */
 header.header {
 	border-bottom: var(--border);
+	background: var(--sl-color-bg-nav);
+	backdrop-filter: blur(14px);
+	-webkit-backdrop-filter: blur(14px);
+}
+
+/* Search: quiet bordered field, centered weight, mono shortcut hint. */
+/* Starlight 0.41.3 */
+header.header button[data-open-modal] {
+	border: 1px solid var(--sl-color-hairline);
+	border-radius: 999px;
+	background: transparent;
+	color: var(--muted);
+	font-size: var(--fs-sm);
+	transition:
+		border-color var(--dur-fast) var(--ease-out),
+		color var(--dur-fast) var(--ease-out);
+}
+header.header button[data-open-modal]:hover {
+	border-color: var(--sl-color-gray-4);
+	color: var(--sl-color-text);
+}
+header.header button[data-open-modal] kbd {
+	background: transparent;
+	border: 1px solid var(--sl-color-hairline);
+	border-radius: var(--radius-sm);
+	color: var(--muted);
 }
 
 /* ---- Sidebar ------------------------------------------------------------ */
@@ -18,7 +46,7 @@ header.header {
 .sidebar-content .group-label {
 	font-size: var(--fs-xs);
 	text-transform: uppercase;
-	letter-spacing: 0.06em;
+	letter-spacing: var(--tracking-wide);
 	color: var(--muted);
 	font-weight: 600;
 }
@@ -35,30 +63,38 @@ header.header {
 	padding-block: var(--sp-2);
 	font-size: var(--fs-sm);
 	color: var(--muted);
+	transition: color var(--dur-fast) var(--ease-out);
 }
 .sidebar-content a:hover {
 	color: var(--sl-color-text);
 	background: transparent;
 }
 
-/* Active: 2px orange left rule + weight, NO fill. The solid orange block was
- * the loudest element on the old site and contradicted the one-accent rule. */
+/* Active: accent left rule + heading-color text + a whisper of accent fill
+ * that fades to nothing. No solid filled box. */
 /* Starlight 0.41.3 */
 .sidebar-content a[aria-current='page'] {
 	border-left-color: var(--sl-color-accent);
-	color: var(--sl-color-text);
+	color: var(--heading);
 	font-weight: 500;
-	background: transparent;
+	background: linear-gradient(90deg, var(--accent-soft), transparent 70%);
 }
 
 /* ---- Right-rail TOC ----------------------------------------------------- */
-/* Same active-state language as the sidebar: orange text + 2px left rule. Two
- * different active treatments in one viewport is the incoherence being fixed. */
+/* Readable size (the old rail was --fs-xs and drowned), tight rhythm, same
+ * active language as the sidebar. */
 /* Starlight 0.41.3 */
+starlight-toc h2 {
+	font-size: var(--fs-sm);
+	font-weight: 600;
+	color: var(--heading);
+}
 starlight-toc a {
 	border-left: 2px solid transparent;
-	font-size: var(--fs-xs);
+	font-size: var(--fs-sm);
 	color: var(--muted);
+	padding-block: 0.2rem;
+	transition: color var(--dur-fast) var(--ease-out);
 }
 starlight-toc a:hover {
 	color: var(--sl-color-text);
@@ -69,21 +105,80 @@ starlight-toc a[aria-current='true'] {
 	color: var(--sl-color-text-accent);
 }
 
-/* ---- Pagination --------------------------------------------------------- */
+/* ---- Content panels ----------------------------------------------------- */
+/* Starlight separates the title panel from the body panel with a full-width
+ * border; combined with heading margins it read as an empty block under every
+ * page title. The hairline goes; the title's own spacing carries it. */
 /* Starlight 0.41.3 */
-.pagination-links a {
-	border: var(--border);
-	border-radius: var(--radius);
-	box-shadow: none;
+.content-panel + .content-panel {
+	border-top: 0;
+	padding-top: 0;
 }
-.pagination-links a:hover {
-	border-color: var(--sl-color-text);
-	background: transparent;
+.content-panel h1 {
+	letter-spacing: var(--tracking-tight);
+	color: var(--heading);
 }
 
-/* ---- Footer strip ------------------------------------------------------- */
-/* The credibility strip for an open-source launch. Rendered by Footer.astro on
- * every page, above Starlight's default footer content. */
+/* ---- Code-frame chrome (expressive-code) -------------------------------- */
+/* Docs code blocks stay quiet: no fake traffic lights, filename/command as a
+ * small mono label. The showpiece glass windows are CastFrame's job. */
+.expressive-code .frame.is-terminal .header::before {
+	display: none;
+}
+.expressive-code .frame.is-terminal .header {
+	justify-content: flex-start;
+	padding-inline-start: var(--sp-4);
+}
+/* A titleless terminal used to show a bar of three dots; with the dots gone it
+ * would be an empty strip. Drop it: the block reads as plain code. */
+.expressive-code .frame.is-terminal:not(.has-title) .header {
+	display: none;
+}
+.expressive-code .frame .header {
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
+	font-weight: 400;
+	color: var(--muted);
+}
+
+/* Copy button: compact ghost square that only appears on hover/focus; the
+ * icon swaps to a check via expressive-code's own feedback state, restyled as
+ * a small mint pill instead of the stock oversized tooltip. */
+.expressive-code .copy button {
+	width: 2rem;
+	height: 2rem;
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--sl-color-bg) 65%, transparent) !important;
+	border: 1px solid var(--sl-color-hairline);
+	backdrop-filter: blur(6px);
+	opacity: 0;
+	transition:
+		opacity var(--dur-fast) var(--ease-out),
+		border-color var(--dur-fast) var(--ease-out);
+}
+.expressive-code .frame:hover .copy button,
+.expressive-code .copy button:focus-visible,
+.expressive-code .copy button:hover {
+	opacity: 1;
+}
+.expressive-code .copy button:hover {
+	border-color: var(--sl-color-gray-4);
+}
+.expressive-code .copy button::after {
+	background-color: var(--muted);
+}
+.expressive-code .copy .feedback {
+	--tooltip-bg: var(--surface-raised);
+	background: var(--surface-raised);
+	border: 1px solid var(--sl-color-hairline);
+	color: var(--sl-color-text-accent);
+	font-size: var(--fs-xs);
+	font-weight: 500;
+	padding-inline: 0.5rem;
+	border-radius: 999px;
+}
+
+/* ---- Landing footer (splash only) --------------------------------------- */
 .ec-footer {
 	border-top: var(--border);
 	margin-top: var(--sp-9);
@@ -91,10 +186,24 @@ starlight-toc a[aria-current='true'] {
 }
 .ec-footer-cols {
 	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
+	grid-template-columns: 2fr repeat(4, minmax(0, 1fr));
 	gap: var(--sp-6) var(--sp-7);
 	max-width: var(--measure-splash);
 	margin-inline: auto;
+}
+.ec-footer-brand p {
+	margin: var(--sp-3) 0 0;
+	font-size: var(--fs-sm);
+	color: var(--muted);
+	line-height: var(--lh-snug);
+	max-width: 16rem;
+}
+.ec-footer-lockup {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.625rem;
+	font-weight: 600;
+	color: var(--heading);
 }
 .ec-footer-col h2 {
 	margin: 0 0 var(--sp-3);
@@ -103,7 +212,7 @@ starlight-toc a[aria-current='true'] {
 	font-size: var(--fs-xs);
 	font-weight: 600;
 	text-transform: uppercase;
-	letter-spacing: 0.06em;
+	letter-spacing: var(--tracking-wide);
 	color: var(--muted);
 }
 .ec-footer-col ul {
@@ -118,16 +227,15 @@ starlight-toc a[aria-current='true'] {
 	font-size: var(--fs-sm);
 	color: var(--muted);
 	text-decoration: none;
+	transition: color var(--dur-fast) var(--ease-out);
 }
 .ec-footer-col a:hover {
 	color: var(--sl-color-text);
 }
-.ec-footer-note {
-	font-size: var(--fs-sm);
-	color: var(--muted);
-	line-height: var(--lh-snug);
-}
 .ec-footer-baseline {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--sp-4);
 	max-width: var(--measure-splash);
 	margin: var(--sp-7) auto 0;
 	padding-top: var(--sp-5);
@@ -136,13 +244,41 @@ starlight-toc a[aria-current='true'] {
 	color: var(--muted);
 }
 
-@media (max-width: 50rem) {
+@media (max-width: 64rem) {
 	.ec-footer-cols {
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+	.ec-footer-brand {
+		grid-column: 1 / -1;
 	}
 }
 @media (max-width: 30rem) {
 	.ec-footer-cols {
 		grid-template-columns: 1fr;
 	}
+}
+
+/* ---- Docs footer (slim) -------------------------------------------------- */
+.ec-docs-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--sp-4);
+	margin-top: var(--sp-7);
+	padding-top: var(--sp-4);
+	border-top: var(--border);
+	font-size: var(--fs-xs);
+	color: var(--muted);
+}
+.ec-docs-footer-links {
+	display: inline-flex;
+	gap: var(--sp-4);
+}
+.ec-docs-footer a {
+	color: var(--muted);
+	text-decoration: none;
+	transition: color var(--dur-fast) var(--ease-out);
+}
+.ec-docs-footer a:hover {
+	color: var(--sl-color-text);
 }
