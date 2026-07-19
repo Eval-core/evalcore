@@ -11,3 +11,6 @@ __pycache__/
 # one is a deliberate act, not a default.
 examples/**/.evalcore/
 site/demo/**/.evalcore/
+
+# Local editor/vault state
+.obsidian/
