@@ -506,6 +506,7 @@ The `run` block is optional; every field has a default.
 | `trials` | integer or [trials block](#trials) | no | `1` | Run each case N times and aggregate. Since v0.7.0 (unreleased). |
 | `classification` | bool | no | `false` | Compute [classification aggregates](#classification) (accuracy, macro-F1, per-class metrics) over labeled cases. Since v0.7.0 (unreleased). |
 | `matrix` | list of target names | no | none | Run the whole suite once per named target and print a side-by-side [comparison](#matrix). At least two distinct names, each defined in `targets`. Since v0.7.0 (unreleased). |
+| `history` | bool | no | `true` | Append one run-history row per executed run (a matrix records one per arm) to `.evalcore/cache.db`, so [`evalcore serve`](../../guides/run-history-and-serve/) can list and diff past runs. `--no-history` overrides to false. Metadata only — the exit code, report bytes, and cache keys are identical either way, and a write failure is a warning, never a run failure. Since v0.7.0 (unreleased). |
 
 ```yaml
 run:

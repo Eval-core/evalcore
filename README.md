@@ -199,6 +199,17 @@ wins: echo 0 · upper 1 · ties 1
 
 Arms run sequentially in list order; each arm prices with its own target's `cost` rates and gets the full `budget_usd` (the per-run cost-rates gap, closed). The per-case winner is the arm with the strictly highest mean score (`1e-9` tie tolerance); an all-tie or score-less case is a tie. The run exits `0` iff **every** arm passes all its cases and gates. Combining `--matrix` with `--target`, `--baseline`, or `--save-baseline` is a hard error — baselines are per-run in v1. One cassette store serves every arm (each arm has its own cache identity), so `--cache replay` reruns the whole matrix offline.
 
+## Run history and a local viewer
+
+*Unreleased (on `main`).* Every run is recorded to your local store, and `evalcore serve` opens a read-only web viewer over that history — so "what did last night's run say?", the pass-rate trend, and "model A's run vs model B's" are all one click away.
+
+```sh
+evalcore run evals.yaml --matrix gpt,claude   # records a history row per arm (on by default; --no-history opts out)
+evalcore serve                                # serving http://127.0.0.1:7878
+```
+
+You get a listing (newest first, with a pass-rate sparkline), each run's full HTML report at `/run/{id}`, and a `/diff?a=&b=` that compares **any** two stored runs — yesterday vs today, or one target vs another. It is **local-first and read-only by design**: binds `127.0.0.1` only, GET-only, no auth (no remote access), no telemetry — nothing leaves your machine. History lives in the same `.evalcore/cache.db` as the cache, so committing it shares runs with teammates.
+
 ## Agent trajectories: evaluate what the agent *did*
 
 Agents aren't judged by their final answer alone — but the answer still matters. EvalCore ingests **recorded traces** — its own [native trajectory format](docs/trajectory-spec.md) or an OTel/OpenInference JSON export your framework already emits — and grades **the answer and the path in one suite**. No SDK, no integration, any language:

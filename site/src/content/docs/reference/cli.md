@@ -3,9 +3,9 @@ title: CLI reference
 description: The evalcore command — validate and run, every flag, the exit-code contract, output destinations, and env-var handling.
 ---
 
-The `evalcore` binary has two subcommands: `validate` (parse-check a config) and
-`run` (execute a suite). Both take the config path as their first positional
-argument.
+The `evalcore` binary has three subcommands: `validate` (parse-check a config),
+`run` (execute a suite), and `serve` (a local read-only viewer over run history).
+`validate` and `run` take the config path as their first positional argument.
 
 ```sh
 evalcore validate examples/quickstart/evals.yaml
@@ -55,6 +55,7 @@ through every scorer, renders a report, and returns an exit code.
 | `--cache` | `auto` \| `replay` \| `live` \| `off` | `auto` | Record/replay cache mode for cacheable targets. See [Cache modes](#cache-modes). |
 | `--baseline` | label | — | Gate on regressions against a stored baseline instead of absolute pass/fail. |
 | `--save-baseline` | label | — | Save this run's results as a named baseline. |
+| `--no-history` | flag | off | Do not append a run-history row for this run (overrides `run.history: true`). The exit code and report bytes are unaffected — history is metadata for [`evalcore serve`](#evalcore-serve). Since v0.7.0 (unreleased). |
 
 ### Target selection
 
@@ -217,3 +218,44 @@ existed.
 Times are latency in seconds (three decimals). Failure messages join a case's
 reasons with `; `. Every user-controlled value is XML-escaped. JUnit output does
 not include gate outcomes — the exit code carries the gate result.
+
+## `evalcore serve`
+
+Since v0.7.0 (unreleased). Starts a **local, read-only** web viewer over the
+[run history](../../guides/run-history-and-serve/) stored in a `.evalcore/cache.db`
+file. Unlike `validate` and `run`, it takes no config argument — it reads the
+store, not a config.
+
+```sh
+evalcore serve                              # reads .evalcore/cache.db, binds 127.0.0.1:7878
+evalcore serve --store path/db --port 9000  # explicit store and port
+```
+
+| Flag | Value | Default | Description |
+|---|---|---|---|
+| `--store` | path | `.evalcore/cache.db` | SQLite store to read run history from. |
+| `--port` | u16 | `7878` | Port to bind on `127.0.0.1`. |
+
+On start it prints the URL and runs until interrupted (Ctrl-C):
+
+```
+serving http://127.0.0.1:7878
+```
+
+**The bind address is fixed at `127.0.0.1` — localhost is the entire security
+model.** There is no bind-address knob, no auth (there is no remote access to
+authenticate), and no telemetry. Every route is a `GET` — any other method
+returns `405` — and the viewer only ever reads the store, so nothing it does can
+mutate history or leave the machine. Pages are self-contained HTML (inline CSS,
+no external requests, no JS) and every stored string is escaped.
+
+Three routes:
+
+| Route | Shows |
+|---|---|
+| `GET /` | The run listing, newest first: id, time, config, target, passed/failed/total, cost, a pass-rate sparkline, and a "diff vs previous same-target run" link. |
+| `GET /run/{id}` | That run's full detail — byte-for-byte the `--html` report. Unknown id → `404`; a non-integer id → `400`. |
+| `GET /diff?a=<id>&b=<id>` | Any two stored runs compared with the [matrix comparison](../../guides/comparing-models/) view. Missing/non-integer ids → `400`; an unknown id → `404`. |
+
+See the [Run history and serve guide](../../guides/run-history-and-serve/) for the
+workflow.

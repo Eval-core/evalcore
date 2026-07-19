@@ -93,6 +93,32 @@ All notable changes to EvalCore. Format loosely follows
   **Non-matrix runs are byte-identical everywhere** — a config with no `run.matrix`
   and no `--matrix` takes the unchanged single-target path.
 
+- **Run history — local persistence of past runs** (`run.history`): every
+  `evalcore run` appends one row per executed run to the `.evalcore/cache.db`
+  store (a matrix records **one row per arm**, keyed by the arm's target name),
+  capturing the full `RunSummary` with gates and classification attached — those
+  are what the viewer shows. On by default; `run.history: false` in the config or
+  `--no-history` on the CLI opts out. The row is written after gates and
+  classification are attached and before reporting, and a write failure is a
+  warning on stderr, **never a run failure** — the eval verdict never depends on
+  history I/O. Additive schema (a new `run_history` table beside the cache and
+  baseline tables, so pre-existing stores open unchanged); the exit code, report
+  bytes, and cache keys are byte-identical whether history is on or off.
+- **`evalcore serve` — a local, read-only run-history viewer**
+  (`evalcore serve [--store <path>] [--port <u16>]`): browse past runs in a
+  browser. It binds `127.0.0.1` only and prints `serving http://127.0.0.1:7878` —
+  **localhost is the entire security model**: read-only, GET-only (any other
+  method is a 405), no auth because there is no remote access, no telemetry,
+  nothing leaves the machine. Three pages: `/` lists every run newest-first (id,
+  time, config, target, passed/failed/total, cost) with an inline pass-rate
+  sparkline and a "diff vs the previous same-target run" link; `/run/{id}` is
+  byte-for-byte that run's `--html` report; `/diff?a=<id>&b=<id>` compares **any
+  two stored runs** with the matrix comparison renderer (model A's run vs model
+  B's, or yesterday vs today). Store defaults to `.evalcore/cache.db`, port to
+  `7878`; every page is self-contained (inline CSS, no external requests, no JS)
+  and escapes every stored string. New `evalcore-serve` crate — nothing depends
+  on it but the binary.
+
 ### Changed
 - **Duplicate case ids are now rejected at dataset load**, naming both lines:
   `duplicate case id "x" at <file>:<line> (first used at line <n>)`. Case ids key

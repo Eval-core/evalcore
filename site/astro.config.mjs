@@ -77,6 +77,7 @@ export default defineConfig({
 						{ label: 'Trials and statistics', slug: 'guides/trials-and-statistics' },
 						{ label: 'Classification', slug: 'guides/classification' },
 						{ label: 'Comparing models', slug: 'guides/comparing-models' },
+						{ label: 'Run history and serve', slug: 'guides/run-history-and-serve' },
 						{ label: 'HTML reports', slug: 'guides/html-reports' },
 					],
 				},
