@@ -3,13 +3,6 @@ title: Classification
 description: Score a label-prediction suite — accuracy, macro-averaged F1, and per-class precision/recall over your labeled cases, with gates you can put in CI.
 ---
 
-:::note[Requires an unreleased build]
-`run.classification` lands in **0.7.0** (unreleased; the current release is 0.6.0).
-Until 0.7.0 ships, install from source —
-`cargo install --git https://github.com/eval-core/evalcore` — or build the
-workspace locally.
-:::
-
 Not every eval is open-ended generation. Intent routing, sentiment, spam/not-spam,
 support-ticket triage — these ask the model to pick one label from a fixed set,
 and the question you want answered is "how often does it pick the right one,

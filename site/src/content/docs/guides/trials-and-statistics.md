@@ -3,13 +3,6 @@ title: Trials and statistics
 description: Run every case N times and aggregate — because one sample of a stochastic model isn't a measurement. Trials, require policies, how verdicts and scores fold together, and the determinism story.
 ---
 
-:::note[Requires an unreleased build]
-`run.trials` lands in **0.7.0** (unreleased; the current release is 0.6.0).
-Until 0.7.0 ships, install from source —
-`cargo install --git https://github.com/eval-core/evalcore` — or build the
-workspace locally.
-:::
-
 An LLM is a stochastic system: send the same prompt twice and you can get two
 different answers. A single run samples that distribution exactly once, so a
 green suite might mean "the model reliably does the right thing" or "the model

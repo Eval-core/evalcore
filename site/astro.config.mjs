@@ -13,10 +13,16 @@ export default defineConfig({
 			title: 'EvalCore',
 			description:
 				'Snapshot testing for AI behavior: a single-binary, config-first eval runner for LLM apps and agents.',
-			favicon: '/favicon.svg',
-			// Self-hosted fonts (no external requests). The site title set in Inter
-			// is the brand — there is no logo. Order matters: fonts first, then the
-			// theme that references them.
+			favicon: '/favicon.png',
+			// The mark: orbit-and-check symbol next to the wordmark. Light/dark
+			// variants because the near-black strokes would vanish on the dark bg.
+			logo: {
+				light: './src/assets/logo-light.png',
+				dark: './src/assets/logo-dark.png',
+				alt: 'EvalCore',
+			},
+			// Self-hosted fonts (no external requests). Order matters: fonts first,
+			// then the theme that references them.
 			customCss: [
 				'@fontsource-variable/inter',
 				'@fontsource/jetbrains-mono/400.css',

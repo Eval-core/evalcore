@@ -1,4 +1,9 @@
-# EvalCore
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/evalcore-lockup-dark.png">
+    <img src="assets/evalcore-lockup.png" alt="EvalCore" width="380">
+  </picture>
+</p>
 
 **Snapshot testing for AI behavior.** A single-binary, config-first eval runner for LLM apps and agents — deterministic in CI via record/replay caching, extensible from any language, with agent-trajectory evaluation over OpenTelemetry traces.
 
@@ -17,7 +22,7 @@ cargo install evalcore                 # from crates.io
 In GitHub Actions, one step runs a suite and gates the job (report lands in the step summary):
 
 ```yaml
-- uses: eval-core/evalcore@v0.6.0
+- uses: eval-core/evalcore@v0.7.0
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
@@ -58,7 +63,7 @@ Scorers range from deterministic checks (`contains`, `exact`, `regex`, and `json
     threshold: 0.7
 ```
 
-Judge calls go through the record/replay cache too — replayed judge verdicts are deterministic, which is what makes LLM-graded suites usable as CI gates. (`json-schema` and `similarity` are unreleased — available on `main` ahead of the next tag; embedding calls cache and replay just like the judge.)
+Judge calls go through the record/replay cache too — replayed judge verdicts are deterministic, which is what makes LLM-graded suites usable as CI gates. Embedding calls (`similarity`) cache and replay just like the judge.
 
 ```jsonl
 {"id": "refund-1", "input": "How do I get a refund for my order?"}
@@ -85,7 +90,7 @@ Treat the cache file like VCR cassettes: commit it, and CI runs `--cache replay`
 
 ## Trials: measure, don't sample
 
-*Unreleased (on `main`).* An LLM is stochastic — one run samples its behavior once, so a green suite might just be a lucky roll. `run.trials` runs every case N times and aggregates, so you can gate on how *often* a case passes:
+An LLM is stochastic — one run samples its behavior once, so a green suite might just be a lucky roll. `run.trials` runs every case N times and aggregates, so you can gate on how *often* a case passes:
 
 ```yaml
 run:
@@ -178,11 +183,11 @@ run:
       min: 0.8                 # any finite number (subprocess scorers may use arbitrary scales)
 ```
 
-Floors compare with a `1e-9` tolerance to absorb floating-point rounding, so a run that exactly meets its floor passes. Gates are *additive absolute floors*: the run exits `1` if the existing contract fails (any case failed, or with `--baseline` a regression) **or** any gate falls below its floor — so with `--baseline`, an accepted failure stays tolerated per-case, yet still sinks a `pass_rate` gate it drops below. Target-error cases count in `pass_rate`'s denominator but contribute no scores to `mean_score`, so pair a `mean_score` gate with a `pass_rate` gate to catch error storms. Gate outcomes print after the summary (`GATE PASS pass_rate >= 0.95 (actual 1.00)`) and ride along in the JSON report; JUnit is unchanged — the exit code carries the gate result for CI. *Unreleased (on `main`):* for label-prediction suites, `run.classification` adds `accuracy` and `macro_f1` gates (each a `min` in `[0,1]`) that gate on the metrics over cases carrying an `expected` label, printing `classification: accuracy 0.67 · macro-F1 0.67 (3 labeled, 1 unlabeled)`.
+Floors compare with a `1e-9` tolerance to absorb floating-point rounding, so a run that exactly meets its floor passes. Gates are *additive absolute floors*: the run exits `1` if the existing contract fails (any case failed, or with `--baseline` a regression) **or** any gate falls below its floor — so with `--baseline`, an accepted failure stays tolerated per-case, yet still sinks a `pass_rate` gate it drops below. Target-error cases count in `pass_rate`'s denominator but contribute no scores to `mean_score`, so pair a `mean_score` gate with a `pass_rate` gate to catch error storms. Gate outcomes print after the summary (`GATE PASS pass_rate >= 0.95 (actual 1.00)`) and ride along in the JSON report; JUnit is unchanged — the exit code carries the gate result for CI. For label-prediction suites, `run.classification` adds `accuracy` and `macro_f1` gates (each a `min` in `[0,1]`) that gate on the metrics over cases carrying an `expected` label, printing `classification: accuracy 0.67 · macro-F1 0.67 (3 labeled, 1 unlabeled)`.
 
 ## Matrix runs: compare models side by side
 
-*Unreleased (on `main`).* Comparing two models — or two prompts, or two deployed endpoints — used to mean running the suite twice and diffing reports by eye. A matrix runs the whole suite once per target in a single invocation and prints a side-by-side comparison. The two things you compare are just two targets (different `model`s, or the same model with different `system` prompts):
+Comparing two models — or two prompts, or two deployed endpoints — used to mean running the suite twice and diffing reports by eye. A matrix runs the whole suite once per target in a single invocation and prints a side-by-side comparison. The two things you compare are just two targets (different `model`s, or the same model with different `system` prompts):
 
 ```yaml
 run:
@@ -201,7 +206,7 @@ Arms run sequentially in list order; each arm prices with its own target's `cost
 
 ## Run history and a local viewer
 
-*Unreleased (on `main`).* Every run is recorded to your local store, and `evalcore serve` opens a read-only web viewer over that history — so "what did last night's run say?", the pass-rate trend, and "model A's run vs model B's" are all one click away.
+Every run is recorded to your local store, and `evalcore serve` opens a read-only web viewer over that history — so "what did last night's run say?", the pass-rate trend, and "model A's run vs model B's" are all one click away.
 
 ```sh
 evalcore run evals.yaml --matrix gpt,claude   # records a history row per arm (on by default; --no-history opts out)

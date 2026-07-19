@@ -3,13 +3,6 @@ title: Semantic similarity
 description: Grade an answer by how close it is in meaning to the expected answer — cosine similarity over embeddings, cached and deterministic like the judge, via any OpenAI-compatible /embeddings endpoint.
 ---
 
-:::note[Requires an unreleased build]
-The `similarity` scorer lands in **0.7.0** (unreleased; the current release is
-0.6.0). Until 0.7.0 ships, install from source —
-`cargo install --git https://github.com/eval-core/evalcore` — or build the
-workspace locally.
-:::
-
 `contains` and `exact` grade an answer by its exact characters, which is too
 strict when the right answer can be phrased many ways. The `similarity` scorer
 grades by **meaning**: it embeds the case's `expected` answer and the target's

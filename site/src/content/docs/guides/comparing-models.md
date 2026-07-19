@@ -3,13 +3,6 @@ title: Comparing models
 description: Run one suite against several targets in a single invocation and get a side-by-side comparison — model A vs B, prompt v1 vs v2 — with per-case winners, per-target cost, and one exit code for CI.
 ---
 
-:::note[Requires an unreleased build]
-`run.matrix` lands in **0.7.0** (unreleased; the current release is 0.6.0).
-Until 0.7.0 ships, install from source —
-`cargo install --git https://github.com/eval-core/evalcore` — or build the
-workspace locally.
-:::
-
 Every eval so far has pointed one suite at one target. But the questions that
 actually drive a model decision are comparative: *is the cheaper model good
 enough?* *did the new system prompt regress anything?* *which of these two

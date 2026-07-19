@@ -3,13 +3,6 @@ title: Run history and serve
 description: EvalCore records every run to a local SQLite file and serves a read-only web viewer over it — browse past runs, watch the pass-rate trend, and diff any two runs (model A vs B, yesterday vs today). Local-first, so nothing leaves your machine.
 ---
 
-:::note[Requires an unreleased build]
-Run history and `evalcore serve` land in **0.7.0** (unreleased; the current
-release is 0.6.0). Until 0.7.0 ships, install from source —
-`cargo install --git https://github.com/eval-core/evalcore` — or build the
-workspace locally.
-:::
-
 Every `evalcore run` already tells you whether *this* run passed. But the
 questions that come up a day later are historical: *is the pass rate trending
 down?* *what did last night's run actually say?* *how does model A's run compare

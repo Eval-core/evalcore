@@ -4,7 +4,7 @@ All notable changes to EvalCore. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com); versions follow semver
 (pre-1.0: minor bumps may break APIs and config).
 
-## [Unreleased]
+## [0.7.0] — 2026-07-18
 
 ### Added
 - **Trials — statistical evals** (`run.trials`): run every case N times and

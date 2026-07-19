@@ -48,14 +48,14 @@ through every scorer, renders a report, and returns an exit code.
 | Flag | Value | Default | Description |
 |---|---|---|---|
 | `--target` | name | — | Target to run. May be omitted only when exactly one target is defined; with several, omitting it is an error naming the available targets. |
-| `--matrix` | comma list of names | — | Run the whole suite against several targets and print a side-by-side comparison. At least two distinct, defined names. Overrides `run.matrix`. Mutually exclusive with `--target`, `--baseline`, `--save-baseline`. Since v0.7.0 (unreleased). See [Matrix runs](#matrix-runs). |
+| `--matrix` | comma list of names | — | Run the whole suite against several targets and print a side-by-side comparison. At least two distinct, defined names. Overrides `run.matrix`. Mutually exclusive with `--target`, `--baseline`, `--save-baseline`. Since v0.7.0. See [Matrix runs](#matrix-runs). |
 | `--reporter` | `terminal` \| `json` \| `junit` | `terminal` | Report format. See [Reporters](#reporters). |
 | `--output` | path | — | Write the report to a file instead of stdout. |
 | `--html` | path | — | Also write a self-contained HTML report to this path, in addition to the primary `--reporter` output. Since v0.5.0. |
 | `--cache` | `auto` \| `replay` \| `live` \| `off` | `auto` | Record/replay cache mode for cacheable targets. See [Cache modes](#cache-modes). |
 | `--baseline` | label | — | Gate on regressions against a stored baseline instead of absolute pass/fail. |
 | `--save-baseline` | label | — | Save this run's results as a named baseline. |
-| `--no-history` | flag | off | Do not append a run-history row for this run (overrides `run.history: true`). The exit code and report bytes are unaffected — history is metadata for [`evalcore serve`](#evalcore-serve). Since v0.7.0 (unreleased). |
+| `--no-history` | flag | off | Do not append a run-history row for this run (overrides `run.history: true`). The exit code and report bytes are unaffected — history is metadata for [`evalcore serve`](#evalcore-serve). Since v0.7.0. |
 
 ### Target selection
 
@@ -66,7 +66,7 @@ targets defined; pass --target <name> (available: …)`.
 
 ### Matrix runs
 
-Since v0.7.0 (unreleased). `--matrix <name,name,…>` runs the whole suite once
+Since v0.7.0. `--matrix <name,name,…>` runs the whole suite once
 per named target, sequentially in list order, and prints each arm's report
 followed by a `== comparison` table. It overrides `run.matrix` in the config;
 either surface needs at least two distinct, defined names. `run.budget_usd`
@@ -221,7 +221,7 @@ not include gate outcomes — the exit code carries the gate result.
 
 ## `evalcore serve`
 
-Since v0.7.0 (unreleased). Starts a **local, read-only** web viewer over the
+Since v0.7.0. Starts a **local, read-only** web viewer over the
 [run history](../../guides/run-history-and-serve/) stored in a `.evalcore/cache.db`
 file. Unlike `validate` and `run`, it takes no config argument — it reads the
 store, not a config.
