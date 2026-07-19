@@ -1,0 +1,138 @@
+---
+// Hand-built animated terminal for the hero: crisp DOM text instead of video,
+// wrapped in the same glass chrome as CastFrame. It types the quickstart run,
+// then the $0 replay, and loops. Every line is real output from the binary —
+// the script only reveals what the recording would show, pixel-perfect at any
+// density. With reduced motion (or no JS) the finished live run is shown.
+---
+
+<div class="ec-term" data-ec-term>
+	<div class="ec-term-bar">
+		<span class="ec-term-lights" aria-hidden="true"><i></i><i></i><i></i></span>
+		<span class="ec-term-title">evalcore — bash</span>
+		<span class="ec-term-spacer" aria-hidden="true"></span>
+	</div>
+	<div class="ec-term-body" role="img" aria-label="Terminal: evalcore runs a four-case suite live, every case passes and the gate holds; the same run replays from the cassette at zero milliseconds and zero dollars.">
+		<pre class="ec-term-screen" data-screen aria-hidden="true"></pre>
+		<noscript>
+			<pre class="ec-term-screen">$ evalcore run evals.yaml
+<span class="t-pass">✓ PASS</span> late-refund <span class="t-dim">(11ms)</span>
+<span class="t-pass">✓ PASS</span> fee-dispute <span class="t-dim">(10ms)</span>
+<span class="t-pass">✓ PASS</span> card-lost <span class="t-dim">(10ms)</span>
+<span class="t-pass">✓ PASS</span> wire-eta <span class="t-dim">(9ms)</span>
+
+<span class="t-bold t-pass">4 passed, 0 failed, 4 total</span>
+GATE <span class="t-pass">✓ PASS</span> pass_rate &gt;= 0.95 <span class="t-dim">(actual 1.00)</span></pre>
+		</noscript>
+	</div>
+</div>
+
+<script>
+	// Two acts, looped: the live run, then the replay. Lines are [html, delay-ms].
+	const ACTS: [string, number][][] = [
+		[
+			['<span class="t-prompt">$</span> <span class="t-cmd">evalcore run evals.yaml</span>', 0],
+			['<span class="t-pass">✓ PASS</span> late-refund <span class="t-dim">(11ms)</span>', 500],
+			['<span class="t-pass">✓ PASS</span> fee-dispute <span class="t-dim">(10ms)</span>', 160],
+			['<span class="t-pass">✓ PASS</span> card-lost <span class="t-dim">(10ms)</span>', 160],
+			['<span class="t-pass">✓ PASS</span> wire-eta <span class="t-dim">(9ms)</span>', 160],
+			['', 120],
+			['<span class="t-bold t-pass">4 passed, 0 failed, 4 total</span>', 240],
+			[
+				'GATE <span class="t-pass">✓ PASS</span> pass_rate &gt;= 0.95 <span class="t-dim">(actual 1.00)</span>',
+				240,
+			],
+		],
+		[
+			[
+				'<span class="t-prompt">$</span> <span class="t-cmd">evalcore run evals.yaml --cache replay</span>',
+				0,
+			],
+			['<span class="t-pass">✓ PASS</span> late-refund <span class="t-dim">(0ms)</span>', 320],
+			['<span class="t-pass">✓ PASS</span> fee-dispute <span class="t-dim">(0ms)</span>', 90],
+			['<span class="t-pass">✓ PASS</span> card-lost <span class="t-dim">(0ms)</span>', 90],
+			['<span class="t-pass">✓ PASS</span> wire-eta <span class="t-dim">(0ms)</span>', 90],
+			['', 120],
+			['<span class="t-bold t-pass">4 passed, 0 failed, 4 total</span> <span class="t-dim">· offline · $0</span>', 240],
+			['<span class="t-dim"># no network, no keys, no flaky judges</span>', 420],
+		],
+	];
+
+	const TYPE_MS = 34;
+
+	function finalFrame(act: number): string {
+		return ACTS[act].map(([html]) => html).join('\n');
+	}
+
+	function init(root: Element) {
+		const screen = root.querySelector('[data-screen]');
+		if (!(screen instanceof HTMLElement)) return;
+
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			screen.innerHTML = finalFrame(0);
+			return;
+		}
+
+		let act = 0;
+		let timer = 0;
+		const schedule = (fn: () => void, ms: number) => {
+			timer = window.setTimeout(fn, ms);
+		};
+
+		// Type the command character by character, then reveal output lines.
+		function playAct() {
+			const lines = ACTS[act];
+			const cmdText = (lines[0][0].match(/t-cmd">([^<]*)</) ?? [])[1] ?? '';
+			let shown: string[] = [];
+			let i = 0;
+
+			function typeCmd() {
+				i += 1;
+				screen.innerHTML =
+					`<span class="t-prompt">$</span> <span class="t-cmd">${cmdText.slice(0, i)}</span>` +
+					'<span class="t-cursor"></span>';
+				if (i < cmdText.length) schedule(typeCmd, TYPE_MS);
+				else {
+					shown = [lines[0][0]];
+					schedule(() => reveal(1), 360);
+				}
+			}
+
+			function reveal(n: number) {
+				if (n >= lines.length) {
+					schedule(nextAct, 3400);
+					return;
+				}
+				shown.push(lines[n][0]);
+				screen.innerHTML = shown.join('\n') + '<span class="t-cursor"></span>';
+				schedule(() => reveal(n + 1), lines[n + 1]?.[1] ?? 800);
+			}
+
+			schedule(typeCmd, lines[1][1]);
+		}
+
+		function nextAct() {
+			act = (act + 1) % ACTS.length;
+			playAct();
+		}
+
+		// Start when scrolled into view; pause-free once running (it's cheap).
+		const io = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((e) => e.isIntersecting)) {
+					io.disconnect();
+					playAct();
+				}
+			},
+			{ threshold: 0.25 }
+		);
+		io.observe(root);
+
+		// Belt and braces: never leak the timer across Astro view transitions.
+		document.addEventListener('astro:before-swap', () => window.clearTimeout(timer), {
+			once: true,
+		});
+	}
+
+	document.querySelectorAll('[data-ec-term]').forEach(init);
+</script>

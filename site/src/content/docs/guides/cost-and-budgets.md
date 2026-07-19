@@ -75,10 +75,9 @@ Semantics to internalize:
 - Skipped cases are failures with a reason, following the "failures are data"
   rule. They count as failed cases, so the run exits `1`, and you can see exactly
   which cases were skipped and why in the report.
-- A budget requires rates. `budget_usd` needs a priced call to accumulate
-  against — the target's `cost:` rates, a `judge` scorer's `cost:` rates, or
-  both. Cost is measured from token usage, so without any rates there's nothing
-  to accumulate.
+- A budget requires rates. `budget_usd` needs the target to declare `cost:`
+  rates, since cost is measured from token usage and without rates there's
+  nothing to accumulate against.
 - Validation rejects a non-positive `budget_usd`.
 
 ## Cost in replay mode: recorded usage, $0 actual
@@ -121,28 +120,14 @@ The shipped agent-trace example shows this. One case's OTel trace carries
 See [Agents and traces](/guides/agents-and-traces/) for how usage is
 extracted from spans.
 
-## Judge calls are counted too
-
-LLM-judge tokens count toward the run's token total, and — when the `judge`
-scorer declares its own `cost:` block — its dollars fold into the case cost, the
-run total, and `run.budget_usd`, exactly like target spend:
-
-```yaml
-scorers:
-  - type: judge
-    url: https://api.openai.com/v1
-    model: gpt-4.1-mini
-    api_key_env: OPENAI_API_KEY
-    rubric: "Is the answer grounded in the provided context?"
-    cost:
-      input_per_1m: 0.15
-      output_per_1m: 0.60
-```
-
-Without a judge `cost:` block, judge tokens still show up in the token total but
-carry no dollar figure. Only the `judge` scorer is metered today; the
-`similarity` scorer's embedding calls are not yet costed. See
+:::caution[Known gap]
+**LLM-judge calls are not yet included in cost totals or budgets.**
+The reported tokens and `$` reflect the *target's* usage only. A judge-heavy
+suite spends real money on grading that the `$` line does not show, and those
+calls do not count against `run.budget_usd`. This is a documented roadmap gap.
+Budget for judge calls separately for now. See
 [LLM-as-judge](/guides/llm-as-judge/).
+:::
 
 For field-level details, see the
 [configuration reference](/reference/configuration/).

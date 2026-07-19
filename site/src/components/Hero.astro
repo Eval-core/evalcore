@@ -1,11 +1,12 @@
 ---
-// Custom splash hero. Overrides Starlight's default so the landing gets a real
-// composed hero — eyebrow, headline, subhead, buttons, and a trust row — with
-// deliberate spacing, instead of the default's loose stack. Content still comes
-// from the page's `hero:` frontmatter so the copy lives with the page.
+// Custom splash hero. Composed layout — badge, two-tone headline, subhead,
+// actions, a mono proof strip, and the animated terminal — with a masked
+// grid/glow background that fades out instead of clipping. Copy comes from
+// the page's `hero:` frontmatter so it lives with the page.
+import HeroTerminal from './landing/HeroTerminal.astro';
+
 const route = Astro.locals.starlightRoute;
 const hero = route.entry.data.hero ?? {};
-const title = hero.title ?? route.entry.data.title;
 const tagline = hero.tagline ?? '';
 const actions = hero.actions ?? [];
 
@@ -15,26 +16,53 @@ const href = (link = '') =>
 		? link
 		: `${base.replace(/\/$/, '')}/${link.replace(/^\//, '')}`;
 
-const trust = ['Offline', '$0 in CI', 'No telemetry', 'Any language'];
+const proof = ['$0 in CI', 'offline replay', 'no telemetry', 'any language'];
 ---
 
 <section class="ec-hero">
+	<div class="ec-hero-bg" aria-hidden="true"></div>
 	<div class="ec-hero-glow" aria-hidden="true"></div>
-	<p class="ec-eyebrow">The eval engine for AI systems</p>
-	<h1 class="ec-hero-title">{title}</h1>
+
+	<p class="ec-eyebrow"><span class="ec-eyebrow-dot" aria-hidden="true"></span>Snapshot testing for AI behavior</p>
+
+	<h1 class="ec-hero-title">
+		Know when your AI gets worse,<br />
+		<span class="ec-hero-title-muted">before your users do.</span>
+	</h1>
+
 	{tagline && <p class="ec-hero-tagline">{tagline}</p>}
+
 	{
 		actions.length > 0 && (
 			<div class="ec-hero-actions">
 				{actions.map((a) => (
 					<a href={href(a.link)} class={`ec-btn ec-btn-${a.variant ?? 'secondary'}`}>
 						{a.text}
+						{a.variant === 'primary' && (
+							<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+								<path d="M9 5l7 7-7 7" />
+							</svg>
+						)}
 					</a>
 				))}
 			</div>
 		)
 	}
-	<ul class="ec-hero-trust" aria-label="At a glance">
-		{trust.map((t) => <li>{t}</li>)}
+
+	<ul class="ec-hero-proof" aria-label="At a glance">
+		{
+			proof.map((t) => (
+				<li>
+					<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M5 13l5 5 9-11" />
+					</svg>
+					{t}
+				</li>
+			))
+		}
 	</ul>
+
+	<div class="ec-hero-terminal">
+		<HeroTerminal />
+	</div>
 </section>

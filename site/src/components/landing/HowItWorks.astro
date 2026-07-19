@@ -1,0 +1,128 @@
+---
+// The three-step story, told as one connected walkthrough instead of three
+// stacked code dumps: an annotated suite file, the live run that records the
+// cassette, and the $0 replay that gates CI. Copy stays short; the visuals
+// carry the explanation.
+---
+
+<section class="ec-how" id="how-it-works">
+	<header class="ec-how-head">
+		<h2>One file. One live run. Replay forever.</h2>
+		<p>
+			An eval is a YAML file plus a JSONL dataset. Run it once against the real model to record a
+			cassette, then CI replays the recording on every change: offline, keyless, deterministic.
+		</p>
+	</header>
+
+	<ol class="ec-steps">
+		<!-- Step 1 -->
+		<li class="ec-step">
+			<div class="ec-step-copy">
+				<span class="ec-step-num" aria-hidden="true">1</span>
+				<h3>Describe the suite as data</h3>
+				<p>
+					No SDK, no test harness. Point a target at your app, list the dataset, stack scorers on
+					top. Anything that speaks HTTP or shell is a target; your app's language never matters.
+				</p>
+				<a class="ec-step-link" href="/reference/configuration/">Configuration reference</a>
+			</div>
+			<figure class="ec-step-visual">
+				<div class="ec-editor">
+					<div class="ec-editor-bar"><span class="ec-editor-name">evals.yaml</span></div>
+					<div class="ec-yaml">
+						<div class="ec-yaml-seg">
+							<span class="ec-seg-chip">Target — your app</span>
+							<pre><span class="y-key">targets</span>:
+  <span class="y-key">support-bot</span>:
+    <span class="y-key">type</span>: <span class="y-str">openai-compatible</span>
+    <span class="y-key">model</span>: <span class="y-str">gpt-4.1-mini</span></pre>
+						</div>
+						<div class="ec-yaml-seg">
+							<span class="ec-seg-chip">Dataset — your cases</span>
+							<pre><span class="y-key">datasets</span>:
+  - <span class="y-key">file</span>: <span class="y-str">cases.jsonl</span></pre>
+						</div>
+						<div class="ec-yaml-seg">
+							<span class="ec-seg-chip">Scorers — what "good" means</span>
+							<pre><span class="y-key">scorers</span>:
+  - <span class="y-key">type</span>: <span class="y-str">contains</span>
+    <span class="y-key">value</span>: <span class="y-str">refund</span>
+  - <span class="y-key">type</span>: <span class="y-str">judge</span>
+    <span class="y-key">rubric</span>: <span class="y-str">Is the answer grounded?</span></pre>
+						</div>
+					</div>
+				</div>
+			</figure>
+		</li>
+
+		<!-- Step 2 -->
+		<li class="ec-step">
+			<div class="ec-step-copy">
+				<span class="ec-step-num" aria-hidden="true">2</span>
+				<h3>Run it once, live</h3>
+				<p>
+					The first run calls the real model and records every request and response to a local
+					SQLite cassette, keyed on a hash of the canonical request. Tokens and cost land on the
+					summary.
+				</p>
+				<a class="ec-step-link" href="/guides/record-replay/">How recording works</a>
+			</div>
+			<figure class="ec-step-visual">
+				<div class="ec-shot">
+					<div class="ec-shot-bar"><span>$ evalcore run evals.yaml</span></div>
+					<pre class="ec-shot-body"><span class="t-pass">✓ PASS</span> late-refund <span class="t-dim">(843ms)</span>
+<span class="t-pass">✓ PASS</span> fee-dispute <span class="t-dim">(512ms)</span>
+
+<span class="t-bold t-pass">2 passed, 0 failed, 2 total</span> <span class="t-dim">· 2202 tokens · $0.0038</span></pre>
+					<div class="ec-shot-note">
+						<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/><path d="M8 13.6 h8"/></svg>
+						recorded to <code>.evalcore/cache.db</code> — commit it
+					</div>
+				</div>
+			</figure>
+		</li>
+
+		<!-- Step 3 -->
+		<li class="ec-step">
+			<div class="ec-step-copy">
+				<span class="ec-step-num" aria-hidden="true">3</span>
+				<h3>Replay in CI: $0, offline, deterministic</h3>
+				<p>
+					Every PR replays the cassette. No network, no API keys, no flaky judge: identical inputs
+					produce identical verdicts, and <code>--baseline main</code> fails only on regressions.
+					CI gates on the exit code.
+				</p>
+				<a class="ec-step-link" href="/guides/running-in-ci/">Running in CI</a>
+			</div>
+			<figure class="ec-step-visual">
+				<div class="ec-replay">
+					<div class="ec-replay-cols">
+						<div class="ec-replay-col">
+							<span class="ec-replay-label">live run</span>
+							<ul>
+								<li>843ms <span class="t-dim">/case</span></li>
+								<li>$0.0038</li>
+								<li>network + keys</li>
+							</ul>
+						</div>
+						<div class="ec-replay-arrow" aria-hidden="true">
+							<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+						</div>
+						<div class="ec-replay-col ec-replay-col-accent">
+							<span class="ec-replay-label">replay in CI</span>
+							<ul>
+								<li>0ms <span class="t-dim">/case</span></li>
+								<li>$0</li>
+								<li>fully offline</li>
+							</ul>
+						</div>
+					</div>
+					<div class="ec-replay-exit">
+						<code>evalcore run evals.yaml --cache replay --baseline main</code>
+						<span class="ec-exit-badge"><i aria-hidden="true"></i>exit 0</span>
+					</div>
+				</div>
+			</figure>
+		</li>
+	</ol>
+</section>

@@ -1,0 +1,36 @@
+---
+// Closing call to action: one glass panel, the install command with a working
+// copy button, and the two paths in. No glow theatrics — the panel earns
+// attention with contrast and space.
+---
+
+<section class="ec-cta">
+	<h2>Ship your first eval in minutes</h2>
+	<p>One dependency-free binary. No telemetry, no signup, no server.</p>
+	<div class="ec-cta-cmd">
+		<code id="ec-install-cmd">cargo install evalcore</code>
+		<button type="button" class="ec-copy" data-copy="cargo install evalcore" aria-label="Copy install command">
+			<svg class="ec-copy-icon" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+			<svg class="ec-copy-check" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l5 5 9-11"/></svg>
+		</button>
+	</div>
+	<div class="ec-cta-actions">
+		<a class="ec-btn ec-btn-primary" href="/getting-started/quickstart/">Get started</a>
+		<a class="ec-btn ec-btn-secondary" href="/getting-started/installation/">All install options</a>
+	</div>
+	<p class="ec-cta-note">No Rust toolchain? Prebuilt binaries cover macOS, Linux, and CI runners.</p>
+</section>
+
+<script>
+	document.querySelectorAll<HTMLButtonElement>('.ec-copy').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			try {
+				await navigator.clipboard.writeText(btn.dataset.copy ?? '');
+				btn.classList.add('is-copied');
+				window.setTimeout(() => btn.classList.remove('is-copied'), 1600);
+			} catch {
+				/* clipboard blocked: the command is selectable text right next door */
+			}
+		});
+	});
+</script>

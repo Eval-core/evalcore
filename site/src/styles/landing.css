@@ -1,288 +1,961 @@
-/* Landing page (splash template) — stripped, typographic presentation.
+/* Landing page — hero, walkthrough, feature explorer, CTA.
  *
- * Every landing-only class is namespaced `ec-` so no future Starlight internal
- * can collide with it (the `.stack` name clashed with Starlight's own hero flex
- * container). Starlight-owned selectors inside .hero are marked with the version.
+ * Everything reads from tokens.css. The landing is custom components inside
+ * Starlight's splash template; these styles are scoped by ec-/fx- prefixes.
  */
 
-/* ---- Splash column ------------------------------------------------------ */
-/* Splash pages carry no sidebar, but Starlight still reserves --sl-sidebar-width
- * and offsets the column with an asymmetric margin, leaving it left of center.
- * Reclaim full width and center the content column symmetrically. */
-/* Starlight 0.41.3 */
-:root[data-has-hero] .main-pane {
-	width: 100%;
-	--sl-content-margin-inline: auto;
+/* ---- Splash shell ------------------------------------------------------- */
+/* Let landing sections use the wide measure; Starlight's prose width applies
+ * only to actual prose. */
+[data-has-hero] .sl-markdown-content {
+	max-width: none;
+}
+[data-has-hero] .sl-markdown-content > section,
+[data-has-hero] .sl-markdown-content > p.ec-stack {
+	max-width: var(--measure-splash);
+	margin-inline: auto;
 }
 
-/* ---- Hero: composed, centered, layered light --------------------------- */
+/* ---- Hero --------------------------------------------------------------- */
 .ec-hero {
 	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
 	text-align: center;
-	padding-block: var(--sp-8) var(--sp-6);
-	margin-bottom: var(--sp-2);
-	overflow: hidden;
+	padding: var(--sp-9) var(--sp-4) var(--sp-8);
+	isolation: isolate;
 }
-/* A faint line grid that dissolves toward the edges via a radial mask, so it
- * reads as depth rather than a flat overlay. */
-.ec-hero::before {
-	content: '';
+
+/* Grid that fades out on every side — no hard clipping edge. */
+.ec-hero-bg {
 	position: absolute;
-	inset: -1px 0 0 0;
+	inset: -1px 0 auto;
+	height: 640px;
+	z-index: -2;
 	background-image:
-		linear-gradient(to right, color-mix(in srgb, var(--sl-color-hairline) 60%, transparent) 1px, transparent 1px),
-		linear-gradient(to bottom, color-mix(in srgb, var(--sl-color-hairline) 60%, transparent) 1px, transparent 1px);
-	background-size: 58px 58px;
-	mask-image: radial-gradient(ellipse 65% 62% at 50% 22%, #000 20%, transparent 72%);
-	-webkit-mask-image: radial-gradient(ellipse 65% 62% at 50% 22%, #000 20%, transparent 72%);
-	z-index: 0;
-	pointer-events: none;
+		linear-gradient(var(--sl-color-hairline-light) 1px, transparent 1px),
+		linear-gradient(90deg, var(--sl-color-hairline-light) 1px, transparent 1px);
+	background-size: 56px 56px;
+	mask-image: radial-gradient(ellipse 70% 60% at 50% 32%, black 30%, transparent 75%);
+	-webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 32%, black 30%, transparent 75%);
 }
-/* One warm radial glow behind the headline for depth. */
+
+/* One quiet mint bloom behind the headline. */
 .ec-hero-glow {
 	position: absolute;
-	inset: -160px 0 auto 0;
-	height: 520px;
-	background: radial-gradient(ellipse 55% 100% at 50% 0%, rgb(251 146 60 / 15%), transparent 66%);
+	top: -120px;
+	left: 50%;
+	translate: -50% 0;
+	width: min(720px, 90vw);
+	height: 480px;
+	z-index: -1;
+	background: radial-gradient(ellipse at center, var(--accent-soft), transparent 65%);
 	pointer-events: none;
-	z-index: 0;
-}
-:root[data-theme='light'] .ec-hero-glow {
-	background: radial-gradient(ellipse 55% 100% at 50% 0%, rgb(194 65 12 / 10%), transparent 66%);
-}
-.ec-hero > *:not(.ec-hero-glow) {
-	position: relative;
-	z-index: 1;
 }
 
-/* Staggered rise-in on load. Guarded by reduced-motion; a static screenshot and
- * the settled page are identical. */
-@media (prefers-reduced-motion: no-preference) {
-	.ec-hero > *:not(.ec-hero-glow) {
-		animation: ec-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-	}
-	.ec-eyebrow {
-		animation-delay: 0.03s;
-	}
-	.ec-hero-title {
-		animation-delay: 0.09s;
-	}
-	.ec-hero-tagline {
-		animation-delay: 0.17s;
-	}
-	.ec-hero-actions {
-		animation-delay: 0.25s;
-	}
-	.ec-hero-trust {
-		animation-delay: 0.33s;
-	}
-}
-@keyframes ec-rise {
-	from {
-		opacity: 0;
-		transform: translateY(14px);
-	}
-	to {
-		opacity: 1;
-		transform: none;
-	}
-}
-
-/* Eyebrow: a quiet pill that anchors the hero and states the positioning. */
 .ec-eyebrow {
 	display: inline-flex;
 	align-items: center;
-	gap: var(--sp-2);
-	margin: 0 auto var(--sp-5);
-	padding: var(--sp-1) var(--sp-3);
+	gap: 0.5rem;
+	margin: 0 0 var(--sp-5);
+	padding: 0.375rem 0.875rem;
 	border: var(--border);
 	border-radius: 999px;
-	font-size: var(--fs-xs);
+	font-size: var(--fs-sm);
 	font-weight: 500;
 	color: var(--muted);
-	background: color-mix(in srgb, var(--sl-color-bg) 55%, transparent);
-	backdrop-filter: blur(6px);
+	background: color-mix(in srgb, var(--sl-color-bg) 60%, transparent);
+	backdrop-filter: blur(8px);
 }
-.ec-eyebrow::before {
-	content: '';
-	width: 6px;
-	height: 6px;
+.ec-eyebrow-dot {
+	width: 7px;
+	height: 7px;
 	border-radius: 50%;
 	background: var(--sl-color-accent);
-	box-shadow: 0 0 8px 1px color-mix(in srgb, var(--sl-color-accent) 70%, transparent);
 }
 
 .ec-hero-title {
-	max-width: 22ch;
-	margin: 0 auto;
+	margin: 0;
+	max-width: 26ch;
 	font-size: var(--fs-3xl);
-	font-weight: 700;
-	letter-spacing: -0.025em;
-	line-height: 1.05;
-	text-wrap: balance;
-	/* Subtle top-to-bottom sheen for dimension, clipped to the glyphs. Kept
-	 * shallow so the lower line still reads as strong, not faded. */
-	background: linear-gradient(
-		180deg,
-		var(--sl-color-text) 58%,
-		color-mix(in srgb, var(--sl-color-text) 86%, var(--sl-color-bg)) 100%
-	);
-	-webkit-background-clip: text;
-	background-clip: text;
-	color: transparent;
+	font-weight: 650;
+	letter-spacing: var(--tracking-tight);
+	line-height: var(--lh-tight);
+	color: var(--heading);
 }
+.ec-hero-title-muted {
+	color: var(--muted);
+}
+
 .ec-hero-tagline {
-	max-width: 40rem;
-	margin: var(--sp-4) auto 0;
+	margin: var(--sp-5) 0 0;
+	max-width: 56ch;
+	font-size: var(--fs-lg);
+	line-height: var(--lh-snug);
+	color: var(--muted);
+}
+
+.ec-hero-actions {
+	display: flex;
+	gap: var(--sp-3);
+	margin-top: var(--sp-6);
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+/* ---- Buttons ------------------------------------------------------------ */
+.ec-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.625rem 1.25rem;
+	border-radius: 999px;
+	font-size: var(--fs-sm);
+	font-weight: 600;
+	text-decoration: none;
+	transition:
+		transform var(--dur-fast) var(--ease-out),
+		box-shadow var(--dur-fast) var(--ease-out),
+		border-color var(--dur-fast) var(--ease-out),
+		background var(--dur-fast) var(--ease-out);
+}
+.ec-btn-primary {
+	background: var(--sl-color-accent);
+	color: var(--sl-color-text-invert);
+	box-shadow: 0 6px 24px -8px var(--accent-line);
+}
+.ec-btn-primary:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 10px 32px -8px var(--accent-line);
+}
+.ec-btn-secondary {
+	border: var(--border);
+	color: var(--sl-color-text);
+	background: color-mix(in srgb, var(--sl-color-bg) 60%, transparent);
+}
+.ec-btn-secondary:hover {
+	border-color: var(--sl-color-gray-4);
+	color: var(--heading);
+}
+
+/* ---- Proof strip -------------------------------------------------------- */
+.ec-hero-proof {
+	display: flex;
+	gap: var(--sp-5);
+	flex-wrap: wrap;
+	justify-content: center;
+	list-style: none;
+	margin: var(--sp-6) 0 0;
+	padding: 0;
+}
+.ec-hero-proof li {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
+	color: var(--muted);
+}
+.ec-hero-proof svg {
+	color: var(--sl-color-accent);
+}
+
+/* ---- Hero terminal ------------------------------------------------------ */
+.ec-hero-terminal {
+	width: min(760px, 100%);
+	margin-top: var(--sp-7);
+	text-align: left;
+}
+
+.ec-term {
+	border: 1px solid var(--glass-border);
+	border-radius: var(--radius-lg);
+	background: var(--glass-bg);
+	backdrop-filter: blur(14px);
+	-webkit-backdrop-filter: blur(14px);
+	box-shadow:
+		inset 0 1px 0 var(--glass-highlight),
+		var(--shadow-lg);
+	overflow: hidden;
+}
+.ec-term-bar {
+	display: flex;
+	align-items: center;
+	gap: var(--sp-3);
+	padding: 0.625rem var(--sp-4);
+	border-bottom: 1px solid var(--glass-border);
+}
+.ec-term-lights {
+	display: inline-flex;
+	gap: 7px;
+	flex: 1 0 0;
+}
+.ec-term-lights i {
+	width: 11px;
+	height: 11px;
+	border-radius: 50%;
+}
+.ec-term-lights i:nth-child(1) {
+	background: #ff5f57;
+}
+.ec-term-lights i:nth-child(2) {
+	background: #febc2e;
+}
+.ec-term-lights i:nth-child(3) {
+	background: #28c840;
+}
+.ec-term-title {
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
+	color: var(--muted);
+}
+.ec-term-spacer {
+	flex: 1 0 0;
+}
+.ec-term-body {
+	padding: var(--sp-4) var(--sp-5);
+	background: color-mix(in srgb, var(--sl-color-bg) 55%, transparent);
+}
+.ec-term-screen {
+	margin: 0;
+	min-height: 12.5em;
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-sm);
+	line-height: 1.75;
+	color: var(--sl-color-text);
+	white-space: pre-wrap;
+	overflow-x: auto;
+}
+
+/* Terminal text roles — shared by the hero terminal, walkthrough shots, and
+ * the feature explorer (injected HTML, so these stay global). */
+.t-pass {
+	color: var(--sl-color-accent);
+}
+.t-fail {
+	color: var(--fail);
+}
+.t-dim {
+	color: var(--muted);
+	opacity: 0.85;
+}
+.t-bold {
+	font-weight: 700;
+}
+.t-prompt {
+	color: var(--muted);
+}
+.t-cmd {
+	color: var(--heading);
+}
+.t-cursor {
+	display: inline-block;
+	width: 0.55em;
+	height: 1.1em;
+	margin-left: 2px;
+	vertical-align: text-bottom;
+	background: var(--sl-color-accent);
+	animation: ec-blink 1.1s steps(1) infinite;
+}
+@keyframes ec-blink {
+	50% {
+		opacity: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.t-cursor {
+		animation: none;
+	}
+}
+
+/* ---- Section shells ----------------------------------------------------- */
+.ec-how,
+.ec-features {
+	padding-top: var(--sp-9);
+}
+.ec-how-head,
+.ec-features-head {
+	max-width: 46rem;
+	margin-bottom: var(--sp-7);
+}
+.sl-markdown-content .ec-how-head h2,
+.sl-markdown-content .ec-features-head h2 {
+	margin: 0;
+	font-size: var(--fs-2xl);
+	letter-spacing: var(--tracking-tight);
+}
+.ec-how-head p,
+.ec-features-head p {
+	margin: var(--sp-3) 0 0;
 	color: var(--muted);
 	font-size: var(--fs-lg);
 	line-height: var(--lh-snug);
 }
 
-/* ---- Buttons: refined, with a hint of depth ---------------------------- */
-.ec-hero-actions {
+/* ---- How it works ------------------------------------------------------- */
+.ec-steps {
+	list-style: none;
+	margin: 0;
+	padding: 0;
 	display: flex;
-	flex-wrap: wrap;
-	gap: var(--sp-3);
-	justify-content: center;
-	margin-top: var(--sp-6);
+	flex-direction: column;
+	gap: var(--sp-8);
 }
-.ec-btn {
+.ec-step {
+	display: grid;
+	grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+	gap: var(--sp-7);
+	align-items: center;
+}
+.ec-step-copy {
+	position: relative;
+}
+.ec-step-num {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 0.62rem 1.2rem;
-	border-radius: var(--radius);
+	width: 2rem;
+	height: 2rem;
+	border: 1px solid var(--accent-line);
+	border-radius: 50%;
+	font-family: var(--sl-font-mono);
 	font-size: var(--fs-sm);
 	font-weight: 600;
-	text-decoration: none;
-	transition:
-		transform 120ms ease,
-		box-shadow 120ms ease,
-		border-color 120ms ease,
-		background 120ms ease;
+	color: var(--sl-color-accent);
+	background: var(--accent-soft);
+	margin-bottom: var(--sp-4);
 }
-.ec-btn-primary {
-	background: var(--sl-color-text);
-	color: var(--sl-color-bg);
-	border: 1px solid var(--sl-color-text);
-	box-shadow:
-		0 1px 2px rgb(0 0 0 / 22%),
-		0 10px 26px -14px rgb(0 0 0 / 55%),
-		0 0 0 0 color-mix(in srgb, var(--sl-color-accent) 40%, transparent);
+.sl-markdown-content .ec-step-copy h3 {
+	margin: 0 0 var(--sp-3);
+	font-size: var(--fs-xl);
 }
-.ec-btn-primary:hover {
-	transform: translateY(-1px);
-	box-shadow:
-		0 2px 4px rgb(0 0 0 / 22%),
-		0 14px 30px -12px rgb(0 0 0 / 60%),
-		0 8px 30px -6px color-mix(in srgb, var(--sl-color-accent) 45%, transparent);
+.ec-step-copy p {
+	margin: 0;
+	color: var(--muted);
+	line-height: var(--lh-normal);
 }
-.ec-btn-secondary {
-	background: color-mix(in srgb, var(--sl-color-text) 4%, transparent);
-	color: var(--sl-color-text);
-	border: var(--border);
+.ec-step-copy p code {
+	font-size: 0.85em;
 }
-.ec-btn-secondary:hover {
-	transform: translateY(-1px);
-	border-color: var(--sl-color-text);
+.ec-step-link {
+	display: inline-block;
+	margin-top: var(--sp-4);
+	font-size: var(--fs-sm);
+	font-weight: 500;
+}
+.ec-step-visual {
+	margin: 0;
+	min-width: 0;
 }
 
-/* ---- Trust row: quiet factual signals as pills ------------------------- */
-.ec-hero-trust {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
-	gap: var(--sp-2) var(--sp-3);
-	margin: var(--sp-6) auto 0;
-	padding: 0;
-	list-style: none;
+/* Annotated YAML editor */
+.ec-editor {
+	border: 1px solid var(--glass-border);
+	border-radius: var(--radius-lg);
+	background: var(--glass-bg);
+	backdrop-filter: blur(14px);
+	box-shadow:
+		inset 0 1px 0 var(--glass-highlight),
+		var(--shadow-lg);
+	overflow: hidden;
 }
-.ec-hero-trust li {
-	padding: var(--sp-1) var(--sp-3);
-	border: var(--border);
-	border-radius: 999px;
+.ec-editor-bar {
+	padding: 0.625rem var(--sp-4);
+	border-bottom: 1px solid var(--glass-border);
+}
+.ec-editor-name {
+	font-family: var(--sl-font-mono);
 	font-size: var(--fs-xs);
 	color: var(--muted);
-	background: color-mix(in srgb, var(--sl-color-bg) 40%, transparent);
+}
+.ec-yaml {
+	display: flex;
+	flex-direction: column;
+}
+.ec-yaml-seg {
+	position: relative;
+	padding: var(--sp-3) var(--sp-5);
+	border-left: 2px solid transparent;
+	transition:
+		border-color var(--dur-fast) var(--ease-out),
+		background var(--dur-fast) var(--ease-out);
+}
+.ec-yaml-seg + .ec-yaml-seg {
+	border-top: 1px solid var(--sl-color-hairline-light);
+}
+.ec-yaml-seg:hover {
+	border-left-color: var(--sl-color-accent);
+	background: var(--accent-soft);
+}
+.ec-yaml-seg pre {
+	margin: 0;
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
+	line-height: 1.8;
+	overflow-x: auto;
+}
+.ec-seg-chip {
+	position: absolute;
+	top: var(--sp-3);
+	right: var(--sp-4);
+	padding: 0.15rem 0.55rem;
+	border: var(--border);
+	border-radius: 999px;
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--muted);
+	background: var(--sl-color-bg);
+	white-space: nowrap;
+}
+.y-key {
+	color: var(--sl-color-accent);
+}
+.y-str {
+	color: var(--sl-color-text);
 }
 
-/* ---- Terminal cast: a framed terminal window --------------------------- */
-.ec-cast {
-	max-width: 52rem;
-	margin: var(--sp-7) auto 0;
+/* Terminal shot (step 2) */
+.ec-shot {
+	border: 1px solid var(--glass-border);
+	border-radius: var(--radius-lg);
+	background: var(--glass-bg);
+	backdrop-filter: blur(14px);
+	box-shadow:
+		inset 0 1px 0 var(--glass-highlight),
+		var(--shadow-lg);
+	overflow: hidden;
+}
+.ec-shot-bar {
+	padding: 0.625rem var(--sp-4);
+	border-bottom: 1px solid var(--glass-border);
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
+	color: var(--muted);
+}
+.ec-shot-body {
+	margin: 0;
+	padding: var(--sp-4) var(--sp-5);
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-sm);
+	line-height: 1.8;
+	overflow-x: auto;
+}
+.ec-shot-note {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: var(--sp-3) var(--sp-5);
+	border-top: 1px solid var(--sl-color-hairline-light);
+	font-size: var(--fs-xs);
+	color: var(--muted);
+}
+.ec-shot-note svg {
+	color: var(--sl-color-accent);
+	flex-shrink: 0;
+}
+.ec-shot-note code {
+	font-size: 0.95em;
+}
+
+/* Replay comparison (step 3) */
+.ec-replay {
+	border: 1px solid var(--glass-border);
+	border-radius: var(--radius-lg);
+	background: var(--glass-bg);
+	backdrop-filter: blur(14px);
+	box-shadow:
+		inset 0 1px 0 var(--glass-highlight),
+		var(--shadow-lg);
+	padding: var(--sp-5);
+}
+.ec-replay-cols {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	gap: var(--sp-4);
+	align-items: center;
+}
+.ec-replay-col {
+	border: var(--border);
+	border-radius: var(--radius);
+	padding: var(--sp-4);
+}
+.ec-replay-col-accent {
+	border-color: var(--accent-line);
+	background: var(--accent-soft);
+}
+.ec-replay-label {
+	display: block;
+	font-size: var(--fs-xs);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: var(--tracking-wide);
+	color: var(--muted);
+	margin-bottom: var(--sp-2);
+}
+.ec-replay-col ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-sm);
+	line-height: 2;
+	color: var(--sl-color-text);
+}
+.ec-replay-col-accent ul {
+	color: var(--sl-color-text-accent);
+}
+.ec-replay-arrow {
+	color: var(--muted);
+}
+.ec-replay-exit {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--sp-4);
+	margin-top: var(--sp-4);
+	padding-top: var(--sp-4);
+	border-top: 1px solid var(--sl-color-hairline-light);
+	flex-wrap: wrap;
+}
+.ec-replay-exit code {
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
+	color: var(--muted);
+}
+.ec-exit-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+	padding: 0.25rem 0.75rem;
+	border-radius: 999px;
+	border: 1px solid var(--accent-line);
+	background: var(--accent-soft);
+	color: var(--sl-color-text-accent);
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
+	font-weight: 600;
+}
+.ec-exit-badge i {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--sl-color-accent);
+}
+
+/* ---- Feature explorer --------------------------------------------------- */
+.fx {
+	border: var(--border);
+	border-radius: var(--radius-lg);
+	background: color-mix(in srgb, var(--sl-color-text) 2%, transparent);
+	overflow: hidden;
+}
+.fx-tabs {
+	display: flex;
+	gap: var(--sp-1);
+	padding: var(--sp-3);
+	border-bottom: var(--border);
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+.fx-tabs::-webkit-scrollbar {
+	display: none;
+}
+.fx-tab {
+	flex-shrink: 0;
+	padding: 0.45rem 0.95rem;
+	border: 0;
+	border-radius: 999px;
+	background: transparent;
+	color: var(--muted);
+	font-family: var(--sl-font);
+	font-size: var(--fs-sm);
+	font-weight: 500;
+	cursor: pointer;
+	transition:
+		color var(--dur-fast) var(--ease-out),
+		background var(--dur-fast) var(--ease-out);
+}
+.fx-tab:hover {
+	color: var(--sl-color-text);
+}
+.fx-tab.is-active {
+	background: var(--accent-soft);
+	color: var(--sl-color-text-accent);
+}
+.fx-panel {
+	display: grid;
+	grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+	gap: var(--sp-6);
+	padding: var(--sp-6);
+	align-items: center;
+}
+.sl-markdown-content .fx-panel-copy h3 {
+	margin: 0 0 var(--sp-3);
+	font-size: var(--fs-xl);
+}
+.fx-panel-copy p {
+	margin: 0;
+	color: var(--muted);
+	line-height: var(--lh-normal);
+	font-size: var(--fs-base);
+}
+.fx-panel-meta {
+	display: flex;
+	align-items: center;
+	gap: var(--sp-4);
+	margin-top: var(--sp-4);
+	flex-wrap: wrap;
+}
+.fx-chip {
+	padding: 0.25rem 0.65rem;
+	border: var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--code-bg);
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
+	color: var(--sl-color-text);
+}
+.fx-panel-meta a {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	font-size: var(--fs-sm);
+	font-weight: 500;
+	text-decoration: none;
+	color: var(--sl-color-text-accent);
+}
+.fx-panel-meta a:hover {
+	text-decoration: underline;
+}
+.fx-panel-visual {
+	min-width: 0;
+	animation: fx-in var(--dur-slow) var(--ease-out);
+}
+@keyframes fx-in {
+	from {
+		opacity: 0;
+		transform: translateY(8px);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.fx-panel-visual {
+		animation: none;
+	}
+}
+
+/* Explorer visuals — shared drawing vocabulary */
+.fx-svg {
+	width: 100%;
+	height: auto;
+	display: block;
+}
+.fx-muted-stroke rect,
+.fx-muted-stroke path {
+	fill: none;
+	stroke: var(--sl-color-gray-4);
+	stroke-width: 1.5;
+}
+.fx-accent-stroke {
+	fill: var(--accent-soft);
+	stroke: var(--sl-color-accent);
+	stroke-width: 1.5;
+}
+.fx-arrow {
+	fill: var(--sl-color-gray-4);
+}
+.fx-label {
+	font-family: var(--sl-font-mono);
+	font-size: 11px;
+	fill: var(--sl-color-text);
+}
+.fx-note {
+	font-family: var(--sl-font-mono);
+	font-size: 10.5px;
+	fill: var(--muted);
+	color: var(--muted);
+}
+.fx-reel {
+	fill: none;
+	stroke: var(--sl-color-accent);
+	stroke-width: 1.5;
+	stroke-dasharray: 3 4;
+	transform-origin: center;
+	animation: fx-spin 6s linear infinite;
+	transform-box: fill-box;
+}
+@keyframes fx-spin {
+	to {
+		rotate: 360deg;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.fx-reel {
+		animation: none;
+	}
+}
+.fx-node {
+	fill: var(--surface);
+	stroke: var(--sl-color-gray-4);
+	stroke-width: 1.5;
+}
+.fx-node.is-ok {
+	stroke: var(--accent-line);
+	fill: var(--accent-soft);
+}
+.fx-check path {
+	fill: none;
+	stroke: var(--sl-color-accent);
+	stroke-width: 2.4;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+.fx-cross path {
+	fill: none;
+	stroke: var(--fail);
+	stroke-width: 2.4;
+	stroke-linecap: round;
+}
+
+/* Trials */
+.fx-trials {
+	display: flex;
+	flex-direction: column;
+	gap: var(--sp-3);
+}
+.fx-trial-row {
+	display: flex;
+	align-items: center;
+	gap: var(--sp-4);
+	padding: var(--sp-3) var(--sp-4);
+	border: var(--border);
+	border-radius: var(--radius);
+}
+.fx-trial-row code {
+	font-size: var(--fs-xs);
+	min-width: 6.5rem;
+}
+.fx-dots {
+	display: inline-flex;
+	gap: 6px;
+	flex: 1;
+}
+.fx-dots i {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+}
+.fx-dots i.is-pass {
+	background: var(--sl-color-accent);
+}
+.fx-dots i.is-fail {
+	background: var(--fail);
+	opacity: 0.75;
+}
+.fx-tag {
+	font-family: var(--sl-font-mono);
+	font-size: 0.7rem;
+	font-weight: 600;
+	padding: 0.15rem 0.55rem;
+	border-radius: 999px;
+	border: var(--border);
+	color: var(--muted);
+	white-space: nowrap;
+}
+.fx-tag.is-pass {
+	color: var(--sl-color-text-accent);
+	border-color: var(--accent-line);
+	background: var(--accent-soft);
+}
+.fx-tag.is-fail {
+	color: var(--fail);
+	border-color: color-mix(in srgb, var(--fail) 35%, transparent);
+	background: var(--fail-soft);
+}
+.fx-tag.is-flaky {
+	color: var(--warn);
+	border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+	background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+
+/* Matrix */
+.fx-matrix {
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
 	border: var(--border);
 	border-radius: var(--radius);
 	overflow: hidden;
-	background: var(--code-bg);
-	box-shadow:
-		0 1px 2px rgb(0 0 0 / 20%),
-		0 30px 70px -30px rgb(0 0 0 / 60%);
 }
-/* Window title bar with the three terminal dots, drawn in CSS. */
-.ec-cast::before {
-	content: '';
-	display: block;
-	height: 36px;
-	border-bottom: var(--border);
-	background-color: color-mix(in srgb, var(--code-bg) 82%, var(--sl-color-text) 18%);
-	background-image:
-		radial-gradient(circle 5px at 22px 18px, #ff5f57 46%, transparent 52%),
-		radial-gradient(circle 5px at 42px 18px, #febc2e 46%, transparent 52%),
-		radial-gradient(circle 5px at 62px 18px, #28c840 46%, transparent 52%);
-	background-repeat: no-repeat;
+.fx-matrix-row {
+	display: grid;
+	grid-template-columns: 2fr 1fr 1fr 1.2fr;
+	gap: var(--sp-2);
+	padding: 0.5rem var(--sp-4);
 }
-.ec-cast video,
-.ec-cast img {
-	display: block;
-	width: 100%;
-	max-width: 100%;
-	height: auto;
+.fx-matrix-row + .fx-matrix-row {
+	border-top: 1px solid var(--sl-color-hairline-light);
+}
+.fx-matrix-head,
+.fx-matrix-foot {
+	color: var(--muted);
+	background: var(--surface);
+	font-weight: 600;
+}
+.fx-winner {
+	color: var(--heading);
+}
+
+/* Gates */
+.fx-gates {
+	display: flex;
+	flex-direction: column;
+	gap: var(--sp-4);
+}
+.fx-gate {
+	border: var(--border);
+	border-radius: var(--radius);
+	padding: var(--sp-4);
+}
+.fx-gate-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--sp-3);
+	margin-bottom: var(--sp-3);
+}
+.fx-gate-head code {
+	font-size: var(--fs-xs);
+}
+.fx-meter {
+	position: relative;
+	height: 8px;
+	border-radius: 999px;
+	background: var(--surface);
+}
+.fx-meter-fill {
+	position: absolute;
+	inset: 0 auto 0 0;
+	border-radius: 999px;
+	background: linear-gradient(90deg, var(--accent-line), var(--sl-color-accent));
+}
+.fx-meter-mark {
+	position: absolute;
+	top: -4px;
+	bottom: -4px;
+	width: 2px;
+	background: var(--heading);
+	border-radius: 1px;
+}
+.fx-gate-list {
+	list-style: none;
 	margin: 0;
-	background: var(--code-bg);
-}
-.ec-cast figcaption {
-	padding: var(--sp-3) var(--sp-4);
-	border-top: var(--border);
-	text-align: center;
-	font-size: var(--fs-sm);
-	color: var(--muted);
-	background: color-mix(in srgb, var(--code-bg) 60%, var(--sl-color-bg));
-}
-
-/* ---- Step numbers: a CSS counter on the section headings ---------------- */
-/* The figure is generated, not written into the heading, so the auto-TOC and
- * heading anchors stay clean (defect 12). Scoped to direct-child H3s of the
- * splash content column so CardGrid titles are never numbered. */
-/* Starlight wraps each heading in .sl-heading-wrapper.level-hN. Scope to
- * direct-child h3 wrappers of the splash content so only the top-level step
- * headings are numbered — card titles render as <p> and are excluded anyway. */
-/* Starlight 0.41.3 */
-[data-has-hero] .sl-markdown-content {
-	counter-reset: ec-step;
-}
-/* Starlight 0.41.3 */
-[data-has-hero] .sl-markdown-content > .level-h3 {
-	counter-increment: ec-step;
-}
-[data-has-hero] .sl-markdown-content > .level-h3 h3::before {
-	content: counter(ec-step);
+	padding: 0;
 	font-family: var(--sl-font-mono);
-	font-weight: 500;
-	font-size: 0.8em;
-	color: var(--muted);
-	margin-right: var(--sp-3);
+	font-size: var(--fs-xs);
+	line-height: 2;
 }
 
-/* The feature grid is now a Starlight <CardGrid> styled in components.css so
- * the landing and the docs share one card vocabulary. */
+/* Reports */
+.fx-report {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--sp-5);
+	align-items: center;
+}
+.fx-report-doc {
+	border: var(--border);
+	border-radius: var(--radius);
+	padding: var(--sp-4);
+	background: var(--surface);
+}
+.fx-report-title {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: var(--sp-3);
+}
+.fx-report-title span {
+	display: block;
+	width: 40%;
+	height: 10px;
+	border-radius: 999px;
+	background: var(--sl-color-gray-5);
+}
+.fx-report-row {
+	height: 12px;
+	border-radius: var(--radius-sm);
+	margin-top: var(--sp-2);
+	background: var(--sl-color-gray-5);
+	position: relative;
+}
+.fx-report-row::before {
+	content: '';
+	position: absolute;
+	inset: 3px auto 3px 4px;
+	width: 6px;
+	border-radius: 50%;
+}
+.fx-report-row.is-pass::before {
+	background: var(--sl-color-accent);
+}
+.fx-report-row.is-fail::before {
+	background: var(--fail);
+}
+.fx-report-side {
+	display: flex;
+	flex-direction: column;
+	gap: var(--sp-2);
+}
+.fx-report-side code {
+	font-size: var(--fs-xs);
+}
+.fx-spark {
+	width: 100%;
+	height: 40px;
+}
+.fx-spark polyline {
+	fill: none;
+	stroke: var(--sl-color-accent);
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
 
-/* ---- "Works with" strip: compact, not a thin section ------------------- */
-/* A full H2 over one muted line read as a section that did not earn a break.
- * This is a centered strip instead — same content, no heading, no rule. */
+/* Cost */
+.fx-cost {
+	display: flex;
+	flex-direction: column;
+	gap: var(--sp-3);
+	border: var(--border);
+	border-radius: var(--radius);
+	padding: var(--sp-5);
+}
+.fx-cost-row {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--sp-3);
+	font-size: var(--fs-sm);
+}
+.fx-cost-row b {
+	font-family: var(--sl-font-mono);
+	font-weight: 600;
+	color: var(--heading);
+}
+.fx-cost-replay {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--sp-3);
+	margin-top: var(--sp-2);
+	padding-top: var(--sp-3);
+	border-top: 1px solid var(--sl-color-hairline-light);
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
+}
+
+/* ---- Stack line --------------------------------------------------------- */
 .ec-stack {
-	max-width: 46rem;
-	margin: var(--sp-7) auto 0;
+	margin-top: var(--sp-7);
 	text-align: center;
 	color: var(--muted);
 	font-size: var(--fs-sm);
@@ -291,83 +964,122 @@
 .ec-stack-label {
 	font-weight: 600;
 	color: var(--sl-color-text);
+	margin-right: 0.4rem;
 }
 
-/* ---- Closing CTA panel ------------------------------------------------- */
-/* A bordered panel with its own soft glow, so the page lands on a confident
- * finish instead of trailing off. */
+/* ---- CTA ---------------------------------------------------------------- */
 .ec-cta {
-	position: relative;
-	overflow: hidden;
-	max-width: 48rem;
+	max-width: 46rem;
 	margin: var(--sp-9) auto 0;
 	padding: var(--sp-8) var(--sp-6);
+	border: 1px solid var(--glass-border);
+	border-radius: var(--radius-lg);
+	background: var(--glass-bg);
+	backdrop-filter: blur(14px);
+	box-shadow:
+		inset 0 1px 0 var(--glass-highlight),
+		var(--shadow-lg);
 	text-align: center;
-	border: var(--border);
-	border-radius: calc(var(--radius) * 2);
-	background:
-		linear-gradient(180deg, color-mix(in srgb, var(--sl-color-text) 3%, transparent), transparent 55%),
-		var(--sl-color-bg);
-}
-.ec-cta-glow {
-	position: absolute;
-	inset: -60% 0 auto 0;
-	height: 320px;
-	background: radial-gradient(ellipse 50% 100% at 50% 0%, rgb(251 146 60 / 15%), transparent 70%);
-	pointer-events: none;
-}
-:root[data-theme='light'] .ec-cta-glow {
-	background: radial-gradient(ellipse 50% 100% at 50% 0%, rgb(194 65 12 / 10%), transparent 70%);
-}
-.ec-cta > *:not(.ec-cta-glow) {
-	position: relative;
-	z-index: 1;
 }
 .sl-markdown-content .ec-cta h2 {
 	margin: 0;
-	padding: 0;
-	border: 0;
 	font-size: var(--fs-2xl);
-	font-weight: 700;
-	letter-spacing: -0.02em;
-	color: var(--sl-color-text);
+	letter-spacing: var(--tracking-tight);
 }
 .ec-cta > p {
-	max-width: 34rem;
-	margin: var(--sp-3) auto 0;
+	margin: var(--sp-3) 0 0;
 	color: var(--muted);
-	font-size: var(--fs-base);
 }
 .ec-cta-cmd {
 	display: inline-flex;
 	align-items: center;
 	gap: var(--sp-2);
 	margin-top: var(--sp-5);
-	padding: var(--sp-2) var(--sp-4);
+	padding: 0.5rem 0.625rem 0.5rem 1.125rem;
 	border: var(--border);
-	border-radius: var(--radius);
+	border-radius: 999px;
 	background: var(--code-bg);
-}
-.ec-cta-cmd::before {
-	content: '$';
-	color: var(--muted);
-	font-family: var(--sl-font-mono);
-	font-size: var(--fs-sm);
 }
 .ec-cta-cmd code {
 	font-family: var(--sl-font-mono);
 	font-size: var(--fs-sm);
-	color: var(--sl-color-text);
+	color: var(--heading);
+}
+.ec-cta-cmd code::before {
+	content: '$ ';
+	color: var(--muted);
 }
 .ec-cta-actions {
 	display: flex;
-	flex-wrap: wrap;
-	justify-content: center;
 	gap: var(--sp-3);
+	justify-content: center;
 	margin-top: var(--sp-5);
+	flex-wrap: wrap;
 }
 .ec-cta-note {
-	margin-top: var(--sp-4);
+	margin: var(--sp-4) 0 0;
 	font-size: var(--fs-xs);
 	color: var(--muted);
+}
+
+/* Copy button (CTA + reusable) */
+.ec-copy {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.9rem;
+	height: 1.9rem;
+	border: var(--border);
+	border-radius: 999px;
+	background: transparent;
+	color: var(--muted);
+	cursor: pointer;
+	transition:
+		color var(--dur-fast) var(--ease-out),
+		border-color var(--dur-fast) var(--ease-out);
+}
+.ec-copy:hover {
+	color: var(--heading);
+	border-color: var(--sl-color-gray-4);
+}
+.ec-copy .ec-copy-check {
+	display: none;
+	color: var(--sl-color-accent);
+}
+.ec-copy.is-copied .ec-copy-icon {
+	display: none;
+}
+.ec-copy.is-copied {
+	border-color: var(--accent-line);
+}
+.ec-copy.is-copied .ec-copy-check {
+	display: block;
+}
+
+/* ---- Responsive --------------------------------------------------------- */
+@media (max-width: 60rem) {
+	.ec-step,
+	.fx-panel {
+		grid-template-columns: 1fr;
+		gap: var(--sp-5);
+	}
+	.ec-step-visual {
+		order: 2;
+	}
+	.fx-report {
+		grid-template-columns: 1fr;
+	}
+}
+@media (max-width: 34rem) {
+	.ec-hero {
+		padding-top: var(--sp-8);
+	}
+	.ec-replay-cols {
+		grid-template-columns: 1fr;
+	}
+	.ec-replay-arrow {
+		rotate: 90deg;
+		justify-self: center;
+	}
 }

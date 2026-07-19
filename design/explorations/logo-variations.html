@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>EvalCore logo variations — bar-mark family</title>
+<style>
+  * { margin:0; box-sizing:border-box; }
+  body { font-family: system-ui, sans-serif; background:#0a0a0b; color:#f4f4f5; padding:40px; }
+  h1 { font-size:20px; margin-bottom:6px; }
+  p.lead { color:#9d9da6; font-size:13px; margin-bottom:28px; max-width:720px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:#9d9da6; margin:36px 0 14px; }
+  .grid { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:16px; }
+  .cell { border:1px solid #232329; border-radius:12px; padding:18px; }
+  .cell.light { background:#fcfcfd; color:#131316; border-color:#e4e4e9; }
+  .cell .name { font-size:12px; font-weight:600; margin-bottom:4px; }
+  .cell .note { font-size:11px; color:#9d9da6; margin-bottom:12px; min-height:28px; }
+  .cell.light .note { color:#6b6b76; }
+  .sizes { display:flex; align-items:flex-end; gap:18px; }
+  .sz { display:flex; flex-direction:column; align-items:center; gap:6px; font-size:10px; color:#777; }
+  .lockup { display:flex; align-items:center; gap:8px; margin-top:14px; font-weight:600; font-size:17px; letter-spacing:-0.02em; }
+  .colors { display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:14px; }
+  .cswatch { border:1px solid #232329; border-radius:12px; overflow:hidden; }
+  .cswatch .top { height:88px; display:flex; align-items:center; justify-content:center; background:#0e0e11; }
+  .cswatch .bottom { height:88px; display:flex; align-items:center; justify-content:center; background:#fcfcfd; border-top:1px solid #e4e4e9; }
+  .cswatch .meta { padding:8px 10px; font-size:10px; color:#9d9da6; line-height:1.5; }
+</style>
+</head>
+<body>
+<h1>Bar-mark family — 8 variations</h1>
+<p class="lead">Same aesthetic as the picked concept (score bars + gate), pushed in different directions. Each shown 96 / 40 / 20 px, dark and light, with the lockup. V1 is the current mark.</p>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+  <!-- V1 current: bars + gate line right -->
+  <symbol id="v1" viewBox="0 0 64 64">
+    <rect x="10" y="13" width="34" height="10" rx="5" fill="currentColor"/>
+    <rect x="10" y="27" width="24" height="10" rx="5" fill="currentColor"/>
+    <rect x="10" y="41" width="30" height="10" rx="5" fill="currentColor"/>
+    <rect x="50" y="11" width="5" height="42" rx="2.5" fill="var(--a)"/>
+  </symbol>
+  <!-- V2 app-icon container -->
+  <symbol id="v2" viewBox="0 0 64 64">
+    <rect x="4" y="4" width="56" height="56" rx="14" fill="#131316"/>
+    <rect x="16" y="19" width="24" height="7" rx="3.5" fill="#f4f4f5"/>
+    <rect x="16" y="29" width="17" height="7" rx="3.5" fill="#f4f4f5"/>
+    <rect x="16" y="39" width="21" height="7" rx="3.5" fill="#f4f4f5"/>
+    <rect x="44" y="17" width="4" height="30" rx="2" fill="var(--a)"/>
+  </symbol>
+  <!-- V3 gate intersects bars: passed portion accent -->
+  <symbol id="v3" viewBox="0 0 64 64">
+    <rect x="10" y="13" width="30" height="10" rx="5" fill="currentColor"/>
+    <rect x="10" y="27" width="24" height="10" rx="5" fill="currentColor"/>
+    <rect x="10" y="41" width="34" height="10" rx="5" fill="currentColor"/>
+    <rect x="47" y="41" width="7" height="10" rx="3.5" fill="var(--a)"/>
+    <rect x="42" y="9" width="3" height="46" rx="1.5" fill="var(--a)" opacity="0.55"/>
+  </symbol>
+  <!-- V4 accent middle bar, no line -->
+  <symbol id="v4" viewBox="0 0 64 64">
+    <rect x="10" y="13" width="40" height="10" rx="5" fill="currentColor"/>
+    <rect x="10" y="27" width="28" height="10" rx="5" fill="var(--a)"/>
+    <rect x="10" y="41" width="36" height="10" rx="5" fill="currentColor"/>
+  </symbol>
+  <!-- V5 mirrored: gate left, bars right-aligned -->
+  <symbol id="v5" viewBox="0 0 64 64">
+    <rect x="9" y="11" width="5" height="42" rx="2.5" fill="var(--a)"/>
+    <rect x="20" y="13" width="34" height="10" rx="5" fill="currentColor"/>
+    <rect x="20" y="27" width="24" height="10" rx="5" fill="currentColor"/>
+    <rect x="20" y="41" width="30" height="10" rx="5" fill="currentColor"/>
+  </symbol>
+  <!-- V6 cursor dot gate -->
+  <symbol id="v6" viewBox="0 0 64 64">
+    <rect x="10" y="13" width="34" height="10" rx="5" fill="currentColor"/>
+    <rect x="10" y="27" width="24" height="10" rx="5" fill="currentColor"/>
+    <rect x="10" y="41" width="30" height="10" rx="5" fill="currentColor"/>
+    <circle cx="51" cy="46" r="6" fill="var(--a)"/>
+  </symbol>
+  <!-- V7 breakthrough: third bar crosses the gate and turns accent -->
+  <symbol id="v7" viewBox="0 0 64 64">
+    <rect x="10" y="13" width="26" height="10" rx="5" fill="currentColor"/>
+    <rect x="10" y="27" width="20" height="10" rx="5" fill="currentColor"/>
+    <rect x="10" y="41" width="26" height="10" rx="5" fill="currentColor"/>
+    <rect x="40" y="9" width="4" height="46" rx="2" fill="currentColor" opacity="0.3"/>
+    <rect x="40" y="41" width="14" height="10" rx="5" fill="var(--a)"/>
+  </symbol>
+  <!-- V8 two-weight bars + gradient gate -->
+  <symbol id="v8" viewBox="0 0 64 64">
+    <defs>
+      <linearGradient id="g8" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="var(--a)" stop-opacity="0.4"/>
+        <stop offset="1" stop-color="var(--a)"/>
+      </linearGradient>
+    </defs>
+    <rect x="10" y="12" width="34" height="12" rx="6" fill="currentColor"/>
+    <rect x="10" y="29" width="22" height="7" rx="3.5" fill="currentColor" opacity="0.6"/>
+    <rect x="10" y="41" width="30" height="12" rx="6" fill="currentColor"/>
+    <rect x="50" y="10" width="5" height="44" rx="2.5" fill="url(#g8)"/>
+  </symbol>
+</defs>
+</svg>
+
+<div id="marks"></div>
+
+<h2>Color directions — mark in each accent, dark + light</h2>
+<div class="colors" id="colors"></div>
+
+<script>
+const V = [
+  ['v1','V1 — Current','Bars + gate line. Balanced, letter-first.'],
+  ['v2','V2 — App icon','Container tile for avatars and app contexts.'],
+  ['v3','V3 — Crossing gate','The gate cuts the bars; the passed tip lights up.'],
+  ['v4','V4 — Accent bar','No gate; the measured bar is the accent. Quietest.'],
+  ['v5','V5 — Leading gate','Mirrored: threshold first, evidence after.'],
+  ['v6','V6 — Cursor dot','Terminal-flavored: a block-cursor verdict dot.'],
+  ['v7','V7 — Breakthrough','Third bar crosses the threshold and turns green: a pass, drawn.'],
+  ['v8','V8 — Two-weight','Editorial rhythm; gradient gate. Most decorative.'],
+];
+const marks = document.getElementById('marks');
+const grid = document.createElement('div'); grid.className='grid';
+for (const [id,name,note] of V) {
+  for (const theme of ['dark','light']) {
+    const c = document.createElement('div');
+    c.className = 'cell ' + theme;
+    c.style.setProperty('--a', theme==='dark' ? '#2dd4a0' : '#087a5c');
+    c.innerHTML = `<div class="name">${name} · ${theme}</div><div class="note">${note}</div>
+      <div class="sizes">
+        <div class="sz"><svg width="96" height="96"><use href="#${id}"/></svg>96</div>
+        <div class="sz"><svg width="40" height="40"><use href="#${id}"/></svg>40</div>
+        <div class="sz"><svg width="20" height="20"><use href="#${id}"/></svg>20</div>
+      </div>
+      <div class="lockup"><svg width="26" height="26"><use href="#${id}"/></svg>EvalCore</div>`;
+    grid.appendChild(c);
+  }
+}
+marks.appendChild(grid);
+
+const COLORS = [
+  ['Verdict Mint','#2dd4a0','#087a5c','current — calm, precise, reads “pass” without being CI-green'],
+  ['Phosphor','#3be380','#0c8a47','warmer green, more energetic, closer to classic terminal green'],
+  ['Ice Cyan','#5fd4e8','#0e7490','cooler, more “instrument”, less verdict semantics'],
+  ['Electric Lime','#b8e34d','#55700a','trend-forward chartreuse; loudest of the set'],
+  ['Signal Amber','#f5b942','#8a5b0a','warning-adjacent — argues against itself for a pass metaphor'],
+  ['Ultraviolet','#a78bfa','#6d28d9','distinct from every eval/CI tool, but says nothing about verdicts'],
+];
+const cwrap = document.getElementById('colors');
+for (const [name,dark,light,note] of COLORS) {
+  const d = document.createElement('div');
+  d.className='cswatch';
+  d.innerHTML = `
+    <div class="top" style="--a:${dark};color:#f4f4f5"><svg width="52" height="52"><use href="#v1"/></svg></div>
+    <div class="bottom" style="--a:${light};color:#131316"><svg width="52" height="52"><use href="#v1"/></svg></div>
+    <div class="meta"><b style="color:inherit">${name}</b><br>${dark} / ${light}<br>${note}</div>`;
+  cwrap.appendChild(d);
+}
+</script>
+</body>
+</html>
