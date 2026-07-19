@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro build",
+    "build": "astro build && node scripts/check-assets.mjs",
+    "build:clean": "rm -rf .astro dist && npm run build",
     "preview": "astro preview",
     "astro": "astro"
   },
