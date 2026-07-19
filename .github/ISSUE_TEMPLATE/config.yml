@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://eval-core.github.io/evalcore/
+    about: Guides and the full configuration reference. Most "how do I…" answers live here.
+  - name: Question or idea
+    url: https://github.com/eval-core/evalcore/discussions
+    about: For usage questions and open-ended ideas, start a discussion instead of an issue.
+  - name: Report a security vulnerability
+    url: https://github.com/eval-core/evalcore/security/advisories/new
+    about: Please report vulnerabilities privately, never in a public issue.

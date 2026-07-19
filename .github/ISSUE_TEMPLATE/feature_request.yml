@@ -1,0 +1,45 @@
+name: Feature request
+description: Suggest a capability EvalCore does not have yet
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before writing, it is worth knowing the two rules that decide most
+        feature discussions here:
+
+        - **Protocols over SDKs.** Extension points stay language-agnostic.
+          A proposal that requires users to write Rust will not be accepted;
+          one that works over HTTP, a shell command, or JSON on stdin will.
+        - **Config first.** Features are described as YAML before they are
+          described as types. Showing the config you want to write is the most
+          persuasive thing you can do.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: >
+        What are you trying to evaluate, and where does EvalCore currently stop
+        you? Describe the situation rather than the solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: The config you would like to write
+      description: Sketch the `evals.yaml` you wish worked. It does not need to be exact.
+      render: yaml
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead
+      description: >
+        A `subprocess` scorer or an `http` target already covers a lot of ground.
+        If you tried one and it did not fit, saying why helps a great deal.
+    validations:
+      required: false
