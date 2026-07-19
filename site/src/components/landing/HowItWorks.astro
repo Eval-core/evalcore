@@ -18,8 +18,10 @@
 		<!-- Step 1 -->
 		<li class="ec-step">
 			<div class="ec-step-copy">
-				<span class="ec-step-num" aria-hidden="true">1</span>
-				<h3>Describe the suite as data</h3>
+				<div class="ec-step-head">
+					<span class="ec-step-num" aria-hidden="true">1</span>
+					<h3>Describe the suite as data</h3>
+				</div>
 				<p>
 					No SDK, no test harness. Point a target at your app, list the dataset, stack scorers on
 					top. Anything that speaks HTTP or shell is a target; your app's language never matters.
@@ -58,8 +60,10 @@
 		<!-- Step 2 -->
 		<li class="ec-step">
 			<div class="ec-step-copy">
-				<span class="ec-step-num" aria-hidden="true">2</span>
-				<h3>Run it once, live</h3>
+				<div class="ec-step-head">
+					<span class="ec-step-num" aria-hidden="true">2</span>
+					<h3>Run it once, live</h3>
+				</div>
 				<p>
 					The first run calls the real model and records every request and response to a local
 					SQLite cassette, keyed on a hash of the canonical request. Tokens and cost land on the
@@ -85,8 +89,10 @@
 		<!-- Step 3 -->
 		<li class="ec-step">
 			<div class="ec-step-copy">
-				<span class="ec-step-num" aria-hidden="true">3</span>
-				<h3>Replay in CI: $0, offline, deterministic</h3>
+				<div class="ec-step-head">
+					<span class="ec-step-num" aria-hidden="true">3</span>
+					<h3>Replay in CI: $0, offline, deterministic</h3>
+				</div>
 				<p>
 					Every PR replays the cassette. No network, no API keys, no flaky judge: identical inputs
 					produce identical verdicts, and <code>--baseline main</code> fails only on regressions.

@@ -1,0 +1,98 @@
+---
+// The scorer ladder, drawn: from cheap deterministic checks up to LLM-graded
+// and trajectory scorers. Each rung names its cost/determinism trade so the
+// prose below can stay short.
+const rungs = [
+	{
+		name: 'contains · exact · regex',
+		note: 'deterministic, instant, no network',
+		tag: 'free',
+	},
+	{
+		name: 'subprocess',
+		note: 'your script, any language, JSON over stdio',
+		tag: 'your code',
+	},
+	{
+		name: 'judge',
+		note: 'LLM-graded rubric, replay-deterministic',
+		tag: 'cached',
+	},
+	{
+		name: 'trajectory',
+		note: 'agent path: tool calls, order, step budget',
+		tag: 'traces',
+	},
+];
+---
+
+<figure class="ec-ladder">
+	{
+		rungs.map((r, i) => (
+			<div class="ec-ladder-rung" style={`--i: ${i}`}>
+				<code>{r.name}</code>
+				<span class="ec-ladder-note">{r.note}</span>
+				<span class="ec-ladder-tag">{r.tag}</span>
+			</div>
+		))
+	}
+	<figcaption>
+		The ladder: start deterministic, add judgment only where string checks stop being enough.
+	</figcaption>
+</figure>
+
+<style>
+	.ec-ladder {
+		margin: var(--sp-5) 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--sp-2);
+	}
+	.ec-ladder-rung {
+		display: flex;
+		align-items: center;
+		gap: var(--sp-4);
+		padding: var(--sp-3) var(--sp-4);
+		border: var(--border);
+		border-radius: var(--radius);
+		/* Each rung leans a little further into the accent. */
+		background: color-mix(
+			in srgb,
+			var(--sl-color-accent) calc(var(--i) * 3% + 2%),
+			transparent
+		);
+	}
+	.ec-ladder-rung code {
+		font-size: var(--fs-xs);
+		font-weight: 600;
+		white-space: nowrap;
+	}
+	.ec-ladder-note {
+		flex: 1;
+		font-size: var(--fs-xs);
+		color: var(--muted);
+	}
+	.ec-ladder-tag {
+		font-family: var(--sl-font-mono);
+		font-size: 0.7rem;
+		font-weight: 600;
+		padding: 0.12rem 0.55rem;
+		border: 1px solid var(--accent-line);
+		border-radius: 999px;
+		color: var(--sl-color-text-accent);
+		background: var(--sl-color-bg);
+		white-space: nowrap;
+	}
+	figcaption {
+		font-size: var(--fs-sm);
+		color: var(--muted);
+		text-align: center;
+		margin-top: var(--sp-2);
+	}
+	@media (max-width: 34rem) {
+		.ec-ladder-rung {
+			flex-wrap: wrap;
+			gap: var(--sp-2);
+		}
+	}
+</style>

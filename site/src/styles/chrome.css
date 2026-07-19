@@ -55,53 +55,94 @@ header.header button[data-open-modal] kbd {
 	margin-top: var(--sp-5);
 }
 
-/* Items: muted, small, no background on any state. A 2px transparent left rule
- * is reserved on every link so the active marker never shifts the text. */
+/* Items: quiet rounded rows. Hover gets a soft surface; the current page gets
+ * a tinted pill with accent text — no bars, no hard boxes. */
 /* Starlight 0.41.3 */
 .sidebar-content a {
-	border-left: 2px solid transparent;
-	padding-block: var(--sp-2);
+	border-radius: var(--radius-sm);
+	padding: var(--sp-2) var(--sp-3);
 	font-size: var(--fs-sm);
 	color: var(--muted);
-	transition: color var(--dur-fast) var(--ease-out);
+	transition:
+		color var(--dur-fast) var(--ease-out),
+		background var(--dur-fast) var(--ease-out);
 }
 .sidebar-content a:hover {
-	color: var(--sl-color-text);
-	background: transparent;
+	color: var(--heading);
+	background: color-mix(in srgb, var(--sl-color-text) 5%, transparent);
 }
 
-/* Active: accent left rule + heading-color text + a whisper of accent fill
- * that fades to nothing. No solid filled box. */
 /* Starlight 0.41.3 */
-.sidebar-content a[aria-current='page'] {
-	border-left-color: var(--sl-color-accent);
-	color: var(--heading);
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover {
+	color: var(--sl-color-text-accent);
 	font-weight: 500;
-	background: linear-gradient(90deg, var(--accent-soft), transparent 70%);
+	background: var(--accent-soft);
 }
 
 /* ---- Right-rail TOC ----------------------------------------------------- */
-/* Readable size (the old rail was --fs-xs and drowned), tight rhythm, same
- * active language as the sidebar. */
+/* A single hairline guide with readable entries hanging off it. The current
+ * section colors its text and its bit of the guide — same language as the
+ * sidebar, tighter rhythm than Starlight's default. */
 /* Starlight 0.41.3 */
 starlight-toc h2 {
-	font-size: var(--fs-sm);
+	font-size: var(--fs-xs);
 	font-weight: 600;
-	color: var(--heading);
+	text-transform: uppercase;
+	letter-spacing: var(--tracking-wide);
+	color: var(--muted);
+	margin-bottom: var(--sp-2);
+}
+starlight-toc ul {
+	border-inline-start: 1px solid var(--sl-color-hairline);
+}
+starlight-toc ul ul {
+	border-inline-start: 0;
 }
 starlight-toc a {
-	border-left: 2px solid transparent;
+	position: relative;
+	display: block;
+	border: 0;
 	font-size: var(--fs-sm);
 	color: var(--muted);
-	padding-block: 0.2rem;
+	padding: 0.25rem var(--sp-3);
+	line-height: var(--lh-snug);
 	transition: color var(--dur-fast) var(--ease-out);
 }
 starlight-toc a:hover {
-	color: var(--sl-color-text);
+	color: var(--heading);
 }
 /* Starlight 0.41.3 */
 starlight-toc a[aria-current='true'] {
-	border-left-color: var(--sl-color-accent);
+	color: var(--sl-color-text-accent);
+	font-weight: 500;
+}
+starlight-toc a[aria-current='true']::before {
+	content: '';
+	position: absolute;
+	left: -1px;
+	top: 0.3rem;
+	bottom: 0.3rem;
+	width: 2px;
+	border-radius: 1px;
+	background: var(--sl-color-accent);
+}
+
+/* ---- Heading anchor links ------------------------------------------------ */
+/* Starlight's clickable heading anchors rendered as a permanently visible
+ * accent glyph on every heading. Hide them until the heading is hovered, and
+ * keep them muted — they're plumbing, not content. */
+/* Starlight 0.41.3 */
+.sl-markdown-content .sl-anchor-link {
+	opacity: 0;
+	color: var(--muted);
+	transition: opacity var(--dur-fast) var(--ease-out);
+}
+.sl-markdown-content :is(h1, h2, h3, h4, h5):hover .sl-anchor-link,
+.sl-markdown-content .sl-anchor-link:focus-visible {
+	opacity: 1;
+}
+.sl-markdown-content .sl-anchor-link:hover {
 	color: var(--sl-color-text-accent);
 }
 

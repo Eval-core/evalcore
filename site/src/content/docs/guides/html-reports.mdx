@@ -3,6 +3,8 @@ title: HTML reports
 description: "The --html flag and the Action's html-artifact input: what's in the self-contained report, why it always uploads on failure, using it in PR review, and its air-gapped, file:// friendliness."
 ---
 
+import ReportEmbed from '../../../components/ReportEmbed.astro';
+
 Exit codes gate the build; an HTML report is what a human opens to see *why*. The
 `--html` flag writes a single, self-contained document, the shareable "here's the
 eval report" artifact a reviewer clicks straight from a PR.
@@ -10,6 +12,11 @@ eval report" artifact a reviewer clicks straight from a PR.
 ```sh
 evalcore run evals.yaml --cache replay --html report.html
 ```
+
+This is what comes out — a real report from the shipped quickstart suite,
+embedded as-is:
+
+<ReportEmbed />
 
 It is written **in addition to** the primary `--reporter` output, never instead
 of it, so you can emit terminal output to the console *and* an HTML file in the

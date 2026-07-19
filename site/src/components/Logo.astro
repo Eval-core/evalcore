@@ -1,8 +1,7 @@
 ---
-// The EvalCore mark ("breakthrough"): three score bars forming an E, one
-// crossing the muted threshold line and turning accent past it — a pass,
-// drawn. Inline SVG so the bars inherit text color per theme; only the
-// crossing tip carries the accent.
+// The EvalCore mark: three score bars forming an E, measured against the
+// accent gate line (the threshold a passing run clears). Inline SVG so the
+// bars inherit text color per theme; only the gate line carries the accent.
 interface Props {
 	size?: number;
 }
@@ -17,11 +16,8 @@ const { size = 28 } = Astro.props;
 	aria-hidden="true"
 	class="ec-logo"
 >
-	<rect x="39" y="9" width="4" height="46" rx="2" fill="currentColor" opacity="0.32"></rect>
-	<rect x="10" y="13" width="26" height="10" rx="5" fill="currentColor"></rect>
-	<rect x="10" y="27" width="20" height="10" rx="5" fill="currentColor"></rect>
-	<path d="M15 41 A5 5 0 0 0 10 46 A5 5 0 0 0 15 51 H41 V41 Z" fill="currentColor"></path>
-	<path
-		d="M41 41 H49 A5 5 0 0 1 54 46 A5 5 0 0 1 49 51 H41 Z"
-		fill="var(--sl-color-accent, #2dd4a0)"></path>
+	<rect x="10" y="13" width="34" height="10" rx="5" fill="currentColor"></rect>
+	<rect x="10" y="27" width="24" height="10" rx="5" fill="currentColor"></rect>
+	<rect x="10" y="41" width="30" height="10" rx="5" fill="currentColor"></rect>
+	<rect x="50" y="11" width="6" height="42" rx="3" fill="var(--sl-color-accent, #2dd4a0)"></rect>
 </svg>

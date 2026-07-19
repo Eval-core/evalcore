@@ -1,0 +1,105 @@
+---
+// The run pipeline, drawn: config + dataset feed the engine, each case flows
+// target -> scorers (with the cassette beside the target), results fold into
+// an ordered RunSummary, and gates / reporters / exit code read from it.
+// Replaces the old ASCII diagram on the core-concepts page. Uses the shared
+// fx-* drawing vocabulary from landing.css.
+---
+
+<figure class="ec-diagram">
+	<svg viewBox="0 0 720 430" class="fx-svg" role="img" aria-label="Diagram of the run pipeline: evals.yaml and cases.jsonl feed the engine, which runs target then scorers per case with the cassette beside the target; results form an ordered RunSummary consumed by gates, reporters, and the exit code.">
+		<defs>
+			<marker id="pd-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+				<path d="M0 0 L10 5 L0 10 z" class="fx-arrow"></path>
+			</marker>
+		</defs>
+
+		<!-- Inputs -->
+		<g class="fx-muted-stroke">
+			<rect x="150" y="10" width="130" height="34" rx="8"></rect>
+			<rect x="330" y="10" width="130" height="34" rx="8"></rect>
+			<path d="M215 44 L285 78" marker-end="url(#pd-arr)"></path>
+			<path d="M395 44 L325 78" marker-end="url(#pd-arr)"></path>
+		</g>
+		<text x="215" y="31" class="fx-label" text-anchor="middle">evals.yaml</text>
+		<text x="395" y="31" class="fx-label" text-anchor="middle">cases.jsonl</text>
+
+		<!-- Engine -->
+		<g>
+			<rect x="110" y="82" width="390" height="108" rx="12" class="pd-engine"></rect>
+			<text x="128" y="104" class="fx-note">per case · run.concurrency</text>
+			<g class="fx-muted-stroke">
+				<rect x="140" y="118" width="130" height="48" rx="9"></rect>
+				<path d="M270 142 h44" marker-end="url(#pd-arr)"></path>
+				<rect x="322" y="118" width="150" height="48" rx="9"></rect>
+			</g>
+			<text x="205" y="139" class="fx-label" text-anchor="middle">target</text>
+			<text x="205" y="156" class="fx-note" text-anchor="middle">produces output</text>
+			<text x="397" y="139" class="fx-label" text-anchor="middle">scorers</text>
+			<text x="397" y="156" class="fx-note" text-anchor="middle">judge the output</text>
+		</g>
+
+		<!-- Cassette -->
+		<g>
+			<rect x="556" y="118" width="130" height="48" rx="9" class="fx-accent-stroke"></rect>
+			<text x="621" y="139" class="fx-label" text-anchor="middle">cassette</text>
+			<text x="621" y="156" class="fx-note" text-anchor="middle">record / replay</text>
+			<g class="fx-muted-stroke">
+				<path d="M500 136 h48" marker-end="url(#pd-arr)"></path>
+				<path d="M548 150 h-48" marker-end="url(#pd-arr)"></path>
+			</g>
+		</g>
+
+		<!-- RunSummary -->
+		<g class="fx-muted-stroke">
+			<path d="M305 190 v28" marker-end="url(#pd-arr)"></path>
+			<rect x="222" y="224" width="166" height="40" rx="9"></rect>
+		</g>
+		<text x="305" y="248" class="fx-label" text-anchor="middle">RunSummary · ordered</text>
+
+		<!-- Fan-out -->
+		<g class="fx-muted-stroke">
+			<path d="M258 264 L160 306" marker-end="url(#pd-arr)"></path>
+			<path d="M305 264 v42" marker-end="url(#pd-arr)"></path>
+			<path d="M352 264 L450 306" marker-end="url(#pd-arr)"></path>
+			<rect x="60" y="312" width="170" height="72" rx="9"></rect>
+			<rect x="220" y="312" width="170" height="72" rx="9"></rect>
+		</g>
+		<rect x="380" y="312" width="170" height="72" rx="9" class="fx-accent-stroke"></rect>
+		<text x="145" y="336" class="fx-label" text-anchor="middle">gates</text>
+		<text x="145" y="354" class="fx-note" text-anchor="middle">pass_rate · mean_score</text>
+		<text x="145" y="370" class="fx-note" text-anchor="middle">+ baseline diff</text>
+		<text x="305" y="336" class="fx-label" text-anchor="middle">reporters</text>
+		<text x="305" y="354" class="fx-note" text-anchor="middle">terminal · json · junit</text>
+		<text x="305" y="370" class="fx-note" text-anchor="middle">· --html</text>
+		<text x="465" y="336" class="fx-label" text-anchor="middle">exit code</text>
+		<text x="465" y="354" class="fx-note" text-anchor="middle">0 = everything passed</text>
+		<text x="465" y="370" class="fx-note" text-anchor="middle">1 = anything else</text>
+	</svg>
+	<figcaption>
+		Cases move through the engine in dataset order and results return in that same order —
+		position is load-bearing.
+	</figcaption>
+</figure>
+
+<style>
+	.ec-diagram {
+		margin: var(--sp-5) 0;
+		padding: var(--sp-5);
+		border: var(--border);
+		border-radius: var(--radius-lg);
+		background: color-mix(in srgb, var(--sl-color-text) 2%, transparent);
+	}
+	.ec-diagram figcaption {
+		margin-top: var(--sp-4);
+		text-align: center;
+		font-size: var(--fs-sm);
+		color: var(--muted);
+	}
+	.pd-engine {
+		fill: transparent;
+		stroke: var(--sl-color-hairline);
+		stroke-width: 1.5;
+		stroke-dasharray: 5 5;
+	}
+</style>

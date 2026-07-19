@@ -3,6 +3,9 @@ title: Core concepts
 description: "The EvalCore mental model: the run pipeline, targets, datasets, scorers, gates, reporters, the exit-code contract, failures-as-data, and determinism."
 ---
 
+import PipelineDiagram from '../../../components/PipelineDiagram.astro';
+import ScorerLadder from '../../../components/ScorerLadder.astro';
+
 An EvalCore suite has four moving parts, declared in one `evals.yaml`: targets
 produce outputs, datasets supply inputs, scorers judge the outputs, and a `run`
 block ties it together with concurrency, budgets, and gates. Every feature starts
@@ -14,31 +17,7 @@ Every run flows through the same stages, in order. Cases move through the middle
 in dataset order and results come back in that same order. Position is
 load-bearing.
 
-```text
-  evals.yaml + dataset (JSONL)
-            │
-            ▼
-   ┌──────────────────┐     per case, concurrently (run.concurrency)
-   │     DATASET      │     ┌───────────────────────────────────────┐
-   │  ordered cases   │────▶│  TARGET          SCORERS              │
-   └──────────────────┘     │  produce  ────▶  judge the output    │
-                            │  an output       (contains, judge,   │
-                            │  (cache: replay  regex, subprocess,  │
-                            │  or record)      trajectory, …)      │
-                            └───────────────────────────────────────┘
-                                          │
-                                          ▼
-                              ┌───────────────────────┐
-                              │   RunSummary (ordered) │
-                              └───────────────────────┘
-                                          │
-                        ┌─────────────────┼─────────────────┐
-                        ▼                 ▼                 ▼
-                     GATES            REPORTERS         EXIT CODE
-                 pass_rate,       terminal / json /   0 = passed
-                 mean_score       junit / --html      1 = anything else
-                 (+ baseline diff)                    (+ gates, + baseline)
-```
+<PipelineDiagram />
 
 - The target runs once per case; cacheable targets consult the cassette
   first (see [Record / replay](/guides/record-replay/)).
@@ -96,6 +75,8 @@ Results always come back in dataset order. Determinism is the product.
 
 Every scorer runs on every case. They form a ladder from cheap and deterministic
 to fully custom:
+
+<ScorerLadder />
 
 - Deterministic checks: `contains` (substring, with `case_sensitive`),
   `exact` (equals `value`, or the case's `expected` field), `regex` (matches a

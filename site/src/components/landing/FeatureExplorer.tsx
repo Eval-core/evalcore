@@ -244,34 +244,35 @@ function CostVisual() {
 function ProtocolsVisual() {
 	return (
 		<svg viewBox="0 0 320 190" className="fx-svg" aria-hidden="true">
-			<rect x="118" y="72" width="84" height="44" rx="10" className="fx-accent-stroke" />
-			<text x="160" y="98" className="fx-label" textAnchor="middle">
+			{/* Elbow connectors first, staggered so no two share a lane. */}
+			<g className="fx-muted-stroke">
+				<path d="M69 40 V90 H116" />
+				<path d="M251 40 V90 H204" />
+				<path d="M79 150 V106 H116" />
+				<path d="M241 150 V106 H204" />
+				<rect x="14" y="10" width="110" height="30" rx="8" />
+				<rect x="196" y="10" width="110" height="30" rx="8" />
+				<rect x="14" y="150" width="130" height="30" rx="8" />
+				<rect x="176" y="150" width="130" height="30" rx="8" />
+			</g>
+			<rect x="118" y="74" width="84" height="46" rx="10" className="fx-accent-stroke" />
+			<text x="160" y="94" className="fx-label" textAnchor="middle">
 				engine
 			</text>
-			<g className="fx-muted-stroke">
-				<rect x="14" y="14" width="104" height="30" rx="8" />
-				<text x="66" y="33" className="fx-label" textAnchor="middle">
-					HTTP target
-				</text>
-				<path d="M84 44 L140 72" />
-				<rect x="202" y="14" width="104" height="30" rx="8" />
-				<text x="254" y="33" className="fx-label" textAnchor="middle">
-					shell target
-				</text>
-				<path d="M236 44 L180 72" />
-				<rect x="14" y="146" width="130" height="30" rx="8" />
-				<text x="79" y="165" className="fx-label" textAnchor="middle">
-					scorer: JSON stdio
-				</text>
-				<path d="M100 146 L140 116" />
-				<rect x="176" y="146" width="130" height="30" rx="8" />
-				<text x="241" y="165" className="fx-label" textAnchor="middle">
-					OTel / OpenInference
-				</text>
-				<path d="M220 146 L180 116" />
-			</g>
-			<text x="160" y="135" className="fx-note" textAnchor="middle">
-				Rust inside, never your problem
+			<text x="160" y="110" className="fx-note" textAnchor="middle">
+				Rust, hidden
+			</text>
+			<text x="69" y="29" className="fx-label" textAnchor="middle">
+				HTTP target
+			</text>
+			<text x="251" y="29" className="fx-label" textAnchor="middle">
+				shell target
+			</text>
+			<text x="79" y="169" className="fx-label" textAnchor="middle">
+				scorer: JSON stdio
+			</text>
+			<text x="241" y="169" className="fx-label" textAnchor="middle">
+				OTel / OpenInference
 			</text>
 		</svg>
 	);

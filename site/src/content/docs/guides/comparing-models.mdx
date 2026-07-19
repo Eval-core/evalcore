@@ -3,6 +3,8 @@ title: Comparing models
 description: Run one suite against several targets in a single invocation and get a side-by-side comparison (model A vs B, prompt v1 vs v2) with per-case winners, per-target cost, and one exit code for CI.
 ---
 
+import CastFrame from '../../../components/CastFrame.astro';
+
 Every eval so far has pointed one suite at one target. But the questions that
 actually drive a model decision are comparative: *is the cheaper model good
 enough?* *did the new system prompt regress anything?* *which of these two
@@ -15,17 +17,12 @@ and EvalCore prints a side-by-side comparison. Because a target is just "a thing
 that answers a case," the two things you compare can be two models, two prompts,
 or two deployed endpoints. Anything you can configure as a target works.
 
-<figure class="ec-cast">
-	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore runs one suite against two shell targets, good and bad, in a single matrix invocation and prints a side-by-side comparison with a per-case winner column and a win/tie tally.">
-		<source src="/casts/matrix.webm" type="video/webm" />
-		<img
-			src="/casts/matrix.gif"
-			alt="Terminal recording: evalcore runs one suite against two shell targets, good and bad, in a single matrix invocation and prints a side-by-side comparison with a per-case winner column and a win/tie tally."
-			loading="lazy"
-		/>
-	</video>
-	<figcaption>One invocation, two targets, one comparison, with per-case winners and a win/tie tally.</figcaption>
-</figure>
+<CastFrame
+	cast="matrix"
+	title="evalcore run evals.yaml --matrix good,bad"
+	alt="Terminal recording: evalcore runs one suite against two shell targets, good and bad, in a single matrix invocation and prints a side-by-side comparison with a per-case winner column and a win/tie tally."
+	caption="One invocation, two targets, one comparison, with per-case winners and a win/tie tally."
+/>
 
 ## Two things to compare are two targets
 

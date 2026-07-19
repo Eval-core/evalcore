@@ -3,6 +3,8 @@ title: Agents and traces
 description: Evaluate what the agent did. Export OTel/OpenInference traces, grade the trajectory (tool calls, ordering, step budgets) and the final answer in one suite, and read token, cost, and latency straight from the spans.
 ---
 
+import CastFrame from '../../../components/CastFrame.astro';
+
 An agent isn't judged by its final answer alone. The *path* matters too. Did it
 verify identity before issuing a refund? Did it call the knowledge base? Did it
 stay under a step budget? EvalCore evaluates the run your agent already emitted
@@ -217,17 +219,12 @@ which is why the OTel example above reports `4400ms`. Trace targets also respect
 
 ## The full example, walked
 
-<figure class="ec-cast">
-	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore grades a recorded agent trace. The trajectory rules and final answer both pass, with tokens and cost read straight from the spans.">
-		<source src="/casts/agent-trace.webm" type="video/webm" />
-		<img
-			src="/casts/agent-trace.gif"
-			alt="Terminal recording: evalcore grades a recorded agent trace. The trajectory rules and final answer both pass, with tokens and cost read straight from the spans."
-			loading="lazy"
-		/>
-	</video>
-	<figcaption>Grade the answer and the path from one recorded trace, offline and deterministic.</figcaption>
-</figure>
+<CastFrame
+	cast="agent-trace"
+	title="evalcore run examples/agent-trace/evals.yaml"
+	alt="Terminal recording: evalcore grades a recorded agent trace. The trajectory rules and final answer both pass, with tokens and cost read straight from the spans."
+	caption="Grade the answer and the path from one recorded trace, offline and deterministic."
+/>
 
 The shipped `examples/agent-trace/` suite grades two cases, one native and one
 OTel, against the same scorers:

@@ -142,6 +142,38 @@ starlight-tabs [role='tab'][aria-selected='true'] {
 	font-weight: 600 !important;
 }
 
+/* ---- Release badge ------------------------------------------------------ */
+/* "Latest release: v0.7.0" chip on the installation page. */
+.ec-release-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.3rem 0.8rem;
+	border: var(--border);
+	border-radius: 999px;
+	font-size: var(--fs-xs);
+	color: var(--muted);
+}
+.ec-release-badge code {
+	background: transparent;
+	border: 0;
+	padding: 0;
+	font-weight: 600;
+}
+.ec-release-badge a {
+	color: var(--sl-color-text-accent);
+	text-decoration: none;
+}
+.ec-release-badge a:hover {
+	text-decoration: underline;
+}
+.ec-release-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--sl-color-accent);
+}
+
 /* ---- File tree, badges, misc -------------------------------------------- */
 /* Starlight 0.41.3 */
 .sl-markdown-content .sl-badge {

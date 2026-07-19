@@ -3,6 +3,8 @@ title: Trials and statistics
 description: "Run every case N times and aggregate, because one sample of a stochastic model isn't a measurement. Trials, require policies, how verdicts and scores fold together, and the determinism story."
 ---
 
+import CastFrame from '../../../components/CastFrame.astro';
+
 An LLM is a stochastic system: send the same prompt twice and you can get two
 different answers. A single run samples that distribution exactly once, so a
 green suite might mean "the model reliably does the right thing" or "the model
@@ -13,17 +15,12 @@ measurement.
 into one case verdict, so a suite can assert on how *often* a case passes rather
 than on a single roll of the dice.
 
-<figure class="ec-cast">
-	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore runs every case three times and folds the per-trial verdicts into one, tagging each PASS/FAIL line with its passing-trial count and summarizing the flaky count.">
-		<source src="/casts/trials.webm" type="video/webm" />
-		<img
-			src="/casts/trials.gif"
-			alt="Terminal recording: evalcore runs every case three times and folds the per-trial verdicts into one, tagging each PASS/FAIL line with its passing-trial count and summarizing the flaky count."
-			loading="lazy"
-		/>
-	</video>
-	<figcaption>Run every case N times, with each verdict tagged by its passing-trial count.</figcaption>
-</figure>
+<CastFrame
+	cast="trials"
+	title="evalcore run site/demo/trials/evals.yaml"
+	alt="Terminal recording: evalcore runs every case three times and folds the per-trial verdicts into one, tagging each PASS/FAIL line with its passing-trial count and summarizing the flaky count."
+	caption="Run every case N times, with each verdict tagged by its passing-trial count."
+/>
 
 ## Configure trials
 

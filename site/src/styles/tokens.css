@@ -100,6 +100,8 @@
 	--fail: #f8746e;
 	--fail-soft: rgb(248 116 110 / 12%);
 	--warn: #eab308;
+	/* Secondary syntax hue: keeps hand-drawn code from reading all-mint. */
+	--code-blue: #8cc7ff;
 
 	/* Glass: translucent window chrome for terminals and framed media. */
 	--glass-bg: rgb(19 19 22 / 78%);
@@ -150,6 +152,7 @@
 	--fail: #d33e36;
 	--fail-soft: rgb(211 62 54 / 10%);
 	--warn: #a16207;
+	--code-blue: #0b63b8;
 
 	--glass-bg: rgb(255 255 255 / 78%);
 	--glass-border: rgb(19 19 22 / 10%);

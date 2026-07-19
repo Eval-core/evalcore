@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EvalCore report</title>
+<style>
+:root{--bg:#ffffff;--fg:#1c1e21;--muted:#6b7280;--border:#e5e7eb;--panel:#f9fafb;--pass:#137333;--pass-bg:#e6f4ea;--fail:#c5221f;--fail-bg:#fce8e6;--code:#f3f4f6;}@media (prefers-color-scheme:dark){:root{--bg:#16181c;--fg:#e6e6e6;--muted:#9aa0a6;--border:#2c2f36;--panel:#1e2127;--pass:#81c995;--pass-bg:#1e3a28;--fail:#f28b82;--fail-bg:#3a1f1e;--code:#232733;}}*{box-sizing:border-box;}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}main{max-width:960px;margin:0 auto;padding:24px 16px 64px;}h1{font-size:20px;margin:0 0 12px;}h2{font-size:16px;margin:28px 0 10px;border-bottom:1px solid var(--border);padding-bottom:4px;}h3{font-size:13px;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}h3.pass{color:var(--pass);}h3.fail{color:var(--fail);}h3.muted{color:var(--muted);}.stats{display:flex;flex-wrap:wrap;gap:8px;}.stat{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-variant-numeric:tabular-nums;}.stat.pass{color:var(--pass);}.stat.fail{color:var(--fail);}.overall-pass{background:var(--pass-bg);color:var(--pass);border-color:transparent;font-weight:600;}.overall-fail{background:var(--fail-bg);color:var(--fail);border-color:transparent;font-weight:600;}table{width:100%;border-collapse:collapse;margin:4px 0;}th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top;}th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;}.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}.badge{display:inline-block;min-width:34px;text-align:center;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600;}.badge.pass{background:var(--pass-bg);color:var(--pass);}.badge.fail{background:var(--fail-bg);color:var(--fail);}.row{display:grid;grid-template-columns:70px 1fr 90px 80px;gap:8px;align-items:center;padding:6px 8px;}.row.head{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}.c-id{overflow-wrap:anywhere;}details.case{border-bottom:1px solid var(--border);}details.case>summary{cursor:pointer;list-style:none;}details.case>summary::-webkit-details-marker{display:none;}details.case[open]>summary{background:var(--panel);}.case-body{padding:6px 12px 14px;}pre{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0;font-size:12.5px;}code{background:var(--code);border-radius:4px;padding:1px 5px;font-size:12.5px;}.error{color:var(--fail);font-weight:600;}.muted{color:var(--muted);}ol.trajectory{margin:4px 0;padding-left:20px;}ol.trajectory>li{margin:6px 0;}.tool{font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}details.payload{margin:4px 0;}details.payload>summary{cursor:pointer;color:var(--muted);font-size:12px;}ul.reasons{color:var(--muted);}.gate.pass{color:var(--pass);font-weight:600;}.gate.fail{color:var(--fail);font-weight:600;}</style>
+</head>
+<body>
+<main>
+<header>
+<h1>EvalCore report</h1>
+<div class="stats">
+<span class="stat overall-pass">all passed</span>
+<span class="stat pass">4 passed</span>
+<span class="stat fail">0 failed</span>
+<span class="stat">4 total</span>
+</div>
+</header>
+<section class="gates">
+<h2>Gates</h2>
+<table>
+<thead><tr><th>Status</th><th>Gate</th><th>Actual</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><span class="badge pass">PASS</span></td><td>pass_rate &gt;= 0.95</td><td class="num">1.00</td><td></td></tr>
+</tbody>
+</table>
+</section>
+<section class="cases">
+<h2>Cases</h2>
+<div class="row head"><span class="c-status">Status</span><span class="c-id">Case</span><span class="c-latency">Latency</span><span class="c-cost">Cost</span></div>
+<details class="case">
+<summary class="row"><span class="c-status"><span class="badge pass">PASS</span></span><span class="c-id">late-refund</span><span class="c-latency num">11ms</span><span class="c-cost num"></span></summary>
+<div class="case-body">
+<h3>Context</h3>
+<ol class="context">
+<li>Policy 4.2: Approved refunds are processed within 30 business days, counted from the date the return is approved.</li>
+</ol>
+<h3>Output</h3>
+<pre>Your refund is on its way. Approved refunds are processed within 30 business days per policy 4.2, counted from the day the return is approved. If it has been longer than that, reply here and we will escalate.</pre>
+<h3>Scores</h3>
+<table>
+<thead><tr><th>Scorer</th><th>Value</th><th>Passed</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td>contains</td><td class="num">1</td><td><span class="badge pass">yes</span></td><td></td></tr>
+<tr><td>regex</td><td class="num">1</td><td><span class="badge pass">yes</span></td><td></td></tr>
+</tbody>
+</table>
+</div>
+</details>
+<details class="case">
+<summary class="row"><span class="c-status"><span class="badge pass">PASS</span></span><span class="c-id">fee-dispute</span><span class="c-latency num">10ms</span><span class="c-cost num"></span></summary>
+<div class="case-body">
+<h3>Context</h3>
+<ol class="context">
+<li>Policy 7.1: Customers have 60 calendar days from the statement date to dispute a fee. The charge is reversed pending review.</li>
+</ol>
+<h3>Output</h3>
+<pre>You can dispute the fee. Under policy 7.1 you have 60 calendar days from the statement date to file a dispute, and we reverse the charge while we review it. I have opened the dispute for you.</pre>
+<h3>Scores</h3>
+<table>
+<thead><tr><th>Scorer</th><th>Value</th><th>Passed</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td>contains</td><td class="num">1</td><td><span class="badge pass">yes</span></td><td></td></tr>
+<tr><td>regex</td><td class="num">1</td><td><span class="badge pass">yes</span></td><td></td></tr>
+</tbody>
+</table>
+</div>
+</details>
+<details class="case">
+<summary class="row"><span class="c-status"><span class="badge pass">PASS</span></span><span class="c-id">card-lost</span><span class="c-latency num">9ms</span><span class="c-cost num"></span></summary>
+<div class="case-body">
+<h3>Context</h3>
+<ol class="context">
+<li>Policy 6.4: A lost or stolen card is frozen immediately; a replacement arrives within 7 to 10 business days at no charge.</li>
+</ol>
+<h3>Output</h3>
+<pre>I have frozen the card so it can not be used. A replacement debit card arrives within 7 to 10 business days per policy 6.4, shipped to the address on file at no charge.</pre>
+<h3>Scores</h3>
+<table>
+<thead><tr><th>Scorer</th><th>Value</th><th>Passed</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td>contains</td><td class="num">1</td><td><span class="badge pass">yes</span></td><td></td></tr>
+<tr><td>regex</td><td class="num">1</td><td><span class="badge pass">yes</span></td><td></td></tr>
+</tbody>
+</table>
+</div>
+</details>
+<details class="case">
+<summary class="row"><span class="c-status"><span class="badge pass">PASS</span></span><span class="c-id">wire-eta</span><span class="c-latency num">9ms</span><span class="c-cost num"></span></summary>
+<div class="case-body">
+<h3>Context</h3>
+<ol class="context">
+<li>Policy 5.3: International wire transfers settle within 3 to 5 business days.</li>
+</ol>
+<h3>Output</h3>
+<pre>International wire transfers settle in 3 to 5 business days per policy 5.3. You will receive a confirmation with the tracking reference once the funds leave your account.</pre>
+<h3>Scores</h3>
+<table>
+<thead><tr><th>Scorer</th><th>Value</th><th>Passed</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td>contains</td><td class="num">1</td><td><span class="badge pass">yes</span></td><td></td></tr>
+<tr><td>regex</td><td class="num">1</td><td><span class="badge pass">yes</span></td><td></td></tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+</main>
+</body>
+</html>
