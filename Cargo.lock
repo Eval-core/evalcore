@@ -472,7 +472,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "anstyle",
  "anyhow",
@@ -493,7 +493,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore-config"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "serde",
  "serde_json",
@@ -503,7 +503,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore-core"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -520,7 +520,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore-report"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "anstyle",
  "anyhow",
@@ -531,7 +531,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore-scorers"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -548,7 +548,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore-serve"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "anyhow",
  "axum",
@@ -563,7 +563,7 @@ dependencies = [
 
 [[package]]
 name = "evalcore-store"
-version = "0.7.0"
+version = "0.7.5"
 dependencies = [
  "anyhow",
  "async-trait",

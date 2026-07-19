@@ -11,7 +11,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.7.0"
+version = "0.7.5"
 authors = ["Abhishek Manyam", "Kuladeep Mantri"]
 edition = "2021"
 license = "Apache-2.0"
@@ -20,12 +20,12 @@ rust-version = "1.75"
 
 [workspace.dependencies]
 # internal crates (version required alongside path so crates.io publishes work)
-evalcore-config = { path = "crates/evalcore-config", version = "0.7.0" }
-evalcore-core = { path = "crates/evalcore-core", version = "0.7.0" }
-evalcore-report = { path = "crates/evalcore-report", version = "0.7.0" }
-evalcore-scorers = { path = "crates/evalcore-scorers", version = "0.7.0" }
-evalcore-serve = { path = "crates/evalcore-serve", version = "0.7.0" }
-evalcore-store = { path = "crates/evalcore-store", version = "0.7.0" }
+evalcore-config = { path = "crates/evalcore-config", version = "0.7.5" }
+evalcore-core = { path = "crates/evalcore-core", version = "0.7.5" }
+evalcore-report = { path = "crates/evalcore-report", version = "0.7.5" }
+evalcore-scorers = { path = "crates/evalcore-scorers", version = "0.7.5" }
+evalcore-serve = { path = "crates/evalcore-serve", version = "0.7.5" }
+evalcore-store = { path = "crates/evalcore-store", version = "0.7.5" }
 
 # external
 anstyle = "1"
