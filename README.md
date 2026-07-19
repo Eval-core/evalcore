@@ -5,297 +5,395 @@
   </picture>
 </p>
 
-**Know when your AI gets worse — before your users do.** Change a prompt, swap a model, update a dependency — did anything break? EvalCore records how your AI behaves and checks every change against it: free, offline, no flaky tests. One small tool, any language.
+<p align="center">
+  <strong>Know when your AI gets worse, before your users do.</strong>
+</p>
 
-Under the hood it's **the eval engine for AI systems**: statistical trials, side-by-side model comparison, agent-trajectory evaluation over OpenTelemetry traces, a local run viewer, and record/replay caching that makes CI runs deterministic, offline, and $0 — snapshot testing for AI behavior.
+<p align="center">
+  <a href="https://github.com/eval-core/evalcore/actions/workflows/ci.yml"><img src="https://github.com/eval-core/evalcore/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://crates.io/crates/evalcore"><img src="https://img.shields.io/crates/v/evalcore.svg" alt="crates.io"></a>
+  <a href="https://eval-core.github.io/evalcore/"><img src="https://img.shields.io/badge/docs-eval--core.github.io-blue" alt="Documentation"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-informational" alt="Apache-2.0"></a>
+</p>
 
-**[Documentation](https://eval-core.github.io/evalcore/)** · [Quickstart](https://eval-core.github.io/evalcore/getting-started/quickstart/) · [crates.io](https://crates.io/crates/evalcore) · [Releases](https://github.com/eval-core/evalcore/releases)
+<p align="center">
+  <img src="site/public/casts/quickstart.gif" alt="EvalCore grading a support bot against the policy each answer must cite: four cases pass, a compliance gate holds, and the run exits 0, all offline." width="760">
+</p>
 
-> Status: pre-1.0 — config and APIs may still shift between minor versions. See [CHANGELOG.md](CHANGELOG.md).
+---
+
+Change a prompt, swap a model, bump a dependency. Did anything break? You usually
+find out from a user.
+
+EvalCore records how your AI behaves and checks every change against that
+recording. It is one binary, driven by a YAML file, and it runs offline for $0,
+so an eval suite can be a blocking check on every pull request instead of a
+weekly job someone remembers to run.
+
+You never write Rust to use it. Targets speak HTTP or shell, custom scorers speak
+JSON over stdin and stdout, and judges are any OpenAI-compatible endpoint.
+
+**[Documentation](https://eval-core.github.io/evalcore/)** ·
+[Quickstart](https://eval-core.github.io/evalcore/getting-started/quickstart/) ·
+[crates.io](https://crates.io/crates/evalcore) ·
+[Releases](https://github.com/eval-core/evalcore/releases) ·
+[Changelog](CHANGELOG.md)
+
+> **Status:** pre-1.0. Config and APIs may still shift between minor versions.
+
+## Contents
+
+- [Install](#install)
+- [Quickstart](#quickstart)
+- [Reading the output](#reading-the-output)
+- [How it works](#how-it-works)
+- [What you can do with it](#what-you-can-do-with-it)
+- [Targets and scorers](#targets-and-scorers)
+- [Running in CI](#running-in-ci)
+- [Design principles](#design-principles)
+- [Maintainers](#maintainers)
+- [Contributing](#contributing)
 
 ## Install
 
 ```sh
-cargo install evalcore                 # from crates.io
-# or grab a prebuilt binary (Linux x64, macOS x64/arm64):
-#   https://github.com/eval-core/evalcore/releases
+cargo install evalcore
 ```
 
-In GitHub Actions, one step runs a suite and gates the job (report lands in the step summary):
+Or download a prebuilt binary for Linux x64 or macOS (x64 / arm64) from the
+[releases page](https://github.com/eval-core/evalcore/releases). Full options in
+the [installation guide](https://eval-core.github.io/evalcore/getting-started/installation/).
+
+## Quickstart
+
+The repository ships a runnable example: a small bank support bot, graded on
+whether every answer cites the policy it relied on. It needs no API key and makes
+no network calls.
+
+```sh
+git clone https://github.com/eval-core/evalcore
+cd evalcore
+cargo run -p evalcore -- run examples/quickstart/evals.yaml
+```
+
+```
+PASS late-refund (8ms)
+PASS fee-dispute (8ms)
+PASS card-lost (8ms)
+PASS wire-eta (8ms)
+
+4 passed, 0 failed, 4 total
+GATE PASS pass_rate >= 0.95 (actual 1.00)
+```
+
+A suite is two files. The YAML says what to run and how to grade it:
+
+```yaml
+# evals.yaml
+targets:
+  support-bot:
+    type: shell                       # your real app goes here
+    cmd: "sh examples/quickstart/bot.sh"
+
+datasets:
+  - file: cases.jsonl
+
+scorers:
+  - type: contains                    # grounding: cite a policy
+    value: "policy"
+    case_sensitive: false
+  - type: regex                       # specificity: cite a numbered rule
+    pattern: "policy [0-9.]+"
+
+run:
+  gates:
+    - type: pass_rate                 # a floor over the whole run
+      min: 0.95
+```
+
+The JSONL holds the cases. `context` is the retrieved evidence a RAG suite grades
+against. Scorers see it, targets never do:
+
+```jsonl
+{"id": "late-refund", "input": "It has been three weeks and my refund still has not shown up.", "context": ["Policy 4.2: Approved refunds are processed within 30 business days."]}
+{"id": "wire-eta", "input": "How long will an international wire transfer take?", "context": ["Policy 5.3: International wire transfers settle within 3 to 5 business days."]}
+```
+
+## Reading the output
+
+Every character of the terminal report means something specific. Here is a run
+with one failing case, annotated.
+
+**Per-case lines**, one per case, always in dataset order:
+
+```
+PASS late-refund (8ms)
+──┬─ ─────┬───── ──┬─
+  │       │        └─ latency, measured by the target itself
+  │       └────────── case id, straight from your cases.jsonl
+  └────────────────── every scorer passed
+
+FAIL fee-dispute
+     exact: expected "60 days", got "we will look into it"
+     ──┬──  ─────────────────────┬──────────────────────
+       │                         └─ that scorer's reason, verbatim
+       └─ which scorer objected (one line per failing scorer)
+```
+
+A case that never produced output reports the cause instead of a score, because
+a target error is a failed case with a reason, not a crash:
+
+```
+FAIL wire-eta
+     target error: connection refused
+```
+
+**The summary line**, then one line per gate:
+
+```
+2 passed, 1 failed, 3 total · 210 tokens · $0.0020 · 1 flaky
+─────────┬──────────────────   ────┬─────   ───┬───   ───┬──
+         │                         │           │         └─ cases whose trials
+         │                         │           │            disagreed with each other
+         │                         │           └─ your declared rates × those tokens
+         │                         └─ reported by the provider (or read from a trace)
+         └─ a case passes when every scorer passes
+
+GATE FAIL pass_rate >= 0.95 (actual 0.67)
+──┬─ ──┬─ ────────┬───────   ────┬─────
+  │    │          │              └─ what the run actually scored
+  │    │          └─ the floor you declared under run.gates
+  │    └─ this gate's verdict
+  └─ gate lines appear only when you configure gates
+```
+
+The last three segments of the summary line appear only when they apply: tokens
+and cost when the run reported usage, `flaky` when a case ran multiple trials.
+A run with none of them prints just `4 passed, 0 failed, 4 total`.
+
+`evalcore run` exits **0** when the run passed and **1** otherwise. That is the
+whole CI contract.
+
+Other output formats: `--reporter json` for the full result tree,
+`--reporter junit` for CI test panels, and `--html report.html` for a
+self-contained page you can attach to a pull request. See the
+[CLI reference](https://eval-core.github.io/evalcore/reference/cli/).
+
+## How it works
+
+```
+   cases.jsonl              evals.yaml
+        │                        │
+        │   id, input,           │   targets, scorers,
+        │   expected, context    │   gates, trials
+        └───────────┬────────────┘
+                    ▼
+            ┌───────────────┐        ┌──────────────────────────┐
+            │    TARGET     │◄──────►│  record / replay cache   │
+            │               │        │  .evalcore/cache.db      │
+            │ shell · http  │        │                          │
+            │ openai · trace│        │  keyed on a hash of the  │
+            └───────┬───────┘        │  canonical request       │
+                    │                └──────────────────────────┘
+                    │ output text, tokens, latency, trajectory
+                    ▼
+            ┌───────────────┐
+            │    SCORERS    │   run in order, all of them, every case
+            │               │
+            │ contains · exact · regex · json-schema · similarity
+            │ judge · subprocess · trajectory
+            └───────┬───────┘
+                    │ a case passes when every scorer passes
+                    ▼
+            ┌───────────────┐
+            │     GATES     │   floors over the whole run
+            │               │   pass_rate · mean_score · accuracy · macro_f1
+            └───────┬───────┘
+                    │
+                    ▼
+              exit 0  or  1   ──►  CI
+```
+
+Three properties hold everywhere, and they are the reason the tool is useful
+rather than merely convenient:
+
+**Determinism.** Identical inputs produce identical outputs. Results stay in
+dataset order, reporters are pure functions, and nothing user-visible reads the
+clock except latency. That is what makes the cache trustworthy.
+
+**Record once, replay forever.** Every call to a cacheable target is recorded to
+a local SQLite file, keyed on a hash of the canonical request. Commit that file
+and CI replays it, so the job makes no network calls, needs no API keys, and
+costs nothing.
+
+```sh
+evalcore run evals.yaml                  # auto (default): replay hits, record misses
+evalcore run evals.yaml --cache replay   # CI: cache only, a miss fails the case
+evalcore run evals.yaml --cache live     # re-record everything
+evalcore run evals.yaml --cache off      # bypass
+```
+
+Changing the model, the URL, or a case's input changes the key, so a stale
+recording can never quietly answer for a request you did not make. Shell targets
+are never cached, because they run local code, which can change without the
+config changing.
+
+**Failures are data.** A target error becomes a failed case with a reason, a
+scorer error becomes a failing score with a reason. A run never panics, and one
+bad case never aborts the suite.
+
+## What you can do with it
+
+| You want to | Use | Guide |
+|---|---|---|
+| Block regressions instead of demanding perfection | `--baseline` | [Gates and baselines](https://eval-core.github.io/evalcore/guides/gates-and-baselines/) |
+| Set a quality floor over the whole run | `run.gates` | [Gates and baselines](https://eval-core.github.io/evalcore/guides/gates-and-baselines/) |
+| Stop trusting a single lucky sample | `run.trials` | [Trials and statistics](https://eval-core.github.io/evalcore/guides/trials-and-statistics/) |
+| Decide whether the cheaper model is good enough | `--matrix a,b` | [Comparing models](https://eval-core.github.io/evalcore/guides/comparing-models/) |
+| Grade what an agent *did*, not just what it said | `trace` + `trajectory` | [Agents and traces](https://eval-core.github.io/evalcore/guides/agents-and-traces/) |
+| Evaluate your own deployed REST API | `type: http` | [Evaluating REST APIs](https://eval-core.github.io/evalcore/guides/evaluating-rest-apis/) |
+| Grade against retrieved context | case `context` | [RAG evaluation](https://eval-core.github.io/evalcore/guides/rag-evaluation/) |
+| Score with a rubric no assertion can express | `type: judge` | [LLM-as-judge](https://eval-core.github.io/evalcore/guides/llm-as-judge/) |
+| Track spend and cap it | `cost` + `budget_usd` | [Cost and budgets](https://eval-core.github.io/evalcore/guides/cost-and-budgets/) |
+| Score in Python, or any language | `type: subprocess` | [Custom scorers](https://eval-core.github.io/evalcore/guides/custom-scorers/) |
+| Browse past runs and diff any two | `evalcore serve` | [Run history](https://eval-core.github.io/evalcore/guides/run-history-and-serve/) |
+
+Three of these are worth seeing in their real output.
+
+**Baselines gate on getting worse.** Save an accepted state, then compare. Cases
+that were already failing stay tolerated; only genuine regressions fail the run:
+
+```
+baseline "main": 2/3 passed -> current: 0/3 passed
+REGRESSED refund-window
+     exact: expected "30 days", got "I do not know"
+REGRESSED wire-eta
+     exact: expected "3 to 5 days", got "I do not know"
+baseline gate: FAIL (2 regressed, 0 new failing)
+```
+
+All three cases are failing here, but only two are reported. The third was
+already failing when the baseline was saved.
+
+**Trials measure instead of sampling.** One run of a stochastic model is one
+sample. `run.trials` runs each case N times and folds the results with
+`all`, `majority`, or `any`. The same unstable case, under two policies:
+
+```
+run:  trials: { count: 3, require: majority }
+      PASS fee-dispute (10ms) [2/3 trials]
+      3 passed, 0 failed, 3 total · 1 flaky        exit 0
+
+run:  trials: { count: 3, require: all }
+      FAIL fee-dispute [2/3 trials]
+           exact: trial 2: expected "60 days", got "unsure"
+      2 passed, 1 failed, 3 total · 1 flaky        exit 1
+```
+
+Either way you learn the case is flaky. `require` only decides whether that
+fails your build.
+
+**A matrix compares targets side by side** in one invocation: two models, two
+prompts, or two deployed endpoints.
+
+```
+== comparison
+case             baseline-bot    improved-bot
+refund-window    PASS            PASS            tie
+fee-dispute      FAIL            PASS            improved-bot
+wire-eta         PASS            PASS            tie
+wins: baseline-bot 0 · improved-bot 1 · ties 2
+```
+
+## Targets and scorers
+
+A **target** is the thing under evaluation.
+
+| Type | Evaluates | Cached |
+|---|---|---|
+| `shell` | Any command. The case input arrives on stdin, stdout is the output. | No |
+| `openai-compatible` | Any OpenAI-format chat endpoint: OpenAI, vLLM, Ollama, a gateway. | Yes |
+| `http` | Any HTTP/JSON API, typically your own deployed app. | Yes |
+| `trace` | A recorded agent run, in EvalCore's native format or an OTel / OpenInference export. Nothing is invoked. | No |
+
+A **scorer** decides whether an output is acceptable. Every scorer runs on every
+case, and a case passes only when all of them pass.
+
+| Type | Passes when | Score |
+|---|---|---|
+| `contains` | The output contains a substring. | 0 or 1 |
+| `exact` | The output equals `value`, or the case's `expected`. | 0 or 1 |
+| `regex` | A regular expression matches anywhere in the output. | 0 or 1 |
+| `json-schema` | The output parses as JSON and validates against a draft 2020-12 schema. | 0 or 1 |
+| `similarity` | Cosine similarity between the output and `expected` clears a threshold. | the cosine |
+| `judge` | An LLM grading against your rubric scores at or above a threshold. | the judge's score |
+| `subprocess` | Your own command prints a passing verdict. Any language. | your score |
+| `trajectory` | An agent's tool calls satisfy every rule (`must_call`, `must_not_call`, `max_steps`). | 0 or 1 |
+
+Judge and similarity calls go through the same record/replay cache as targets, so
+LLM-graded suites replay deterministically and for free. Every field of every
+type is documented in the
+[configuration reference](https://eval-core.github.io/evalcore/reference/configuration/).
+
+## Running in CI
+
+One step runs a suite and gates the job. The terminal report lands in the step
+summary, and a self-contained HTML report is uploaded as an artifact a reviewer
+can open straight from the pull request:
 
 ```yaml
 - uses: eval-core/evalcore@v0.7.0
   with:
     config: evals/evals.yaml
     args: --cache replay --baseline main
-    html-artifact: evalcore-report   # upload a shareable HTML report (default; "" disables)
+    html-artifact: evalcore-report   # default; set to "" to disable
 ```
 
-The `html-artifact` input uploads a self-contained HTML report as a build artifact a reviewer can click straight from the PR — the pass/fail summary, gate outcomes, and every case's output, per-scorer scores, and agent trajectory, expandable inline. It uploads even when the suite fails (that's when it matters most), and embeds the baseline diff when `--baseline` is set. Locally or in any pipeline, `evalcore run … --html report.html` writes the same document alongside (never replacing) the primary `--reporter` output.
+`--cache replay` means the job needs no API keys and spends nothing.
+`--baseline main` means it fails on regressions rather than on imperfection. The
+HTML report uploads even when the suite fails, which is when it matters.
 
-## What teams use it for
-
-- **The support copilot that must not promise refunds** — a regulated bank's assistant, gated so every answer cites its policy and none makes an out-of-policy promise, with the PR's HTML report as the compliance audit artifact ([examples/support-rag](examples/support-rag)).
-- **Is the 10x-cheaper model good enough?** — `--matrix expensive,cheap` runs the suite against both in one shot and prints per-case winners and each model's cost, turning a six-figure model decision into an evidence-backed one ([comparing models](https://eval-core.github.io/evalcore/guides/comparing-models/)).
-- **The judge suite too expensive to run per-PR** — record the LLM-judge verdicts once, commit the cassette, and replay them for $0 and byte-for-byte deterministic, so the suite moves from a weekly job to a blocking check on every merge ([record / replay](https://eval-core.github.io/evalcore/guides/record-replay/)).
-- **Claims triage that catches a silent fraud-recall drop** — `accuracy` and `macro_f1` gates fail the build when the metric that matters slips, with per-class precision and recall in every report ([examples/claims-triage](examples/claims-triage)).
-- **The agent that touches money** — `trajectory` rules over an OTel trace (`must_not_call: issue_refund before: verify_identity`, `max_steps`) turn a prompt-enforced policy into a language-agnostic CI assertion on what the agent actually did ([agents and traces](https://eval-core.github.io/evalcore/guides/agents-and-traces/)).
-
-All of it runs local-first and offline — the suite, the cassette, and history live in a SQLite file next to your repo, nothing leaves the building. See [What teams use it for](https://eval-core.github.io/evalcore/getting-started/what-teams-use-it-for/) for the full walkthrough.
-
-## Quickstart
-
-The shipped example is a mini bank support bot, graded against the policy each answer must cite — fully offline, no keys:
-
-```sh
-cargo run -p evalcore -- run examples/quickstart/evals.yaml
-```
-
-```
-PASS late-refund (12ms)
-PASS fee-dispute (11ms)
-PASS card-lost (10ms)
-PASS wire-eta (10ms)
-
-4 passed, 0 failed, 4 total
-GATE PASS pass_rate >= 0.95 (actual 1.00)
-```
-
-An eval suite is a YAML file plus a JSONL dataset:
-
-```yaml
-# evals.yaml
-targets:
-  support-bot:
-    type: shell
-    cmd: "sh examples/quickstart/bot.sh"   # a real app goes here
-datasets:
-  - file: cases.jsonl
-scorers:
-  - type: contains          # grounding: every answer must cite a policy
-    value: "policy"
-  - type: regex             # specificity: it must cite a numbered rule
-    pattern: "policy [0-9.]+"
-run:
-  gates:
-    - type: pass_rate       # compliance floor over the whole run
-      min: 0.95
-```
-
-Scorers range from deterministic checks (`contains`, `exact`, `regex`, and `json-schema` for structured output), through an any-language escape hatch (`subprocess`: JSON on stdin → `{"score": ...}` on stdout), to LLM-backed grading — LLM-as-judge and `similarity` (semantic closeness by embedding cosine):
-
-```yaml
-  - type: judge
-    url: https://api.openai.com/v1
-    model: gpt-4.1-mini
-    rubric: "Is the answer grounded in the provided context?"
-    api_key_env: OPENAI_API_KEY
-    threshold: 0.7
-```
-
-Judge calls go through the record/replay cache too — replayed judge verdicts are deterministic, which is what makes LLM-graded suites usable as CI gates. Embedding calls (`similarity`) cache and replay just like the judge.
-
-```jsonl
-{"id": "late-refund", "input": "It has been three weeks and my refund still has not shown up. Where is it?", "context": ["Policy 4.2: Approved refunds are processed within 30 business days."]}
-{"id": "wire-eta", "input": "How long will an international wire transfer take to arrive?", "context": ["Policy 5.3: International wire transfers settle within 3 to 5 business days."]}
-```
-
-For RAG evaluation, a case may carry retrieved `context` — a single string or an array of strings. **Scorers see the context but targets never do:** a RAG app runs its own retrieval (put anything the target needs in `input`), so context stays on the scoring side. The judge grades the answer against the context (write rubrics like "grounded in the provided context?"), and subprocess scorers receive it as a `context` array on stdin. Because the context is part of the judge's prompt, changing it re-records the judge verdict, just like changing the rubric.
-
-`evalcore run` exits `0` when every case passes and `1` otherwise, so it drops straight into CI.
-
-## Record/replay caching
-
-Every call to an LLM target is recorded in `.evalcore/cache.db` (SQLite), keyed by a content hash of the request. Reruns replay from the cache: **free, offline, deterministic**.
-
-```sh
-evalcore run evals.yaml                  # auto (default): replay hits, record misses
-evalcore run evals.yaml --cache replay   # CI mode: cache only, a miss fails the case
-evalcore run evals.yaml --cache live     # re-record everything
-evalcore run evals.yaml --cache off      # bypass
-```
-
-Treat the cache file like VCR cassettes: commit it, and CI runs `--cache replay` with zero LLM spend and zero flakiness. Changing the model, URL, or a case's input changes the key, so stale hits don't lie to you. Shell targets are never cached — they run your local code, whose behavior can change without the config changing.
-
-## Trials: measure, don't sample
-
-An LLM is stochastic — one run samples its behavior once, so a green suite might just be a lucky roll. `run.trials` runs every case N times and aggregates, so you can gate on how *often* a case passes:
-
-```yaml
-run:
-  trials: 3            # shorthand; or { count: 5, require: majority }  —  all | majority | any
-```
-
-A trial passes when every scorer passes; the case verdict follows `require` (default `all`; `majority` is strictly more than half). The per-scorer case score is the mean across trials (what `mean_score` gates and baselines see), latency is the trial mean, and every trial's cost counts toward `budget_usd`. Determinism holds: trial 0 keeps the pre-trials cache key so existing cassettes replay, while trials 1..N — and their judge/similarity calls — re-key per trial. The terminal report tags multi-trial cases, `PASS greeting (6ms) [3/3 trials]`; single-trial output is unchanged.
-
-## Evaluate your deployed app's own REST endpoint
-
-The `http` target points EvalCore at any HTTP/JSON API — typically your own RAG service or agent behind `POST /chat` — and caches it exactly like an LLM call, so the same commit-the-cassette, replay-in-CI story applies to your app's real responses:
-
-```yaml
-targets:
-  my-rag:
-    type: http
-    url: https://api.myapp.com/chat   # {{input}} allowed here too (percent-encoded)
-    method: POST                       # default POST; GET/PUT/PATCH also supported
-    headers:                           # static headers — NEVER secrets (values are cached)
-      x-tenant: acme
-    api_key_env: MYAPP_API_KEY         # optional; sent as `authorization: Bearer <key>`
-    body:                              # JSON template; {{input}} fills string values
-      question: "{{input}}"
-      session: eval
-    response_path: /answer             # RFC 6901 JSON Pointer; omit to use the raw body
-```
-
-`{{input}}` is substituted from each case: percent-encoded into `url`, verbatim into every string value of `body`. On a 2xx, `response_path` pulls the answer out of the JSON response (omit it to score the raw body text); non-2xx and transient failures are classified and retried just like the LLM target. **Keep credentials in `api_key_env`, never in `headers:`** — header values are hashed into the cache identity and stored in the committed `.evalcore/cache.db`, whereas the API key never enters the cache. The key is sent as `authorization: Bearer <key>` by default; for an `x-api-key` style header set both `auth_header: x-api-key` and `auth_prefix: ""`. The cache identity keys on the request shape (url/method/headers/body/response_path), never on the key, so `--cache replay` runs offline with no secret configured.
-
-## Retries, timeouts, cost tracking, budgets
-
-Transient failures (429, 5xx, network) retry automatically with exponential backoff, honoring `Retry-After`. Each attempt is also bounded by `timeout_seconds` (default 120, applied per attempt so every retry gets a fresh budget): when it elapses the attempt is aborted and treated as a transient failure — retried like any 429/5xx — so a hung endpoint can no longer pin a concurrency slot and wedge a run. Token usage is captured per case; declare your prices and EvalCore reports cost and enforces a budget:
-
-```yaml
-targets:
-  openai:
-    type: openai-compatible
-    url: https://api.openai.com/v1
-    model: gpt-4.1-mini
-    api_key_env: OPENAI_API_KEY
-    max_retries: 3            # default 2
-    timeout_seconds: 60      # default 120; per attempt
-    cost:                     # your provider's prices per 1M tokens
-      input_per_1m: 0.40
-      output_per_1m: 1.60
-    system: "You are a support agent. Be concise."
-    params:                   # passed through verbatim — any provider knob
-      temperature: 0
-      max_tokens: 512
-run:
-  budget_usd: 5.0             # stop dispatching new cases past this spend
-```
-
-Cases skipped by the budget are reported as failures with a reason — the run completes and exits 1 rather than aborting. The terminal summary shows totals: `12 passed, 0 failed, 12 total · 48210 tokens · $0.0341`.
-
-How the math works: `cost = (input_tokens × input_per_1m + output_tokens × output_per_1m) / 1M`, using the token counts the provider reported (or, for trace runs, the usage found in the spans). EvalCore deliberately ships **no pricing table** — prices change and differ per provider, deployment, and tier, and a stale table produces silently wrong dollars. Your rates live in config where code review can see them. Replayed runs report the *recorded* usage, so cost stays visible even when actual spend is $0. Known gap: LLM-judge calls are not yet included in totals or budgets.
-
-## Baselines: gate on regressions, not perfection
-
-Real eval suites are rarely 100% green — what you actually want to block in CI is *getting worse*. Save an accepted state, then gate against it:
-
-```sh
-evalcore run evals.yaml --save-baseline main     # record the accepted state
-evalcore run evals.yaml --baseline main          # exit 0 iff NO regressions
-```
-
-With `--baseline`, the exit contract changes: failures already present in the baseline are tolerated; a case that regresses (passed → failing) or a new failing case exits 1, with a diff:
-
-```
-baseline "main": 11/12 passed -> current: 10/12 passed
-REGRESSED refund-2
-     judge: answer no longer cites the policy
-baseline gate: FAIL (1 regressed, 0 new failing)
-```
-
-Combine both flags for a rolling baseline (`--baseline main --save-baseline main`): compare first, then re-record. Baselines live in the same `.evalcore` store as the cache — commit it and CI gates offline.
-
-## Suite gates: floors, not per-case checks
-
-Baselines and per-case scorers ask "did any single case fail?" Enterprises also want a floor over the *whole* run — "at least 95% of cases pass", "the judge's mean score is at least 0.8". Declare aggregate gates under `run`:
-
-```yaml
-run:
-  concurrency: 4
-  gates:
-    - type: pass_rate
-      min: 0.95                # fraction of cases passing all scorers, in [0,1]
-    - type: mean_score
-      scorer: judge            # optional: restrict to that scorer's score; omitted = all scores
-      min: 0.8                 # any finite number (subprocess scorers may use arbitrary scales)
-```
-
-Floors compare with a `1e-9` tolerance to absorb floating-point rounding, so a run that exactly meets its floor passes. Gates are *additive absolute floors*: the run exits `1` if the existing contract fails (any case failed, or with `--baseline` a regression) **or** any gate falls below its floor — so with `--baseline`, an accepted failure stays tolerated per-case, yet still sinks a `pass_rate` gate it drops below. Target-error cases count in `pass_rate`'s denominator but contribute no scores to `mean_score`, so pair a `mean_score` gate with a `pass_rate` gate to catch error storms. Gate outcomes print after the summary (`GATE PASS pass_rate >= 0.95 (actual 1.00)`) and ride along in the JSON report; JUnit is unchanged — the exit code carries the gate result for CI. For label-prediction suites, `run.classification` adds `accuracy` and `macro_f1` gates (each a `min` in `[0,1]`) that gate on the metrics over cases carrying an `expected` label, printing `classification: accuracy 0.67 · macro-F1 0.67 (3 labeled, 1 unlabeled)`.
-
-## Matrix runs: compare models side by side
-
-Comparing two models — or two prompts, or two deployed endpoints — used to mean running the suite twice and diffing reports by eye. A matrix runs the whole suite once per target in a single invocation and prints a side-by-side comparison. The two things you compare are just two targets (different `model`s, or the same model with different `system` prompts):
-
-```yaml
-run:
-  matrix: [gpt, claude]   # >= 2 distinct, defined targets; or --matrix gpt,claude on the CLI
-```
-
-```
-== comparison
-case        echo    upper
-refund-1    PASS    PASS     tie
-refund-2    FAIL    PASS     upper
-wins: echo 0 · upper 1 · ties 1
-```
-
-Arms run sequentially in list order; each arm prices with its own target's `cost` rates and gets the full `budget_usd` (the per-run cost-rates gap, closed). The per-case winner is the arm with the strictly highest mean score (`1e-9` tie tolerance); an all-tie or score-less case is a tie. The run exits `0` iff **every** arm passes all its cases and gates. Combining `--matrix` with `--target`, `--baseline`, or `--save-baseline` is a hard error — baselines are per-run in v1. One cassette store serves every arm (each arm has its own cache identity), so `--cache replay` reruns the whole matrix offline.
-
-## Run history and a local viewer
-
-Every run is recorded to your local store, and `evalcore serve` opens a read-only web viewer over that history — so "what did last night's run say?", the pass-rate trend, and "model A's run vs model B's" are all one click away.
-
-```sh
-evalcore run evals.yaml --matrix gpt,claude   # records a history row per arm (on by default; --no-history opts out)
-evalcore serve                                # serving http://127.0.0.1:7878
-```
-
-You get a listing (newest first, with a pass-rate sparkline), each run's full HTML report at `/run/{id}`, and a `/diff?a=&b=` that compares **any** two stored runs — yesterday vs today, or one target vs another. It is **local-first and read-only by design**: binds `127.0.0.1` only, GET-only, no auth (no remote access), no telemetry — nothing leaves your machine. History lives in the same `.evalcore/cache.db` as the cache, so committing it shares runs with teammates.
-
-## Agent trajectories: evaluate what the agent *did*
-
-Agents aren't judged by their final answer alone — but the answer still matters. EvalCore ingests **recorded traces** — its own [native trajectory format](docs/trajectory-spec.md) or an OTel/OpenInference JSON export your framework already emits — and grades **the answer and the path in one suite**. No SDK, no integration, any language:
-
-```yaml
-targets:
-  support-agent:
-    type: trace                      # ingest, don't invoke
-datasets:
-  - file: cases.jsonl                # {"id": "refund-flow", "trace": "traces/run1.json"}
-scorers:
-  - type: contains                   # grade the ANSWER: the trace's final
-    value: "30 days"                 # output (native final_output / OTel root
-                                     # span), not the trajectory JSON. Use a
-                                     # judge here for graded rubric scoring.
-  - type: trajectory                 # grade the PATH: what the agent did
-    rules:
-      - must_call: search_kb
-        with:
-          query: { contains: "refund" }
-      - must_not_call: issue_refund
-        before: verify_identity      # never refund before verifying identity
-      - max_steps: 8
-```
-
-```
-PASS refund-flow-native (0ms)
-PASS refund-flow-otel (4400ms)      # latency & tokens read from the trace itself
-
-2 passed, 0 failed, 2 total · 268 tokens · $0.0002
-```
-
-Try it: `evalcore run examples/agent-trace/evals.yaml`. The rule semantics are specified in [docs/trajectory-spec.md](docs/trajectory-spec.md).
+The action is a convenience, not a requirement. The binary's exit code is the
+whole contract, so any CI system works. See
+[Running in CI](https://eval-core.github.io/evalcore/guides/running-in-ci/) for
+GitLab, Jenkins, and bare-shell setups.
 
 ## Design principles
 
-1. **Protocols over SDKs** — targets speak HTTP or shell, custom scorers speak JSON over stdin/stdout (any language), judges are any OpenAI-compatible endpoint. Rust is the engine, never a requirement.
-2. **Deterministic in CI** — record/replay caching of every LLM call (shipped, see above).
-3. **Traces as the unit of agent evaluation** — assert on tool calls, ordering, and budgets from OTel traces (shipped, see above).
-4. **Local-first** — results in SQLite next to your repo; no server, no signup.
+**Protocols over SDKs.** Every extension point is language-agnostic. Targets
+speak HTTP or shell, custom scorers speak JSON over stdin and stdout, judges are
+any OpenAI-compatible endpoint, agent traces arrive as OTel or OpenInference
+JSON. Rust is the engine, never the interface.
 
-## Development
+**Config first.** Features begin as YAML. If something is worth doing, it is
+worth describing as data that a reviewer can read in a diff.
+
+**Deterministic by construction.** Same inputs, same bytes out. The cache,
+baselines, and CI gating are all built on that.
+
+**Local first.** Your suite, your recordings, and your run history live in a
+SQLite file next to your repository. There is no server to run and no account to
+create, and the tool sends nothing anywhere.
+
+## Maintainers
+
+EvalCore is built by [Abhishek Manyam](https://github.com/abhishekmanyam) and
+[Kuladeep Mantri](https://github.com/kuladeepmantri).
+
+## Contributing
+
+Bug reports, feature requests, and pull requests are welcome. Start with
+[CONTRIBUTING.md](CONTRIBUTING.md) for the workspace layout, the four
+architectural rules, and the checks CI runs. Security issues go through
+[SECURITY.md](SECURITY.md), not the public tracker.
 
 ```sh
-cargo build                                          # build everything
-cargo nextest run                                    # tests (or: cargo test)
+cargo build
+cargo nextest run --workspace                          # or: cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```
 
-Workspace layout is documented in [CLAUDE.md](CLAUDE.md).
-
 ## License
 
-Apache-2.0
+Apache-2.0. See [LICENSE](LICENSE).
