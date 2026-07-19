@@ -1,6 +1,6 @@
 [package]
 name = "evalcore"
-description = "The eval engine for AI systems — measure, compare, and regression-gate LLM apps and agents from one config-first binary"
+description = "Know when your AI gets worse before your users do — the eval engine for AI systems: record, replay, compare, and gate LLM and agent behavior"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

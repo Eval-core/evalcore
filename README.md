@@ -5,7 +5,9 @@
   </picture>
 </p>
 
-**The eval engine for AI systems.** One config-first binary that measures, compares, and regression-gates LLM apps and agents — statistical trials, side-by-side model comparison, agent-trajectory evaluation over OpenTelemetry traces, and a local run viewer. Under it all: record/replay caching that makes CI runs deterministic, offline, and $0 — snapshot testing for AI behavior.
+**Know when your AI gets worse — before your users do.** Change a prompt, swap a model, update a dependency — did anything break? EvalCore records how your AI behaves and checks every change against it: free, offline, no flaky tests. One small tool, any language.
+
+Under the hood it's **the eval engine for AI systems**: statistical trials, side-by-side model comparison, agent-trajectory evaluation over OpenTelemetry traces, a local run viewer, and record/replay caching that makes CI runs deterministic, offline, and $0 — snapshot testing for AI behavior.
 
 **[Documentation](https://eval-core.github.io/evalcore/)** · [Quickstart](https://eval-core.github.io/evalcore/getting-started/quickstart/) · [crates.io](https://crates.io/crates/evalcore) · [Releases](https://github.com/eval-core/evalcore/releases)
 
