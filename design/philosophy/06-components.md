@@ -14,14 +14,20 @@ The frame for anything that shows the product running: VHS casts, the animated h
 
 Squared (`--radius`), calm, instrument-like.
 
-- Primary: solid accent, white text, 1px inset top highlight. Hover deepens to accent-high. Active presses in place (inset shadow), no lift.
-- Secondary: raised surface, hairline border, text color. Hover strengthens border and heading color.
+- Primary, light theme: accent gradient (a white-tinted top edge falling to the flat accent), white text, 1px inset top highlight.
+- Primary, dark theme: the relationship inverts. The dark accent is a light indigo, so a white-tinted gradient under white text washes out. Fill stays bright and the ink goes near-black (`#14141b`).
+- Secondary: raised surface, hairline border, text color. Hover strengthens border and shadow.
+- Hover lifts, it does not re-tint. Changing a button's fill on hover makes it read as a different button; only depth moves, plus the primary's arrow sliding 2px.
 - Focus: visible 2px accent outline, offset 2px. Tap highlight disabled.
 - Never pills, never translateY hover, never green.
 
 ## Tabs
 
-Content tabs (installation OS picker, feature explorer) are a segmented control: hairline pill strip on surface, active segment on raised surface with a small shadow, inactive segments muted text. No underline tabs, no borders per segment.
+Content tabs (installation OS picker) are a segmented control: hairline pill strip on surface, active segment on raised surface with a small shadow, inactive segments muted text. No underline tabs, no borders per segment.
+
+The feature explorer uses a **vertical rail** instead. Horizontal pills gave the selected tab the only filled surface, and because the labels differ in length ("Record / replay" against "Cost"), the active tab read as a physically bigger button. A rail makes every tab the same width by construction: selection changes color and adds a 2px accent edge marker, never geometry. Below 60rem the rail lies down into a horizontal scroller and the marker moves to the bottom edge.
+
+**Rule for any tab set: selection may change color, fill, and weight, but never metrics.** If the selected state changes size, the control is wrong.
 
 ## Chips and tags
 
@@ -36,7 +42,13 @@ Content tabs (installation OS picker, feature explorer) are a segmented control:
 
 ## Copy buttons
 
-Hidden until the block is hovered or the button focused. Ghost square (`--radius-sm`) on the block's surface. Success feedback is a small pill in the pass color with a check; no oversized "Copied!" tooltips.
+One control, one shape, everywhere: a 1.75rem bordered square at `--radius-sm`, pinned to the top-right of whatever it copies. Docs code blocks and landing snippets use the same chip, so a reader learns it once. Inside a rounded pill (the install command) the chip goes round to match the field.
+
+It is **always present**, at reduced opacity when idle and full opacity when the block is hovered or the button focused. A control that is invisible until hover is one users assume is missing.
+
+Success feedback stays neutral: a dark chip reading "Copied", with only the check glyph in the pass color. The button itself never turns green. Green is a run verdict, not an interaction state.
+
+Placement is pinned explicitly for every frame type (bare, titled, terminal), because expressive-code's own default drifts between them and produces a copy button in a different corner on different pages.
 
 ## Asides
 

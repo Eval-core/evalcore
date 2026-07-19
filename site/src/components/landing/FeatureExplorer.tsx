@@ -242,39 +242,27 @@ function CostVisual() {
 }
 
 function ProtocolsVisual() {
+	// One lane per extension point: what you write, the wire format between,
+	// and what EvalCore calls it. The old version packed four boxes and elbow
+	// connectors into 320x190 and the labels ran out of their boxes.
+	const lanes: [string, string, string][] = [
+		['Your app', 'HTTP or shell', 'target'],
+		['Your scorer', 'JSON over stdio', 'scorer'],
+		['Your traces', 'OTel / OpenInference', 'trajectory'],
+	];
 	return (
-		<svg viewBox="0 0 320 190" className="fx-svg" aria-hidden="true">
-			{/* Elbow connectors, staggered lanes, detached 4px from every box. */}
-			<g className="fx-muted-stroke">
-				<path d="M69 44 V90 H112" />
-				<path d="M251 44 V90 H208" />
-				<path d="M79 146 V106 H112" />
-				<path d="M241 146 V106 H208" />
-				<rect x="14" y="10" width="110" height="30" rx="8" />
-				<rect x="196" y="10" width="110" height="30" rx="8" />
-				<rect x="14" y="150" width="130" height="30" rx="8" />
-				<rect x="176" y="150" width="130" height="30" rx="8" />
-			</g>
-			<rect x="118" y="74" width="84" height="46" rx="10" className="fx-accent-stroke" />
-			<text x="160" y="94" className="fx-label" textAnchor="middle">
-				engine
-			</text>
-			<text x="160" y="110" className="fx-note" textAnchor="middle">
-				Rust, hidden
-			</text>
-			<text x="69" y="29" className="fx-label" textAnchor="middle">
-				HTTP target
-			</text>
-			<text x="251" y="29" className="fx-label" textAnchor="middle">
-				shell target
-			</text>
-			<text x="79" y="169" className="fx-label" textAnchor="middle">
-				scorer: JSON stdio
-			</text>
-			<text x="241" y="169" className="fx-label" textAnchor="middle">
-				OTel / OpenInference
-			</text>
-		</svg>
+		<div className="fx-proto" aria-hidden="true">
+			{lanes.map(([mine, wire, theirs]) => (
+				<div key={wire} className="fx-proto-lane">
+					<span className="fx-proto-side">{mine}</span>
+					<span className="fx-proto-wire">
+						<code>{wire}</code>
+					</span>
+					<span className="fx-proto-side is-engine">{theirs}</span>
+				</div>
+			))}
+			<p className="fx-proto-note">Any language on the left. Nothing to link, no Rust to write.</p>
+		</div>
 	);
 }
 
@@ -360,7 +348,12 @@ export default function FeatureExplorer() {
 
 	return (
 		<div className="fx">
-			<div className="fx-tabs" role="tablist" aria-label="EvalCore capabilities">
+			<div
+				className="fx-rail"
+				role="tablist"
+				aria-orientation="vertical"
+				aria-label="EvalCore capabilities"
+			>
 				{FEATURES.map((f, i) => (
 					<button
 						key={f.id}
@@ -372,8 +365,19 @@ export default function FeatureExplorer() {
 						className={i === active ? 'fx-tab is-active' : 'fx-tab'}
 						onClick={() => setActive(i)}
 						onKeyDown={(e) => {
-							if (e.key === 'ArrowRight') setActive((active + 1) % FEATURES.length);
-							if (e.key === 'ArrowLeft') setActive((active + FEATURES.length - 1) % FEATURES.length);
+							// The rail is vertical on wide screens and horizontal when it
+							// wraps, so both axes drive selection.
+							const next =
+								e.key === 'ArrowDown' || e.key === 'ArrowRight'
+									? 1
+									: e.key === 'ArrowUp' || e.key === 'ArrowLeft'
+										? -1
+										: 0;
+							if (!next) return;
+							e.preventDefault();
+							const target = (active + next + FEATURES.length) % FEATURES.length;
+							setActive(target);
+							document.getElementById(`${baseId}-tab-${FEATURES[target].id}`)?.focus();
 						}}
 					>
 						{f.label}

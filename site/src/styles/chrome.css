@@ -195,20 +195,37 @@ starlight-toc a[aria-current='true']::before {
 	color: var(--muted);
 }
 
-/* Copy button: compact ghost square that only appears on hover/focus. Code
- * blocks are always dark, so these are fixed dark values, not theme vars. The
- * copied feedback is a small pill in the pass color. */
+/* Copy button — the same chip as landing.css `.ec-copy`, in fixed dark values
+ * because code blocks never follow the page theme. Always present at low
+ * contrast, full contrast on block hover or keyboard focus.
+ *
+ * Position is pinned here for every frame type so the control sits in the
+ * same corner whether the block has a title bar, is a terminal, or is bare.
+ * Expressive-code's own default drifts between those cases. */
+.expressive-code .copy {
+	inset-block-start: 0.5rem;
+	inset-inline-end: 0.5rem;
+}
+.expressive-code .frame.has-title:not(.is-terminal) .copy {
+	/* Sits inside the file-tab bar, clear of the tab itself. */
+	inset-block-start: 0.4rem;
+}
 .expressive-code .copy button {
-	width: 2rem;
-	height: 2rem;
+	width: 1.75rem;
+	height: 1.75rem;
 	border-radius: var(--radius-sm);
-	background: rgb(14 14 17 / 70%) !important;
-	border: 1px solid #2a2a30;
+	background: rgb(24 24 29 / 82%) !important;
+	border: 1px solid #2f2f37;
 	backdrop-filter: blur(6px);
-	opacity: 0;
+	opacity: 0.55;
 	transition:
 		opacity var(--dur-fast) var(--ease-out),
 		border-color var(--dur-fast) var(--ease-out);
+}
+/* Expressive-code paints its own hover fill in a nested div; neutralize it so
+ * the chip's background is the only surface. */
+.expressive-code .copy button div {
+	display: none;
 }
 .expressive-code .frame:hover .copy button,
 .expressive-code .copy button:focus-visible,
@@ -216,26 +233,29 @@ starlight-toc a[aria-current='true']::before {
 	opacity: 1;
 }
 .expressive-code .copy button:hover {
-	border-color: #5c5c66;
+	border-color: #52525c;
+}
+.expressive-code .copy button:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: 2px;
 }
 .expressive-code .copy button::after {
-	background-color: #9d9da6;
+	background-color: #a1a1aa;
 }
+.expressive-code .copy button:hover::after {
+	background-color: #e4e4e7;
+}
+/* Neutral chip, matching the landing control: the word stays plain, the pass
+ * color is reserved for run verdicts. */
 .expressive-code .copy .feedback {
 	--tooltip-bg: #18181d;
 	background: #18181d;
-	border: 1px solid #2a2a30;
+	border: 1px solid #2f2f37;
 	color: #e4e4e7;
 	font-size: var(--fs-xs);
 	font-weight: 500;
 	padding-inline: 0.5rem;
 	border-radius: var(--radius-sm);
-}
-/* When a block has a title bar, the copy button belongs IN the bar, not
- * floating over the first line of code. */
-.expressive-code .frame.has-title .copy {
-	inset-block-start: 0.4rem;
-	inset-inline-end: 0.45rem;
 }
 
 /* ---- Landing footer (splash only) --------------------------------------- */

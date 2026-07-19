@@ -169,17 +169,13 @@
 		0 1px 2px rgb(19 19 22 / 20%),
 		0 8px 24px -12px var(--accent-line);
 }
+/* Hover lifts; it does not re-tint. Changing the fill on hover made the
+ * button read as a different button, so only depth and the arrow move. */
 .ec-btn-primary:hover {
-	background: linear-gradient(
-		180deg,
-		color-mix(in srgb, var(--sl-color-accent) 72%, #fff),
-		var(--sl-color-accent)
-	);
-	color: #fff;
 	box-shadow:
-		inset 0 1px 0 rgb(255 255 255 / 25%),
-		0 2px 4px rgb(19 19 22 / 18%),
-		0 12px 32px -12px var(--accent-line);
+		inset 0 1px 0 rgb(255 255 255 / 22%),
+		0 2px 6px rgb(19 19 22 / 22%),
+		0 14px 34px -14px var(--accent-line);
 }
 .ec-btn-primary:hover svg {
 	transform: translateX(2px);
@@ -197,10 +193,39 @@
 .ec-btn-secondary:hover {
 	border-color: var(--sl-color-gray-4);
 	color: var(--heading);
+	box-shadow: var(--sl-shadow-md);
 }
 .ec-btn-secondary:active {
 	background: var(--surface);
 	box-shadow: none;
+}
+
+/* Dark mode: the accent is a light indigo, so a white-tinted gradient with
+ * white text washed out completely. Invert the relationship — bright accent
+ * fill, dark ink — which is how a primary action reads on a dark surface. */
+[data-theme='dark'] .ec-btn-primary {
+	background: linear-gradient(
+		180deg,
+		color-mix(in srgb, var(--sl-color-accent) 92%, #fff),
+		var(--sl-color-accent)
+	);
+	border-color: color-mix(in srgb, var(--sl-color-accent) 72%, #000);
+	color: #14141b;
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 28%),
+		0 1px 2px rgb(0 0 0 / 45%),
+		0 8px 24px -12px color-mix(in srgb, var(--sl-color-accent) 45%, transparent);
+}
+[data-theme='dark'] .ec-btn-primary:hover {
+	box-shadow:
+		inset 0 1px 0 rgb(255 255 255 / 28%),
+		0 2px 6px rgb(0 0 0 / 50%),
+		0 14px 34px -14px color-mix(in srgb, var(--sl-color-accent) 55%, transparent);
+}
+[data-theme='dark'] .ec-btn-primary:active {
+	background: color-mix(in srgb, var(--sl-color-accent) 88%, #000);
+	color: #14141b;
+	box-shadow: inset 0 2px 4px rgb(0 0 0 / 35%);
 }
 
 /* ---- Proof strip -------------------------------------------------------- */
@@ -410,7 +435,7 @@
 	color: var(--muted);
 	line-height: var(--lh-normal);
 }
-.ec-step-copy p code {
+.sl-markdown-content .ec-step-copy p code {
 	font-size: 0.85em;
 }
 .ec-step-link {
@@ -470,7 +495,7 @@
 	line-height: 1.8;
 	overflow-x: auto;
 }
-.ec-seg-chip {
+.sl-markdown-content .ec-seg-chip {
 	display: inline-flex;
 	margin-bottom: var(--sp-2);
 	padding: 0.15rem 0.55rem;
@@ -529,7 +554,7 @@
 	color: var(--sl-color-accent);
 	flex-shrink: 0;
 }
-.ec-shot-note code {
+.sl-markdown-content .ec-shot-note code {
 	font-size: 0.95em;
 }
 
@@ -593,7 +618,7 @@
 	border-top: 1px solid var(--sl-color-hairline-light);
 	flex-wrap: wrap;
 }
-.ec-replay-exit code {
+.sl-markdown-content .ec-replay-exit code {
 	font-family: var(--sl-font-mono);
 	font-size: var(--fs-xs);
 	color: var(--muted);
@@ -619,56 +644,79 @@
 }
 
 /* ---- Feature explorer --------------------------------------------------- */
+/* Horizontal pill tabs made the selected tab the only one with a filled
+ * surface, so it read as a bigger button than its neighbours — and the
+ * labels differ in length, which compounded it. A vertical rail gives every
+ * tab the same width by construction: selection changes color and adds an
+ * edge marker, never geometry. */
 .fx {
+	display: grid;
+	grid-template-columns: 15rem minmax(0, 1fr);
 	border: var(--border);
 	border-radius: var(--radius-lg);
 	background: color-mix(in srgb, var(--sl-color-text) 2%, transparent);
 	overflow: hidden;
 }
-.fx-tabs {
+.fx-rail {
 	display: flex;
-	gap: var(--sp-1);
+	flex-direction: column;
+	gap: 2px;
 	padding: var(--sp-3);
-	border-bottom: var(--border);
-	overflow-x: auto;
-	scrollbar-width: none;
-}
-.fx-tabs::-webkit-scrollbar {
-	display: none;
+	border-inline-end: var(--border);
+	background: color-mix(in srgb, var(--sl-color-text) 2%, transparent);
 }
 .fx-tab {
-	flex-shrink: 0;
-	padding: 0.45rem 0.95rem;
+	position: relative;
+	width: 100%;
+	padding: 0.55rem 0.75rem;
 	border: 0;
-	border-radius: 999px;
+	border-radius: var(--radius-sm);
 	background: transparent;
 	color: var(--muted);
 	font-family: var(--sl-font);
 	/* Identical metrics in every state: only color and background may change,
-	 * so the active tab never reads larger than its neighbors. */
+	 * so the active tab never reads larger than its neighbours. */
 	font-size: var(--fs-sm);
 	font-weight: 500;
 	line-height: 1.4;
 	letter-spacing: 0;
+	text-align: start;
 	cursor: pointer;
+	-webkit-tap-highlight-color: transparent;
 	transition:
 		color var(--dur-fast) var(--ease-out),
 		background var(--dur-fast) var(--ease-out);
 }
 .fx-tab:hover {
 	color: var(--sl-color-text);
+	background: color-mix(in srgb, var(--sl-color-text) 4%, transparent);
+}
+.fx-tab:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: -2px;
 }
 .fx-tab.is-active {
 	background: var(--accent-soft);
 	color: var(--sl-color-text-accent);
 }
+.fx-tab.is-active::before {
+	content: '';
+	position: absolute;
+	inset-inline-start: 0;
+	inset-block: 0.4rem;
+	width: 2px;
+	border-radius: 1px;
+	background: var(--sl-color-accent);
+}
 .fx-panel {
 	display: grid;
-	grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-	gap: var(--sp-7);
-	padding: var(--sp-7);
-	align-items: center;
-	min-height: 21rem;
+	grid-template-rows: auto 1fr;
+	gap: var(--sp-6);
+	padding: var(--sp-6) var(--sp-7);
+	min-height: 20rem;
+}
+.fx-panel-copy {
+	max-width: 62ch;
 }
 .sl-markdown-content .fx-panel-copy h3 {
 	margin: 0 0 var(--sp-3);
@@ -687,7 +735,7 @@
 	margin-top: var(--sp-4);
 	flex-wrap: wrap;
 }
-.fx-chip {
+.sl-markdown-content .fx-chip {
 	padding: 0.25rem 0.65rem;
 	border: var(--border);
 	border-radius: var(--radius-sm);
@@ -708,8 +756,69 @@
 .fx-panel-meta a:hover {
 	text-decoration: underline;
 }
+/* Protocol lanes: what you write, the wire format, what EvalCore calls it. */
+.fx-proto {
+	display: flex;
+	flex-direction: column;
+	gap: var(--sp-3);
+	width: 100%;
+}
+.fx-proto-lane {
+	display: grid;
+	grid-template-columns: 7.5rem minmax(0, 1fr) 6.5rem;
+	align-items: center;
+	gap: var(--sp-2);
+}
+.fx-proto-side {
+	padding: 0.45rem 0.6rem;
+	border: var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+	font-size: var(--fs-xs);
+	color: var(--sl-color-text);
+	text-align: center;
+}
+.fx-proto-side.is-engine {
+	border-color: var(--accent-line);
+	background: var(--accent-soft);
+	color: var(--sl-color-text-accent);
+	font-family: var(--sl-font-mono);
+}
+.fx-proto-wire {
+	position: relative;
+	display: flex;
+	justify-content: center;
+}
+.fx-proto-wire::before {
+	content: '';
+	position: absolute;
+	inset-inline: 0;
+	inset-block-start: 50%;
+	border-top: 1px dashed var(--sl-color-hairline);
+}
+.sl-markdown-content .fx-proto-wire code {
+	position: relative;
+	padding: 0.2rem 0.6rem;
+	border: var(--border);
+	border-radius: 999px;
+	background: var(--code-bg);
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
+	color: var(--muted);
+	white-space: nowrap;
+}
+.fx-proto-note {
+	margin: var(--sp-2) 0 0;
+	font-size: var(--fs-xs);
+	color: var(--muted);
+	text-align: center;
+}
+
 .fx-panel-visual {
 	min-width: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	animation: fx-in var(--dur-slow) var(--ease-out);
 }
 @keyframes fx-in {
@@ -818,7 +927,7 @@
 	border: var(--border);
 	border-radius: var(--radius);
 }
-.fx-trial-row code {
+.sl-markdown-content .fx-trial-row code {
 	font-size: var(--fs-xs);
 	min-width: 6.5rem;
 }
@@ -910,7 +1019,7 @@
 	gap: var(--sp-3);
 	margin-bottom: var(--sp-3);
 }
-.fx-gate-head code {
+.sl-markdown-content .fx-gate-head code {
 	font-size: var(--fs-xs);
 }
 .fx-meter {
@@ -993,7 +1102,7 @@
 	flex-direction: column;
 	gap: var(--sp-2);
 }
-.fx-report-side code {
+.sl-markdown-content .fx-report-side code {
 	font-size: var(--fs-xs);
 }
 .fx-spark {
@@ -1079,14 +1188,18 @@
 .ec-cta-cmd {
 	display: inline-flex;
 	align-items: center;
-	gap: var(--sp-2);
+	gap: var(--sp-4);
 	margin-top: var(--sp-5);
-	padding: 0.5rem 0.625rem 0.5rem 1.125rem;
+	padding: 0.4rem 0.4rem 0.4rem 1.125rem;
 	border: var(--border);
 	border-radius: 999px;
 	background: var(--code-bg);
+	transition: border-color var(--dur-fast) var(--ease-out);
 }
-.ec-cta-cmd code {
+.ec-cta-cmd:hover {
+	border-color: var(--sl-color-gray-4);
+}
+.sl-markdown-content .ec-cta-cmd code {
 	font-family: var(--sl-font-mono);
 	font-size: var(--fs-sm);
 	color: var(--heading);
@@ -1113,28 +1226,52 @@
 	color: var(--muted);
 }
 
-/* Copy button (CTA + reusable) */
+/* Copy chip — the canonical copy affordance.
+ *
+ * One shape everywhere: a bordered 1.75rem square, top-right of whatever it
+ * copies, always present rather than hover-only (a control you cannot see is
+ * a control users assume is missing). Idle it sits at low contrast; hovering
+ * the block brings it up. The copied state stays neutral and only the check
+ * glyph carries the pass color — the button itself never turns green.
+ *
+ * chrome.css maps expressive-code's copy button onto these same metrics so
+ * docs code blocks and landing snippets are one control, not two. */
 .ec-copy {
 	position: relative;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 1.9rem;
-	height: 1.9rem;
-	border: 1px solid transparent;
+	width: 1.75rem;
+	height: 1.75rem;
+	border: 1px solid var(--sl-color-hairline);
 	border-radius: var(--radius-sm);
-	background: transparent;
+	background: var(--surface);
 	color: var(--muted);
+	opacity: 0.65;
 	cursor: pointer;
 	-webkit-tap-highlight-color: transparent;
 	transition:
 		color var(--dur-fast) var(--ease-out),
-		border-color var(--dur-fast) var(--ease-out);
+		border-color var(--dur-fast) var(--ease-out),
+		opacity var(--dur-fast) var(--ease-out);
+}
+.ec-cta-cmd:hover .ec-copy,
+.ec-copy:hover,
+.ec-copy:focus-visible {
+	opacity: 1;
 }
 .ec-copy:hover {
 	color: var(--heading);
-	border-color: var(--sl-color-hairline);
-	background: var(--surface);
+	border-color: var(--sl-color-gray-4);
+}
+.ec-copy:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: 2px;
+}
+/* Inside the rounded install pill the chip goes round too, so it reads as
+ * part of the field rather than a square dropped into a capsule. */
+.ec-cta-cmd .ec-copy {
+	border-radius: 999px;
 }
 .ec-copy .ec-copy-check {
 	display: none;
@@ -1143,20 +1280,13 @@
 .ec-copy.is-copied .ec-copy-icon {
 	display: none;
 }
-.ec-copy.is-copied,
-.ec-copy.is-copied:hover {
-	border-color: var(--pass-line);
-	background: var(--pass-soft);
-	color: var(--pass);
-}
 .ec-copy.is-copied .ec-copy-check {
 	display: block;
 }
 
 /* ---- Responsive --------------------------------------------------------- */
 @media (max-width: 60rem) {
-	.ec-step,
-	.fx-panel {
+	.ec-step {
 		grid-template-columns: 1fr;
 		gap: var(--sp-5);
 	}
@@ -1165,6 +1295,37 @@
 	}
 	.fx-report {
 		grid-template-columns: 1fr;
+	}
+	/* Narrow: the rail lies down into a scroller above the panel. Tabs keep
+	 * their metrics; only the axis changes. */
+	.fx {
+		grid-template-columns: 1fr;
+	}
+	.fx-rail {
+		flex-direction: row;
+		gap: var(--sp-1);
+		overflow-x: auto;
+		scrollbar-width: none;
+		border-inline-end: 0;
+		border-block-end: var(--border);
+	}
+	.fx-rail::-webkit-scrollbar {
+		display: none;
+	}
+	.fx-tab {
+		width: auto;
+		flex: 0 0 auto;
+		white-space: nowrap;
+	}
+	.fx-tab.is-active::before {
+		inset-inline: 0.4rem;
+		inset-block: auto 0;
+		width: auto;
+		height: 2px;
+	}
+	.fx-panel {
+		padding: var(--sp-5);
+		gap: var(--sp-5);
 	}
 }
 @media (max-width: 34rem) {

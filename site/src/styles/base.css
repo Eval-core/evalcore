@@ -43,12 +43,22 @@ body {
 .sl-markdown-content code {
 	font-size: 0.9em;
 }
+/* Tight horizontal padding on purpose: prose runs these hard against commas
+ * and parentheses ("(`contains`, `regex`)"), and generous padding turned
+ * those lists into a row of floating chips with gaps around the punctuation. */
 .sl-markdown-content :not(pre) > code {
 	color: inherit;
 	background: var(--sl-color-bg-inline-code);
-	border: 1px solid var(--sl-color-hairline-light);
-	border-radius: var(--radius-sm);
-	padding: 0.1em 0.34em;
+	/* No border, tight padding. Prose runs these hard against commas and
+	 * parens ("(`contains`, `regex`)") and a bordered chip put a visible gap
+	 * around every punctuation mark, turning the sentence into loose tiles. */
+	border: 0;
+	border-radius: 5px;
+	padding: 0.08em 0.28em;
+}
+/* Inside links the chip would fight the underline; let the link own the color. */
+.sl-markdown-content a > code {
+	color: inherit;
 }
 .sl-markdown-content pre {
 	border-radius: var(--radius);

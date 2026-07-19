@@ -5,6 +5,10 @@
 //  - docs pages: one slim hairline row, because the page just ended with
 //    pagination and doesn't need a second site map.
 import Logo from './Logo.astro';
+// Starlight renders Pagination inside its Footer, so overriding Footer drops
+// prev/next from every docs page unless we render it back here. The virtual
+// module resolves to our own Pagination override, not the stock one.
+import Pagination from 'virtual:starlight/components/Pagination';
 
 const route = Astro.locals.starlightRoute;
 const isSplash = route.entry.data.template === 'splash';
@@ -78,6 +82,8 @@ const columns = [
 			</div>
 		</footer>
 	) : (
+		<>
+		<Pagination />
 		<footer class="ec-docs-footer">
 			<span>Apache-2.0</span>
 			<span class="ec-docs-footer-links">
@@ -86,5 +92,6 @@ const columns = [
 				<a href={`${repo}/issues`}>Issues</a>
 			</span>
 		</footer>
+		</>
 	)
 }
