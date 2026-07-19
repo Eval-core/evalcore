@@ -56,6 +56,50 @@ All notable changes to EvalCore. Format loosely follows
   Trials section shows `k/N passed (pass fraction 0.67)`. All three are emitted
   only when a case carries trials detail, so a single-trial run's terminal, JSON,
   and HTML output stays byte-identical.
+- **Matrix runs — side-by-side model/prompt comparison** (`run.matrix` /
+  `--matrix`): run the whole suite once per named target and print a comparison,
+  so "model A vs B" or "prompt v1 vs v2" (two configured targets) is one
+  invocation. `run.matrix: [gpt, claude]` in the config, or `--matrix gpt,claude`
+  on the CLI (a comma list that overrides `run.matrix`); at least two distinct
+  names, each defined in `targets`. Arms run **sequentially, in the list order
+  you wrote** (not map order) — deterministic and predictable against rate
+  limits; within an arm, concurrency, trials, gates, and classification behave
+  exactly as a single run does today. **Each arm prices with its own target's
+  `cost:` rates**, closing the one-rate-per-run gap; `run.budget_usd` applies
+  **per arm** (each arm gets the full budget). **Exit code is 0 iff every arm
+  satisfies today's whole contract** (all cases pass *and* every gate holds),
+  else 1. The terminal report prints each arm's existing block under a
+  `== target: <name>` header, then a `== comparison` table with a per-case
+  winner/tie column and a `wins: …` footer; the **per-case winner is the arm
+  with the strictly highest mean case score** (mean of that case's scorer
+  values), with a `1e-9` tie tolerance — cases where the top arms tie, or where
+  no arm produced a score, are ties, for any number of arms. JSON (`--reporter
+  json`), HTML (`--html`), and JUnit reporters all gain matrix shapes; a
+  `--matrix` run over two shell targets renders:
+
+  ```
+  == comparison
+  case        echo    upper
+  refund-1    PASS    PASS     tie
+  refund-2    FAIL    PASS     upper
+  wins: echo 0 · upper 1 · ties 1
+  ```
+
+  Combining `--matrix` with `--target`, `--baseline`, or `--save-baseline` is a
+  hard error (a matrix already runs several targets; baselines are per-run in v1
+  — run targets separately with `--target` to baseline them). A cassette store
+  is shared across arms (each arm has its own cache identity; judge/embedding
+  calls grade each arm's distinct output, so `--cache replay` works per arm).
+  **Non-matrix runs are byte-identical everywhere** — a config with no `run.matrix`
+  and no `--matrix` takes the unchanged single-target path.
+
+### Changed
+- **Duplicate case ids are now rejected at dataset load**, naming both lines:
+  `duplicate case id "x" at <file>:<line> (first used at line <n>)`. Case ids key
+  baseline matching and matrix comparison rows, so a repeated id would silently
+  collapse two cases into one row; failing fast at load turns a silent data loss
+  into a clear error. Ids that default to `case-<line number>` (cases with no
+  explicit `id`) are still unique by construction.
 
 ### Known gaps
 - With `run.trials` > 1, the terminal/HTML token totals reflect one trial per

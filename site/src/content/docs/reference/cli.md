@@ -48,6 +48,7 @@ through every scorer, renders a report, and returns an exit code.
 | Flag | Value | Default | Description |
 |---|---|---|---|
 | `--target` | name | — | Target to run. May be omitted only when exactly one target is defined; with several, omitting it is an error naming the available targets. |
+| `--matrix` | comma list of names | — | Run the whole suite against several targets and print a side-by-side comparison. At least two distinct, defined names. Overrides `run.matrix`. Mutually exclusive with `--target`, `--baseline`, `--save-baseline`. Since v0.7.0 (unreleased). See [Matrix runs](#matrix-runs). |
 | `--reporter` | `terminal` \| `json` \| `junit` | `terminal` | Report format. See [Reporters](#reporters). |
 | `--output` | path | — | Write the report to a file instead of stdout. |
 | `--html` | path | — | Also write a self-contained HTML report to this path, in addition to the primary `--reporter` output. Since v0.5.0. |
@@ -61,6 +62,30 @@ through every scorer, renders a report, and returns an exit code.
 isn't defined is an error listing the available targets. With exactly one target
 the flag may be omitted; with more than one, omitting it fails with `multiple
 targets defined; pass --target <name> (available: …)`.
+
+### Matrix runs
+
+Since v0.7.0 (unreleased). `--matrix <name,name,…>` runs the whole suite once
+per named target, sequentially in list order, and prints each arm's report
+followed by a `== comparison` table. It overrides `run.matrix` in the config;
+either surface needs at least two distinct, defined names. `run.budget_usd`
+applies per arm, and each arm prices with its own target's `cost` rates. The exit
+code is `0` iff **every** arm passes all its cases and gates, else `1`.
+
+A matrix is mutually exclusive with target selection and baselines — each
+combination is a hard error rather than a silent choice:
+
+```
+$ evalcore run evals.yaml --matrix gpt,claude --target gpt
+Error: cannot combine --target with a matrix: a matrix already runs the suite against several targets. Drop --target, or drop the matrix.
+
+$ evalcore run evals.yaml --matrix gpt,claude --baseline main
+Error: baselines are per-run; run targets separately with --target to baseline them
+```
+
+`--save-baseline` is rejected identically. See the [Comparing models
+guide](../../guides/comparing-models/) for the comparison table and winner
+semantics.
 
 ### Reporters
 

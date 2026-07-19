@@ -246,6 +246,14 @@ reports `invalid case at <file>:<line>`. A `context` that is not a string or an
 array of strings (a number, an object, a mixed array) is likewise a dataset
 error naming the case's `file:line`.
 
+**Case ids must be unique.** Since v0.7.0 (unreleased), a repeated `id` — across
+all merged datasets — is rejected at load, naming both lines: `duplicate case id
+"<id>" at <file>:<line> (first used at line <n>)`. Ids key baseline matching and
+[matrix comparison](#matrix) rows, so a duplicate would silently collapse two
+cases into one row; failing at load turns that into a clear error. Auto-filled
+`case-<line number>` ids (cases with no explicit `id`) are unique by
+construction.
+
 ```jsonl
 {"id": "refund-1", "input": "How long do refunds take?", "expected": "30 days"}
 {"input": "anonymous case gets id case-2"}
@@ -497,6 +505,7 @@ The `run` block is optional; every field has a default.
 | `gates` | list of [gate](#gates) | no | `[]` | Suite-level aggregate acceptance criteria. Evaluated in list order. |
 | `trials` | integer or [trials block](#trials) | no | `1` | Run each case N times and aggregate. Since v0.7.0 (unreleased). |
 | `classification` | bool | no | `false` | Compute [classification aggregates](#classification) (accuracy, macro-F1, per-class metrics) over labeled cases. Since v0.7.0 (unreleased). |
+| `matrix` | list of target names | no | none | Run the whole suite once per named target and print a side-by-side [comparison](#matrix). At least two distinct names, each defined in `targets`. Since v0.7.0 (unreleased). |
 
 ```yaml
 run:
@@ -521,6 +530,10 @@ run:
   (virtual) cost too. When the budget is exhausted, remaining cases fail with a
   reason rather than aborting the run mid-flight.
 - `trials` count must be at least 1, else `run.trials count must be at least 1`.
+- `matrix`, if present, must list at least two distinct target names, each
+  defined in `targets`. Otherwise: `run.matrix must list at least two targets,
+  got <n>`, `run.matrix lists target "<name>" more than once`, or `run.matrix
+  target "<name>" is not defined; available: <names>`.
 
 ### Trials
 
@@ -657,3 +670,34 @@ run:
 Gate outcomes print after the summary and ride along in the JSON and HTML
 reports; JUnit output is unchanged (the exit code carries the gate result). See
 the [CLI reference](../cli/) for how gates fold into the exit code.
+
+### Matrix
+
+Since v0.7.0 (unreleased). `run.matrix: [name, name, …]` runs the whole suite
+**once per named target**, in the listed order, and prints a side-by-side
+comparison — model A vs B, prompt v1 vs v2, one invocation. Requires at least two
+distinct names, each defined in `targets`. Absent (the default): a single-target
+run, byte-identical to before. `--matrix name,name` on the CLI overrides this;
+combining a matrix with `--target`, `--baseline`, or `--save-baseline` is an
+error. See the [Comparing models guide](../../guides/comparing-models/) for a
+worked example.
+
+```yaml
+run:
+  matrix: [gpt, claude]
+```
+
+- Arms run **sequentially, in list order** (not the alphabetical map order) —
+  deterministic and predictable against rate limits. Within an arm, concurrency,
+  gates, classification, and trials behave exactly as a single run does.
+- **Each arm prices with its own target's [`cost`](#cost-rates) rates**, and
+  `run.budget_usd` applies **per arm** (each arm gets the full budget).
+- **Exit code is `0` iff every arm** passes all its cases *and* every gate holds,
+  else `1`.
+- The per-case **winner** in the comparison table is the arm with the strictly
+  highest mean case score (mean of that case's scorer values), with a `1e-9` tie
+  tolerance; cases where the top arms tie — or where no arm produced a score —
+  are ties, for any number of arms.
+- One cassette store is shared across arms; each arm has its own cache identity,
+  so `--cache replay` works per arm. Non-matrix runs take the unchanged
+  single-target path.

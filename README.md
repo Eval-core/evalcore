@@ -180,6 +180,25 @@ run:
 
 Floors compare with a `1e-9` tolerance to absorb floating-point rounding, so a run that exactly meets its floor passes. Gates are *additive absolute floors*: the run exits `1` if the existing contract fails (any case failed, or with `--baseline` a regression) **or** any gate falls below its floor — so with `--baseline`, an accepted failure stays tolerated per-case, yet still sinks a `pass_rate` gate it drops below. Target-error cases count in `pass_rate`'s denominator but contribute no scores to `mean_score`, so pair a `mean_score` gate with a `pass_rate` gate to catch error storms. Gate outcomes print after the summary (`GATE PASS pass_rate >= 0.95 (actual 1.00)`) and ride along in the JSON report; JUnit is unchanged — the exit code carries the gate result for CI. *Unreleased (on `main`):* for label-prediction suites, `run.classification` adds `accuracy` and `macro_f1` gates (each a `min` in `[0,1]`) that gate on the metrics over cases carrying an `expected` label, printing `classification: accuracy 0.67 · macro-F1 0.67 (3 labeled, 1 unlabeled)`.
 
+## Matrix runs: compare models side by side
+
+*Unreleased (on `main`).* Comparing two models — or two prompts, or two deployed endpoints — used to mean running the suite twice and diffing reports by eye. A matrix runs the whole suite once per target in a single invocation and prints a side-by-side comparison. The two things you compare are just two targets (different `model`s, or the same model with different `system` prompts):
+
+```yaml
+run:
+  matrix: [gpt, claude]   # >= 2 distinct, defined targets; or --matrix gpt,claude on the CLI
+```
+
+```
+== comparison
+case        echo    upper
+refund-1    PASS    PASS     tie
+refund-2    FAIL    PASS     upper
+wins: echo 0 · upper 1 · ties 1
+```
+
+Arms run sequentially in list order; each arm prices with its own target's `cost` rates and gets the full `budget_usd` (the per-run cost-rates gap, closed). The per-case winner is the arm with the strictly highest mean score (`1e-9` tie tolerance); an all-tie or score-less case is a tie. The run exits `0` iff **every** arm passes all its cases and gates. Combining `--matrix` with `--target`, `--baseline`, or `--save-baseline` is a hard error — baselines are per-run in v1. One cassette store serves every arm (each arm has its own cache identity), so `--cache replay` reruns the whole matrix offline.
+
 ## Agent trajectories: evaluate what the agent *did*
 
 Agents aren't judged by their final answer alone — but the answer still matters. EvalCore ingests **recorded traces** — its own [native trajectory format](docs/trajectory-spec.md) or an OTel/OpenInference JSON export your framework already emits — and grades **the answer and the path in one suite**. No SDK, no integration, any language:
