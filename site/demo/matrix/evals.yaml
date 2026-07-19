@@ -1,0 +1,35 @@
+# Matrix demo for the EvalCore docs site: one suite, two shell targets, one
+# side-by-side comparison. Both targets are deterministic offline shell
+# commands — no network, no API keys, no faked output — so `evalcore run
+# site/demo/matrix/evals.yaml --matrix good,bad` renders the same frame every
+# time.
+#
+#   good  answers every case with a real refund path.
+#   bad   only mentions refunds when the question literally says "policy",
+#         and deflects otherwise — so it loses the refund cases and ties the
+#         policy one.
+#
+# Run it:  evalcore run site/demo/matrix/evals.yaml --matrix good,bad
+targets:
+  good:
+    type: shell
+    cmd: |-
+      cat >/dev/null
+      echo "Yes - I can start your refund now; it posts to your card in 3-5 business days."
+  bad:
+    type: shell
+    cmd: |-
+      q=$(cat)
+      if echo "$q" | grep -qi policy; then
+        echo "Our refund policy lets you return items within 30 days."
+      else
+        echo "Sorry, please contact our support team for help."
+      fi
+
+datasets:
+  - file: cases.jsonl
+
+scorers:
+  - type: contains
+    value: "refund"
+    case_sensitive: false

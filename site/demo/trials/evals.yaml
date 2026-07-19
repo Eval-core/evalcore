@@ -1,0 +1,28 @@
+# Trials demo for the EvalCore docs site: run every case three times and fold
+# the per-trial verdicts into one. The target is a deterministic offline `cat`
+# echo — no network, no API keys, no faked output — so every trial of a case
+# agrees and the `[k/N trials]` tags render the same frame every time.
+#
+#   refund-1, refund-2  echo text that contains "refund" -> pass all 3 -> [3/3]
+#   greeting            echo text that does not          -> fail all 3 -> [0/3]
+#
+# A deterministic target never splits a case, so the flaky count is 0; trials
+# earn their keep against a stochastic target, where [2/3 trials] flags a case
+# as genuinely flaky. See the guide for that story.
+#
+# Run it:  evalcore run site/demo/trials/evals.yaml
+targets:
+  echo:
+    type: shell
+    cmd: "cat"
+
+datasets:
+  - file: cases.jsonl
+
+run:
+  trials: 3
+
+scorers:
+  - type: contains
+    value: "refund"
+    case_sensitive: false

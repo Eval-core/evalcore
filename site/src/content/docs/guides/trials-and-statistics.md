@@ -13,6 +13,18 @@ measurement.
 into one case verdict, so a suite can assert on how *often* a case passes rather
 than on a single roll of the dice.
 
+<figure class="ec-cast">
+	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore runs every case three times and folds the per-trial verdicts into one, tagging each PASS/FAIL line with its passing-trial count and summarizing the flaky count.">
+		<source src="/evalcore/casts/trials.webm" type="video/webm" />
+		<img
+			src="/evalcore/casts/trials.gif"
+			alt="Terminal recording: evalcore runs every case three times and folds the per-trial verdicts into one, tagging each PASS/FAIL line with its passing-trial count and summarizing the flaky count."
+			loading="lazy"
+		/>
+	</video>
+	<figcaption>Run every case N times — each verdict tagged with its passing-trial count.</figcaption>
+</figure>
+
 ## Configure trials
 
 Add `trials` to the `run` block. The integer shorthand runs each case that many

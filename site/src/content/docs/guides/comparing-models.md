@@ -15,6 +15,18 @@ and EvalCore prints a side-by-side comparison. Because a target is just "a thing
 that answers a case," the two things you compare can be **two models** or **two
 prompts** or **two deployed endpoints** — anything you can configure as a target.
 
+<figure class="ec-cast">
+	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore runs one suite against two shell targets — good and bad — in a single matrix invocation and prints a side-by-side comparison with a per-case winner column and a win/tie tally.">
+		<source src="/evalcore/casts/matrix.webm" type="video/webm" />
+		<img
+			src="/evalcore/casts/matrix.gif"
+			alt="Terminal recording: evalcore runs one suite against two shell targets — good and bad — in a single matrix invocation and prints a side-by-side comparison with a per-case winner column and a win/tie tally."
+			loading="lazy"
+		/>
+	</video>
+	<figcaption>One invocation, two targets, one comparison — per-case winners and a win/tie tally.</figcaption>
+</figure>
+
 ## Two things to compare are two targets
 
 The unit of comparison is a target. To compare **model A against model B**,
