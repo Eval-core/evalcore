@@ -5,7 +5,7 @@
   </picture>
 </p>
 
-**Snapshot testing for AI behavior.** A single-binary, config-first eval runner for LLM apps and agents — deterministic in CI via record/replay caching, extensible from any language, with agent-trajectory evaluation over OpenTelemetry traces.
+**The eval engine for AI systems.** One config-first binary that measures, compares, and regression-gates LLM apps and agents — statistical trials, side-by-side model comparison, agent-trajectory evaluation over OpenTelemetry traces, and a local run viewer. Under it all: record/replay caching that makes CI runs deterministic, offline, and $0 — snapshot testing for AI behavior.
 
 **[Documentation](https://eval-core.github.io/evalcore/)** · [Quickstart](https://eval-core.github.io/evalcore/getting-started/quickstart/) · [crates.io](https://crates.io/crates/evalcore) · [Releases](https://github.com/eval-core/evalcore/releases)
 

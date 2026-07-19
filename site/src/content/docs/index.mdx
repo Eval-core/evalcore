@@ -1,9 +1,9 @@
 ---
-title: Snapshot testing for AI behavior
-description: Deterministic AI evals in CI — record/replay cassettes for $0 offline runs, any language, agent trajectories from OTel traces, gates & baselines, and self-contained HTML reports. A single-binary, config-first eval runner.
+title: The eval engine for AI systems
+description: Measure, compare, and regression-gate LLM apps and agents — one config-first binary. Statistical trials, side-by-side model comparison, agent trajectories from OTel traces, a local run viewer, and record/replay caching for deterministic $0 CI.
 template: splash
 hero:
-  tagline: Record your LLM and agent evals once, then replay them byte-for-byte in CI — deterministic, offline, and $0. One binary, config-first, any language.
+  tagline: Measure, compare, and regression-gate your LLM apps and agents — one binary, config-first, any language. Record evals once, replay them byte-for-byte in CI — deterministic, offline, and $0.
   actions:
     - text: Get started
       link: getting-started/quickstart/
@@ -113,8 +113,12 @@ jobs:
 		<p>Every model call is recorded to a local SQLite cassette keyed on a hash of the canonical request. Commit it and CI runs <code>--cache replay</code> byte-for-byte at $0, offline, with no API keys and no flaky judges.</p>
 	</div>
 	<div class="feature">
-		<h3>Any language</h3>
-		<p>Protocols over SDKs. Targets speak <code>openai-compatible</code>, <code>http</code>, or <code>shell</code>; custom scorers speak JSON over stdin/stdout; judges are any OpenAI-compatible endpoint. Rust is the engine — you never write Rust.</p>
+		<h3>Statistical trials</h3>
+		<p>One sample of a stochastic model isn't a measurement. <code>run.trials</code> runs every case N times with <code>all</code> / <code>majority</code> / <code>any</code> verdicts, feeds per-scorer means to your gates, and calls out flaky cases — and replayed trials stay deterministic.</p>
+	</div>
+	<div class="feature">
+		<h3>Compare models side by side</h3>
+		<p><code>--matrix gpt,claude</code> runs one suite across several targets in a single invocation: per-case winners, win/tie counts, per-target cost. Model A vs B, prompt v1 vs v2 — one exit code for CI.</p>
 	</div>
 	<div class="feature">
 		<h3>Agent trajectories</h3>
@@ -122,7 +126,15 @@ jobs:
 	</div>
 	<div class="feature">
 		<h3>Gates &amp; baselines</h3>
-		<p>Block regressions, not imperfection. <code>--baseline</code> tolerates accepted failures and fails only on new ones; <code>run.gates</code> adds <code>pass_rate</code> and <code>mean_score</code> floors across the whole run.</p>
+		<p>Block regressions, not imperfection. <code>--baseline</code> tolerates accepted failures and fails only on new ones; <code>run.gates</code> adds <code>pass_rate</code> and <code>mean_score</code> floors — plus <code>accuracy</code> and <code>macro_f1</code> for classification suites.</p>
+	</div>
+	<div class="feature">
+		<h3>Local run viewer</h3>
+		<p>Every run lands in local history, and <code>evalcore serve</code> opens a read-only viewer over it: pass-rate trends, every run's full report, and a diff between any two runs. Binds localhost — nothing leaves your machine.</p>
+	</div>
+	<div class="feature">
+		<h3>Any language</h3>
+		<p>Protocols over SDKs. Targets speak <code>openai-compatible</code>, <code>http</code>, or <code>shell</code>; custom scorers speak JSON over stdin/stdout; judges are any OpenAI-compatible endpoint. Rust is the engine — you never write Rust.</p>
 	</div>
 	<div class="feature">
 		<h3>Cost tracking &amp; budgets</h3>

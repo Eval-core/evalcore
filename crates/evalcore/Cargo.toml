@@ -1,6 +1,6 @@
 [package]
 name = "evalcore"
-description = "Snapshot testing for AI behavior — a single-binary, config-first eval runner"
+description = "The eval engine for AI systems — measure, compare, and regression-gate LLM apps and agents from one config-first binary"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

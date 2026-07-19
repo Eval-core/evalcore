@@ -12,7 +12,7 @@ export default defineConfig({
 		starlight({
 			title: 'EvalCore',
 			description:
-				'Snapshot testing for AI behavior: a single-binary, config-first eval runner for LLM apps and agents.',
+				'The eval engine for AI systems: measure, compare, and regression-gate LLM apps and agents with one config-first binary.',
 			favicon: '/favicon.png',
 			// The mark: orbit-and-check symbol next to the wordmark. Light/dark
 			// variants because the near-black strokes would vanish on the dark bg.
