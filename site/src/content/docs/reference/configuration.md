@@ -8,6 +8,14 @@ key it accepts, exactly as the schema defines it. Unknown top-level keys and
 unknown fields on most structs are rejected (`deny_unknown_fields`), so a typo
 fails at parse time rather than being silently ignored.
 
+:::note[Jump to a type]
+**Targets:** [`shell`](#shell) · [`openai-compatible`](#openai-compatible) · [`http`](#http) · [`trace`](#trace)
+
+**Scorers:** [`contains`](#contains) · [`exact`](#exact) · [`regex`](#regex) · [`subprocess`](#subprocess) · [`trajectory`](#trajectory) · [`judge`](#judge) · [`json-schema`](#json-schema) · [`similarity`](#similarity)
+
+**Run block:** [Trials](#trials) · [Classification](#classification) · [Gates](#gates) · [Matrix](#matrix)
+:::
+
 ## Top-level structure
 
 ```yaml

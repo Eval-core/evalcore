@@ -258,3 +258,14 @@ pipeline {
 
 `sh` fails the stage on a non-zero exit code, and the `junit` step publishes
 per-case results to the Jenkins UI.
+
+## See also
+
+- [Record / replay](/evalcore/guides/record-replay/): the full cassette
+  lifecycle, cache key, and team workflow for committing the cache.
+- [Gates and baselines](/evalcore/guides/gates-and-baselines/): the exact
+  regressed/new-failing/fixed/removed semantics behind `--baseline`.
+- [HTML reports](/evalcore/guides/html-reports/): the `--html` flag and
+  report contents the Action uploads as an artifact.
+- [CLI reference](/evalcore/reference/cli/): every flag used across the
+  GitHub Action, GitLab, and Jenkins examples.

@@ -90,3 +90,14 @@ The answer to "why did this fail?" is one click and one expand away, without
 scraping logs or re-running with more verbosity.
 
 For the CI wiring around this, see [Running in CI](/evalcore/guides/running-in-ci/).
+
+## See also
+
+- [Running in CI](/evalcore/guides/running-in-ci/): the GitHub Action's
+  `html-artifact` input in the full CI pipeline.
+- [Gates and baselines](/evalcore/guides/gates-and-baselines/): what the
+  report's gates panel and baseline diff actually mean.
+- [Agents and traces](/evalcore/guides/agents-and-traces/): the trajectory
+  data the report expands inline for `trace` cases.
+- [CLI reference](/evalcore/reference/cli/): every flag `--html` composes
+  with, including `--reporter` and `--baseline`.

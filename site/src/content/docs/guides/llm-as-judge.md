@@ -119,15 +119,26 @@ that's why you won't find the rubric listed as an identity field.
   model. Catch it with the nightly `--cache live` job, not by un-determinizing PR
   runs. See [Record / replay](/evalcore/guides/record-replay/).
 
-## Known gap: judge calls are not in cost totals
-
-One limitation to be aware of: **LLM-judge calls are not yet included in the
-run's cost totals or counted against `run.budget_usd`.** The tokens and dollars
-reported by the summary reflect the *target's* usage, not the judge's. A
-grading-heavy suite spends real money on judge calls that the `$` line does not
-show. This is a documented roadmap gap, not a silent behavior. Budget for judge
-calls separately until it lands.
+:::caution[Known gap]
+**LLM-judge calls are not yet included in the run's cost totals or counted
+against `run.budget_usd`.** The tokens and dollars reported by the summary
+reflect the *target's* usage, not the judge's. A grading-heavy suite spends real
+money on judge calls that the `$` line does not show. This is a documented
+roadmap gap, not a silent behavior. Budget for judge calls separately until it
+lands.
+:::
 
 For the exact judge protocol and verdict parsing, see the
 [configuration reference](/evalcore/reference/configuration/); for the cache
 mechanics, [Record / replay](/evalcore/guides/record-replay/).
+
+## See also
+
+- [RAG evaluation](/evalcore/guides/rag-evaluation/): a groundedness rubric is
+  the recommended judge use, graded against retrieved context.
+- [Semantic similarity](/evalcore/guides/semantic-similarity/): a cheaper,
+  deterministic scorer when a full rubric is more than you need.
+- [Cost and budgets](/evalcore/guides/cost-and-budgets/): why judge calls are
+  not yet counted in the run's cost.
+- [Record / replay](/evalcore/guides/record-replay/): how judge verdicts are
+  cached so graded suites replay for $0.

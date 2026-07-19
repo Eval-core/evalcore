@@ -191,8 +191,7 @@ prediction before it reaches the metric, in whichever layer you already control:
   (trimmed) output, not a scorer's transformed view, so normalization that must
   reach accuracy/F1 belongs in the target's output itself.
 
-## Limitation: multi-trial prediction
-
+:::caution[Known gap]
 Under [`run.trials`](/evalcore/guides/trials-and-statistics/) a case runs several
 times, but classification is a single-prediction-per-case metric. The prediction
 it scores is the case-level surfaced output, meaning the first successful trial,
@@ -200,6 +199,7 @@ not a vote across trials. Accuracy and F1 therefore describe one representative
 prediction per case, while the trials machinery still measures how *often* the
 case passes your scorers. Aggregating a label across trials (majority-vote
 prediction) is intentionally out of scope for v1.
+:::
 
 ## See also
 

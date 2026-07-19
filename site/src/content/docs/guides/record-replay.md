@@ -179,3 +179,14 @@ config changing, so caching them would record a lie. They always execute, and
 no `.evalcore/` directory appears for a purely local shell-only run. If you want
 a cassette for a service you deploy, evaluate it over the
 [`http` target](/evalcore/guides/evaluating-rest-apis/) instead.
+
+## See also
+
+- [Running in CI](/evalcore/guides/running-in-ci/): committing cassettes
+  and splitting the PR path from a nightly drift job.
+- [Cache & determinism](/evalcore/reference/cache-and-determinism/): the
+  full cache key invariants behind what re-records and what doesn't.
+- [Gates and baselines](/evalcore/guides/gates-and-baselines/): baselines
+  live in the same `.evalcore/cache.db` as the cassettes.
+- [Comparing models](/evalcore/guides/comparing-models/): how a matrix run
+  shares one cassette store across every arm.

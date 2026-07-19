@@ -204,14 +204,14 @@ commit the cassette, and `--cache replay` reruns all N trials of every case
 offline, keyless, and deterministically. It is the same CI story as a
 single-trial suite, just with N recorded samples per case.
 
-## Known gap: token totals under trials
-
+:::caution[Known gap]
 With `run.trials` greater than 1, the **cost** totals are correct: they sum
 every trial. The **token** totals in the terminal and HTML summaries currently
 reflect one trial per case rather than the full N. If you gate on cost or
 budget, that path is accurate; if you read the token count as an exact
 multi-trial total, treat it as a per-trial figure for now. This is tracked for a
 follow-up alongside judge-call cost attribution.
+:::
 
 ## See also
 

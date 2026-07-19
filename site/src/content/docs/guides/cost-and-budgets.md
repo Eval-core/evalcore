@@ -120,14 +120,25 @@ The shipped agent-trace example shows this. One case's OTel trace carries
 See [Agents and traces](/evalcore/guides/agents-and-traces/) for how usage is
 extracted from spans.
 
-## Known gap: judge calls aren't counted
-
+:::caution[Known gap]
 **LLM-judge calls are not yet included in cost totals or budgets.**
 The reported tokens and `$` reflect the *target's* usage only. A judge-heavy
 suite spends real money on grading that the `$` line does not show, and those
 calls do not count against `run.budget_usd`. This is a documented roadmap gap.
 Budget for judge calls separately for now. See
 [LLM-as-judge](/evalcore/guides/llm-as-judge/).
+:::
 
 For field-level details, see the
 [configuration reference](/evalcore/reference/configuration/).
+
+## See also
+
+- [Comparing models](/evalcore/guides/comparing-models/): per-target cost across
+  a matrix, and how `budget_usd` bounds each arm.
+- [Trials and statistics](/evalcore/guides/trials-and-statistics/): how cost sums
+  across trials, and the token-total gap under `run.trials`.
+- [LLM-as-judge](/evalcore/guides/llm-as-judge/): why judge calls are not yet
+  counted in the run's cost.
+- [Configuration reference](/evalcore/reference/configuration/#cost-rates): the
+  `cost:` input and output rate fields.

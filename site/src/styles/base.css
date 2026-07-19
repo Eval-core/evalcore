@@ -83,6 +83,15 @@ body {
 	color: var(--muted);
 }
 
+/* Blockquotes: an understated hairline rule, matching the minimal vocabulary. */
+.sl-markdown-content blockquote {
+	margin-inline: 0;
+	padding: var(--sp-1) var(--sp-4);
+	border-inline-start: 2px solid var(--sl-color-hairline);
+	color: var(--muted);
+	font-style: normal;
+}
+
 /* Warm selection tint. */
 ::selection {
 	background: var(--selection-bg);

@@ -245,3 +245,14 @@ from the recorded traces, so the suite is a deterministic CI gate.
 
 For the exhaustive rule semantics and normalization rules, see the
 [trajectory format reference](/evalcore/reference/trajectory-format/).
+
+## See also
+
+- [Trajectory format](/evalcore/reference/trajectory-format/): the exhaustive
+  rule semantics for `must_call`, `must_not_call`, and `max_steps`.
+- [LLM-as-judge](/evalcore/guides/llm-as-judge/): rubric design for grading a
+  trace's final answer alongside trajectory rules.
+- [Cost and budgets](/evalcore/guides/cost-and-budgets/): how `cost:` rates
+  price the token usage read straight from trace spans.
+- [Running in CI](/evalcore/guides/running-in-ci/): gating a build on a
+  deterministic, offline trace suite.

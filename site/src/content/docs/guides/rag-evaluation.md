@@ -258,3 +258,14 @@ For the case schema see the [configuration
 reference](/evalcore/reference/configuration/#jsonl-case-format); for the scorer
 payload, the [subprocess protocol](/evalcore/reference/subprocess-protocol/); for
 rubric design and cache mechanics, [LLM-as-judge](/evalcore/guides/llm-as-judge/).
+
+## See also
+
+- [LLM-as-judge](/evalcore/guides/llm-as-judge/): rubric design and the full
+  re-record table for judge-scored cases.
+- [Custom scorers](/evalcore/guides/custom-scorers/): the subprocess
+  protocol the Ragas and DeepEval shims are built on.
+- [Running in CI](/evalcore/guides/running-in-ci/): splitting the free
+  cached judge on the PR path from a billable nightly shim tier.
+- [Configuration reference](/evalcore/reference/configuration/): the full
+  JSONL case schema, including the `context` field.

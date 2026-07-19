@@ -158,3 +158,14 @@ Gates leave JUnit output unchanged. The exit code carries the gate result for CI
 For where these fit in the CI pipeline, see
 [Running in CI](/evalcore/guides/running-in-ci/); for field details, the
 [configuration reference](/evalcore/reference/configuration/).
+
+## See also
+
+- [Running in CI](/evalcore/guides/running-in-ci/): the full pipeline that
+  commits cassettes, replays offline, and gates on this exit code.
+- [Comparing models](/evalcore/guides/comparing-models/): why matrix runs
+  reject `--baseline` and how gates still apply per arm.
+- [HTML reports](/evalcore/guides/html-reports/): the gates panel and
+  baseline diff rendered for a reviewer to open.
+- [Configuration reference](/evalcore/reference/configuration/): the full
+  `run.gates` and baseline field schema.

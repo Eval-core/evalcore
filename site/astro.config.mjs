@@ -86,23 +86,38 @@ export default defineConfig({
 					],
 				},
 				{
-					label: 'Guides',
+					label: 'Workflow & CI',
 					items: [
 						{ label: 'Running in CI', slug: 'guides/running-in-ci' },
 						{ label: 'Record / replay', slug: 'guides/record-replay' },
+						{ label: 'Gates and baselines', slug: 'guides/gates-and-baselines' },
+						{ label: 'Run history and serve', slug: 'guides/run-history-and-serve' },
+						{ label: 'HTML reports', slug: 'guides/html-reports' },
+					],
+				},
+				{
+					label: 'Targets & data',
+					items: [
 						{ label: 'Evaluating REST APIs', slug: 'guides/evaluating-rest-apis' },
 						{ label: 'Agents and traces', slug: 'guides/agents-and-traces' },
 						{ label: 'RAG evaluation', slug: 'guides/rag-evaluation' },
+					],
+				},
+				{
+					label: 'Scorers',
+					items: [
 						{ label: 'LLM-as-judge', slug: 'guides/llm-as-judge' },
 						{ label: 'Semantic similarity', slug: 'guides/semantic-similarity' },
-						{ label: 'Cost and budgets', slug: 'guides/cost-and-budgets' },
 						{ label: 'Custom scorers', slug: 'guides/custom-scorers' },
-						{ label: 'Gates and baselines', slug: 'guides/gates-and-baselines' },
-						{ label: 'Trials and statistics', slug: 'guides/trials-and-statistics' },
 						{ label: 'Classification', slug: 'guides/classification' },
+					],
+				},
+				{
+					label: 'Analysis',
+					items: [
+						{ label: 'Trials and statistics', slug: 'guides/trials-and-statistics' },
 						{ label: 'Comparing models', slug: 'guides/comparing-models' },
-						{ label: 'Run history and serve', slug: 'guides/run-history-and-serve' },
-						{ label: 'HTML reports', slug: 'guides/html-reports' },
+						{ label: 'Cost and budgets', slug: 'guides/cost-and-budgets' },
 					],
 				},
 				{

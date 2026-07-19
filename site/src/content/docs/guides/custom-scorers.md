@@ -146,3 +146,14 @@ Keep the hot path cheap:
 
 For everything the protocol guarantees, see the
 [subprocess protocol reference](/evalcore/reference/subprocess-protocol/).
+
+## See also
+
+- [Subprocess scorer protocol](/evalcore/reference/subprocess-protocol/): the
+  stdin/stdout contract and payload fields a scorer command must handle.
+- [RAG evaluation](/evalcore/guides/rag-evaluation/): the shipped Ragas and
+  DeepEval shims, real subprocess scorers you can wire in as-is.
+- [LLM-as-judge](/evalcore/guides/llm-as-judge/): a built-in alternative when
+  the check is a graded rubric, not custom logic.
+- [Gates and baselines](/evalcore/guides/gates-and-baselines/): how a
+  subprocess scorer's `score` feeds a `mean_score` suite gate.
