@@ -25,7 +25,7 @@ use std::path::Path;
 use anyhow::{bail, Context};
 use evalcore_config::{ScorerConfig, TargetConfig};
 use evalcore_core::embeddings::TargetSpec;
-use evalcore_core::{Scorer, Target};
+use evalcore_core::{CostRates, Scorer, Target};
 
 /// Build all scorers up front. Expensive or fallible construction (compiling
 /// regexes and JSON schemas, resolving judge/embedding endpoints) happens here
@@ -79,6 +79,7 @@ where
                     rubric,
                     api_key_env,
                     threshold,
+                    cost,
                 } => {
                     if !(0.0..=1.0).contains(threshold) {
                         bail!("judge threshold {threshold} outside 0.0..=1.0");
@@ -91,16 +92,25 @@ where
                         // Judges get the default timeout in v1 (no judge-level
                         // knob); it flows to the call via build_judge_target.
                         timeout_seconds: evalcore_config::DEFAULT_TIMEOUT_SECONDS,
+                        // The judge's cost is carried on `JudgeScorer`, not the
+                        // target: pricing is not part of the request, so it stays
+                        // OUT of the target's cache identity and existing judge
+                        // cassettes keep their keys.
                         cost: None,
                         system: None,
                         params: None,
                     };
                     let target = build_scorer_target(TargetSpec::Chat(target_config))
                         .context("failed to build judge target")?;
-                    Ok(Box::new(JudgeScorer::new(
+                    let cost_rates = cost.as_ref().map(|c| CostRates {
+                        input_per_1m: c.input_per_1m,
+                        output_per_1m: c.output_per_1m,
+                    });
+                    Ok(Box::new(JudgeScorer::with_cost(
                         target,
                         rubric.clone(),
                         *threshold,
+                        cost_rates,
                     )))
                 }
                 ScorerConfig::JsonSchema { schema } => {
@@ -178,6 +188,7 @@ mod tests {
             rubric: "r".into(),
             api_key_env: None,
             threshold: 1.5,
+            cost: None,
         }];
         let err = build_scorers(&configs, Path::new("."), build)
             .err()
@@ -198,6 +209,7 @@ mod tests {
             rubric: "grounded?".into(),
             api_key_env: None,
             threshold: 0.5,
+            cost: None,
         }];
         build_scorers(&configs, Path::new("."), |spec| {
             if let TargetSpec::Chat(TargetConfig::OpenaiCompatible {
@@ -225,6 +237,7 @@ mod tests {
             rubric: "grounded?".into(),
             api_key_env: None,
             threshold: 0.5,
+            cost: None,
         }];
         build_scorers(&configs, Path::new("."), |spec| {
             let target = build(spec)?;
@@ -260,6 +273,7 @@ mod tests {
                 rubric: "grounded?".into(),
                 api_key_env: None,
                 threshold: 0.5,
+                cost: None,
             },
             // Similarity construction only builds the HTTP client — no network.
             ScorerConfig::Similarity {

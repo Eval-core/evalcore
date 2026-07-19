@@ -204,6 +204,8 @@ mod tests {
                     value: if passed { 1.0 } else { 0.0 },
                     passed,
                     reason: None,
+                    tokens: None,
+                    cost_usd: None,
                 }],
                 cost_usd: None,
                 context: None,

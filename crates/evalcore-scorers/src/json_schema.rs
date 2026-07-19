@@ -56,6 +56,8 @@ impl Scorer for JsonSchemaScorer {
                         "output is not valid JSON: {err} (output: {:?})",
                         crate::snippet(&output.text)
                     )),
+                    tokens: None,
+                    cost_usd: None,
                 });
             }
         };
@@ -85,6 +87,8 @@ impl Scorer for JsonSchemaScorer {
                 value: 1.0,
                 passed: true,
                 reason: None,
+                tokens: None,
+                cost_usd: None,
             });
         }
 
@@ -96,6 +100,8 @@ impl Scorer for JsonSchemaScorer {
             value: 0.0,
             passed: false,
             reason: Some(reason),
+            tokens: None,
+            cost_usd: None,
         })
     }
 }

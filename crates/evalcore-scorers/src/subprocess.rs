@@ -121,6 +121,8 @@ impl Scorer for SubprocessScorer {
             value: verdict.score,
             passed,
             reason: verdict.reason,
+            tokens: None,
+            cost_usd: None,
         })
     }
 }

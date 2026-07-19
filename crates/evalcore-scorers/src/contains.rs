@@ -45,6 +45,8 @@ impl Scorer for ContainsScorer {
                     snippet(&output.text)
                 )
             }),
+            tokens: None,
+            cost_usd: None,
         })
     }
 }

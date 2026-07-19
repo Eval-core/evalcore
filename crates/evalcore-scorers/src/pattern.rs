@@ -38,6 +38,8 @@ impl Scorer for RegexScorer {
                     snippet(&output.text)
                 )
             }),
+            tokens: None,
+            cost_usd: None,
         })
     }
 }
