@@ -65,7 +65,7 @@ scorers:
   thresholds around `0.7` to `0.9`, so only confident passes get through.
 - Soft-quality signals you're tracking but not blocking on want lower thresholds.
   Let a `mean_score` gate watch the aggregate instead of failing individual cases
-  (see [Gates and baselines](/evalcore/guides/gates-and-baselines/)).
+  (see [Gates and baselines](/guides/gates-and-baselines/)).
 - Calibrate against real cassettes rather than guessing. Record a batch, look at
   the actual scores the judge assigns to answers you consider good vs bad, and
   set the threshold between the two clusters.
@@ -117,7 +117,7 @@ that's why you won't find the rubric listed as an identity field.
   verdicts land in your cassette diff. Review them like any behavior change.
 - Watch drift on a schedule, not on PRs. The judge model can drift just like any
   model. Catch it with the nightly `--cache live` job, not by un-determinizing PR
-  runs. See [Record / replay](/evalcore/guides/record-replay/).
+  runs. See [Record / replay](/guides/record-replay/).
 
 :::caution[Known gap]
 **LLM-judge calls are not yet included in the run's cost totals or counted
@@ -129,16 +129,16 @@ lands.
 :::
 
 For the exact judge protocol and verdict parsing, see the
-[configuration reference](/evalcore/reference/configuration/); for the cache
-mechanics, [Record / replay](/evalcore/guides/record-replay/).
+[configuration reference](/reference/configuration/); for the cache
+mechanics, [Record / replay](/guides/record-replay/).
 
 ## See also
 
-- [RAG evaluation](/evalcore/guides/rag-evaluation/): a groundedness rubric is
+- [RAG evaluation](/guides/rag-evaluation/): a groundedness rubric is
   the recommended judge use, graded against retrieved context.
-- [Semantic similarity](/evalcore/guides/semantic-similarity/): a cheaper,
+- [Semantic similarity](/guides/semantic-similarity/): a cheaper,
   deterministic scorer when a full rubric is more than you need.
-- [Cost and budgets](/evalcore/guides/cost-and-budgets/): why judge calls are
+- [Cost and budgets](/guides/cost-and-budgets/): why judge calls are
   not yet counted in the run's cost.
-- [Record / replay](/evalcore/guides/record-replay/): how judge verdicts are
+- [Record / replay](/guides/record-replay/): how judge verdicts are
   cached so graded suites replay for $0.

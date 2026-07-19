@@ -11,7 +11,7 @@ output through an OpenAI-compatible `/embeddings` endpoint and scores their
 within a month" land close in embedding space even though they share almost no
 words.
 
-Like the [`judge`](/evalcore/guides/llm-as-judge/) scorer, similarity is an
+Like the [`judge`](/guides/llm-as-judge/) scorer, similarity is an
 LLM-backed check whose calls ride the record/replay cache, so once recorded it
 replays offline, keyless, and deterministically in CI.
 
@@ -58,7 +58,7 @@ that lands exactly on the threshold passes, matching the suite-gate tolerance):
   threshold 0.8`.
 
 Because `value` is the mean-friendly raw cosine, a
-[`mean_score`](/evalcore/guides/gates-and-baselines/) gate restricted to
+[`mean_score`](/guides/gates-and-baselines/) gate restricted to
 `scorer: similarity` gates on the average semantic closeness across your suite.
 
 ## The cache story: deterministic replays
@@ -84,7 +84,7 @@ evalcore run evals.yaml --cache auto     # records the embedding vectors
 evalcore run evals.yaml --cache replay   # replays them: deterministic, keyless, $0
 ```
 
-Under [trials](/evalcore/guides/trials-and-statistics/), similarity calls
+Under [trials](/guides/trials-and-statistics/), similarity calls
 re-key per trial the same way judge calls do, so each trial's embedding is its
 own cache entry.
 
@@ -99,9 +99,9 @@ provider.
 
 ## See also
 
-- [LLM-as-judge](/evalcore/guides/llm-as-judge/): the other LLM-backed scorer,
+- [LLM-as-judge](/guides/llm-as-judge/): the other LLM-backed scorer,
   for rubric grading rather than reference comparison.
-- [Configuration reference](/evalcore/reference/configuration/#similarity): the
+- [Configuration reference](/reference/configuration/#similarity): the
   full `similarity` schema and validation rules.
-- [Record / replay](/evalcore/guides/record-replay/): the caching the scorer
+- [Record / replay](/guides/record-replay/): the caching the scorer
   is built on.

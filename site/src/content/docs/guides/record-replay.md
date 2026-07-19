@@ -96,7 +96,7 @@ Two things are deliberately excluded:
 Unset optional fields are omitted from the identity (not serialized as `null`),
 so cassettes recorded by older versions, from before `system`/`params` existed,
 keep their keys. Full invariants are in the
-[cache and determinism reference](/evalcore/reference/cache-and-determinism/).
+[cache and determinism reference](/reference/cache-and-determinism/).
 
 ## What re-records on what change
 
@@ -129,7 +129,7 @@ differently:
   want on the PR path. Detecting drift is a separate, scheduled concern: run a
   nightly job with `--cache live` to re-record against the live provider and
   surface the diff, rather than letting drift leak into every PR. The nightly
-  workflow is in [Running in CI](/evalcore/guides/running-in-ci/).
+  workflow is in [Running in CI](/guides/running-in-ci/).
 
 ## The lockfile analogy
 
@@ -178,15 +178,15 @@ readably. Review recorded behavior the way you review any recorded fixture:
 config changing, so caching them would record a lie. They always execute, and
 no `.evalcore/` directory appears for a purely local shell-only run. If you want
 a cassette for a service you deploy, evaluate it over the
-[`http` target](/evalcore/guides/evaluating-rest-apis/) instead.
+[`http` target](/guides/evaluating-rest-apis/) instead.
 
 ## See also
 
-- [Running in CI](/evalcore/guides/running-in-ci/): committing cassettes
+- [Running in CI](/guides/running-in-ci/): committing cassettes
   and splitting the PR path from a nightly drift job.
-- [Cache & determinism](/evalcore/reference/cache-and-determinism/): the
+- [Cache & determinism](/reference/cache-and-determinism/): the
   full cache key invariants behind what re-records and what doesn't.
-- [Gates and baselines](/evalcore/guides/gates-and-baselines/): baselines
+- [Gates and baselines](/guides/gates-and-baselines/): baselines
   live in the same `.evalcore/cache.db` as the cassettes.
-- [Comparing models](/evalcore/guides/comparing-models/): how a matrix run
+- [Comparing models](/guides/comparing-models/): how a matrix run
   shares one cassette store across every arm.

@@ -26,7 +26,7 @@ scorers:
 ```
 
 Full example: [`examples/support-rag/`](https://github.com/eval-core/evalcore/tree/main/examples/support-rag).
-Guide: [RAG evaluation](/evalcore/guides/rag-evaluation/).
+Guide: [RAG evaluation](/guides/rag-evaluation/).
 
 ## Is the 10x-cheaper model good enough?
 
@@ -39,7 +39,7 @@ and each target's own cost.
 evalcore run evals.yaml --matrix expensive,cheap
 ```
 
-Guide: [Comparing models](/evalcore/guides/comparing-models/).
+Guide: [Comparing models](/guides/comparing-models/).
 
 ## The judge suite too expensive to run per-PR
 
@@ -54,7 +54,7 @@ evalcore run evals.yaml --cache live     # record once, commit .evalcore/cache.d
 evalcore run evals.yaml --cache replay   # every PR: offline, free, deterministic
 ```
 
-Guides: [Record / replay](/evalcore/guides/record-replay/) · [Running in CI](/evalcore/guides/running-in-ci/).
+Guides: [Record / replay](/guides/record-replay/) · [Running in CI](/guides/running-in-ci/).
 
 ## Claims triage that catches a silent fraud-recall drop
 
@@ -73,7 +73,7 @@ run:
 ```
 
 Full example: [`examples/claims-triage/`](https://github.com/eval-core/evalcore/tree/main/examples/claims-triage).
-Guide: [Classification](/evalcore/guides/classification/).
+Guide: [Classification](/guides/classification/).
 
 ## The agent that touches money
 
@@ -91,7 +91,7 @@ scorers:
       - max_steps: 8
 ```
 
-Guide: [Agents and traces](/evalcore/guides/agents-and-traces/).
+Guide: [Agents and traces](/guides/agents-and-traces/).
 
 ## What ties them together
 

@@ -124,7 +124,7 @@ write the canonical JSON: a `steps` array plus an optional `final_output`:
 ```
 
 Both formats are graded identically. The full spec is the
-[trajectory format reference](/evalcore/reference/trajectory-format/).
+[trajectory format reference](/reference/trajectory-format/).
 
 ## Grading the path: trajectory rules
 
@@ -213,15 +213,15 @@ targets:
 
 Latency per case is the trace's own span (`max(endTime) − min(startTime)`),
 which is why the OTel example above reports `4400ms`. Trace targets also respect
-`run.budget_usd`; see [Cost and budgets](/evalcore/guides/cost-and-budgets/).
+`run.budget_usd`; see [Cost and budgets](/guides/cost-and-budgets/).
 
 ## The full example, walked
 
 <figure class="ec-cast">
 	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore grades a recorded agent trace. The trajectory rules and final answer both pass, with tokens and cost read straight from the spans.">
-		<source src="/evalcore/casts/agent-trace.webm" type="video/webm" />
+		<source src="/casts/agent-trace.webm" type="video/webm" />
 		<img
-			src="/evalcore/casts/agent-trace.gif"
+			src="/casts/agent-trace.gif"
 			alt="Terminal recording: evalcore grades a recorded agent trace. The trajectory rules and final answer both pass, with tokens and cost read straight from the spans."
 			loading="lazy"
 		/>
@@ -244,15 +244,15 @@ the declared rates, `$0.0002`. Nothing here touched the network. It is all read
 from the recorded traces, so the suite is a deterministic CI gate.
 
 For the exhaustive rule semantics and normalization rules, see the
-[trajectory format reference](/evalcore/reference/trajectory-format/).
+[trajectory format reference](/reference/trajectory-format/).
 
 ## See also
 
-- [Trajectory format](/evalcore/reference/trajectory-format/): the exhaustive
+- [Trajectory format](/reference/trajectory-format/): the exhaustive
   rule semantics for `must_call`, `must_not_call`, and `max_steps`.
-- [LLM-as-judge](/evalcore/guides/llm-as-judge/): rubric design for grading a
+- [LLM-as-judge](/guides/llm-as-judge/): rubric design for grading a
   trace's final answer alongside trajectory rules.
-- [Cost and budgets](/evalcore/guides/cost-and-budgets/): how `cost:` rates
+- [Cost and budgets](/guides/cost-and-budgets/): how `cost:` rates
   price the token usage read straight from trace spans.
-- [Running in CI](/evalcore/guides/running-in-ci/): gating a build on a
+- [Running in CI](/guides/running-in-ci/): gating a build on a
   deterministic, offline trace suite.

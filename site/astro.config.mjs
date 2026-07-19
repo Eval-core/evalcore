@@ -4,10 +4,10 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
-	// Deployed to GitHub Pages under the repo path. When a custom domain lands,
-	// flip `base` to '/' (and point `site` at the custom domain).
-	site: 'https://eval-core.github.io',
-	base: '/evalcore',
+	// Served from the custom domain evalcore.cc at the root, so base is '/'.
+	// (The public/CNAME file pins the domain across GitHub Pages deploys.)
+	site: 'https://evalcore.cc',
+	base: '/',
 	integrations: [
 		starlight({
 			title: 'EvalCore',

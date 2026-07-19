@@ -19,7 +19,7 @@ cargo install evalcore
 
 No Rust toolchain? Grab a prebuilt binary from
 [GitHub Releases](https://github.com/eval-core/evalcore/releases) instead. See
-[Installation](/evalcore/getting-started/installation/) for every path.
+[Installation](/getting-started/installation/) for every path.
 
 Then clone the repo, since the example suite this guide runs ships inside it:
 
@@ -116,7 +116,7 @@ so `late-refund` passes both scorers.
 otherwise**. That is the entire CI contract. A target that *errors* (a 500, a
 timeout) is not a crash: it becomes a failed case with a reason, the run still
 finishes and reports every other case, and it still exits `1`. Failures are
-data. See [Core concepts](/evalcore/getting-started/core-concepts/).
+data. See [Core concepts](/getting-started/core-concepts/).
 
 ## 5. Turn it into a shareable report
 
@@ -131,7 +131,7 @@ That is one file, with no assets and no server, that you can open in a browser o
 attach to a PR. It shows the pass/fail summary, the gate outcomes, and every
 case's answer with its per-scorer scores expandable inline. In CI, the same
 report is the audit artifact a reviewer clicks straight from the pull request.
-More in [HTML reports](/evalcore/guides/html-reports/).
+More in [HTML reports](/guides/html-reports/).
 
 ## 6. Wire up your real app
 
@@ -156,14 +156,14 @@ SQLite cassette**. Commit that cassette, and CI runs `--cache replay`: every
 call is served from the recording, with no network, no API key, and no flaky
 judge, so even LLM-graded suites run offline, deterministically, and for $0.
 That is what turns an eval suite into a blocking CI check. See
-[Record / replay](/evalcore/guides/record-replay/) for the cassette lifecycle
+[Record / replay](/guides/record-replay/) for the cassette lifecycle
 and the four cache modes.
 
 ## Where next
 
-- [What teams use it for](/evalcore/getting-started/what-teams-use-it-for/):
+- [What teams use it for](/getting-started/what-teams-use-it-for/):
   the real jobs EvalCore is built for, end to end.
-- [Comparing models](/evalcore/guides/comparing-models/): run one suite across
+- [Comparing models](/guides/comparing-models/): run one suite across
   several targets with `--matrix` and get per-case winners and per-target cost.
-- [Trials and statistics](/evalcore/guides/trials-and-statistics/): a
+- [Trials and statistics](/guides/trials-and-statistics/): a
   stochastic model needs more than one sample; gate on how *often* a case passes.

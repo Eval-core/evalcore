@@ -29,7 +29,7 @@ git commit -m "Record eval cassettes"
 Baselines live in the same store file, so committing `.evalcore/` carries both
 the cassettes and any accepted baselines into CI. Treat `.evalcore/cache.db`
 like a lockfile: a reviewed artifact that pins behavior. See
-[Record / replay](/evalcore/guides/record-replay/) for the full lifecycle.
+[Record / replay](/guides/record-replay/) for the full lifecycle.
 
 ## 2. Replay offline, keyless, at $0
 
@@ -69,7 +69,7 @@ baseline gate: FAIL (1 regressed, 0 new failing)
 Combine both flags for a **rolling baseline** (`--baseline main --save-baseline
 main`): compare against the accepted state first, then re-record it. The full
 semantics (regressed vs new-failing vs fixed vs removed, and when to
-re-baseline) are in [Gates and baselines](/evalcore/guides/gates-and-baselines/).
+re-baseline) are in [Gates and baselines](/guides/gates-and-baselines/).
 
 ## 4. Add suite gates as floors
 
@@ -158,7 +158,7 @@ failure.
 
 Locally or in any other pipeline, add `--html report.html` to write the same
 self-contained document. Full details in
-[HTML reports](/evalcore/guides/html-reports/).
+[HTML reports](/guides/html-reports/).
 
 ## 7. Split PR from nightly: catching model drift
 
@@ -261,11 +261,11 @@ per-case results to the Jenkins UI.
 
 ## See also
 
-- [Record / replay](/evalcore/guides/record-replay/): the full cassette
+- [Record / replay](/guides/record-replay/): the full cassette
   lifecycle, cache key, and team workflow for committing the cache.
-- [Gates and baselines](/evalcore/guides/gates-and-baselines/): the exact
+- [Gates and baselines](/guides/gates-and-baselines/): the exact
   regressed/new-failing/fixed/removed semantics behind `--baseline`.
-- [HTML reports](/evalcore/guides/html-reports/): the `--html` flag and
+- [HTML reports](/guides/html-reports/): the `--html` flag and
   report contents the Action uploads as an artifact.
-- [CLI reference](/evalcore/reference/cli/): every flag used across the
+- [CLI reference](/reference/cli/): every flag used across the
   GitHub Action, GitLab, and Jenkins examples.

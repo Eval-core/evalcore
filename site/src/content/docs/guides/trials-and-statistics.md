@@ -15,9 +15,9 @@ than on a single roll of the dice.
 
 <figure class="ec-cast">
 	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore runs every case three times and folds the per-trial verdicts into one, tagging each PASS/FAIL line with its passing-trial count and summarizing the flaky count.">
-		<source src="/evalcore/casts/trials.webm" type="video/webm" />
+		<source src="/casts/trials.webm" type="video/webm" />
 		<img
-			src="/evalcore/casts/trials.gif"
+			src="/casts/trials.gif"
 			alt="Terminal recording: evalcore runs every case three times and folds the per-trial verdicts into one, tagging each PASS/FAIL line with its passing-trial count and summarizing the flaky count."
 			loading="lazy"
 		/>
@@ -76,7 +76,7 @@ A multi-trial case reports one aggregated `CaseResult`, computed from its trials
   Three trials scoring 1, 1, 0 for a scorer give a case score of 0.667. This
   mean is what suite gates and baselines see: a `mean_score` gate averages
   these per-case means, so trials feed statistical gating directly (see [Gates
-  and baselines](/evalcore/guides/gates-and-baselines/)). A trial whose target
+  and baselines](/guides/gates-and-baselines/)). A trial whose target
   errored contributes no score to the mean.
 - **Verdict** (`passed`) follows the `require` policy above, *not* the mean. A
   case can have a 0.667 mean score yet fail under `require: all`.
@@ -215,9 +215,9 @@ follow-up alongside judge-call cost attribution.
 
 ## See also
 
-- [Gates and baselines](/evalcore/guides/gates-and-baselines/): the per-scorer
+- [Gates and baselines](/guides/gates-and-baselines/): the per-scorer
   mean that trials produce is what a `mean_score` gate averages.
-- [Record / replay](/evalcore/guides/record-replay/): the cache the trial
+- [Record / replay](/guides/record-replay/): the cache the trial
   re-keying is built on.
-- [Configuration reference](/evalcore/reference/configuration/#run-block): the
+- [Configuration reference](/reference/configuration/#run-block): the
   `run.trials` schema and validation rules.

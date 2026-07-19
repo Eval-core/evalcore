@@ -41,7 +41,7 @@ load-bearing.
 ```
 
 - The target runs once per case; cacheable targets consult the cassette
-  first (see [Record / replay](/evalcore/guides/record-replay/)).
+  first (see [Record / replay](/guides/record-replay/)).
 - Every scorer runs on every case's output.
 - Gates and the baseline diff are computed over the whole `RunSummary`
   after the last case finishes.
@@ -72,7 +72,7 @@ targets:
 
 Secrets never live in the YAML: `api_key_env` names an environment variable,
 resolved at run time. Full field-by-field docs are in the
-[configuration reference](/evalcore/reference/configuration/).
+[configuration reference](/reference/configuration/).
 
 ## Datasets: the inputs
 
@@ -104,15 +104,15 @@ to fully custom:
   `{"input", "output", "expected"}` as JSON on stdin and prints
   `{"score": 0.0..=1.0, "passed"?: bool, "reason"?: string}` on stdout. Write
   scorers in Python, Node, Go, or anything else that reads stdin and writes
-  stdout. See [Custom scorers](/evalcore/guides/custom-scorers/).
+  stdout. See [Custom scorers](/guides/custom-scorers/).
 - `judge` is LLM-as-judge. It grades the output against a `rubric` using any
   OpenAI-compatible endpoint, with a configurable pass `threshold`. Judge calls
   go through the record/replay cache, so replayed verdicts are deterministic,
   which is what makes LLM-graded suites usable as CI gates. See
-  [LLM-as-judge](/evalcore/guides/llm-as-judge/).
+  [LLM-as-judge](/guides/llm-as-judge/).
 - `trajectory` asserts on an agent's path (tool calls, ordering, step
   budget). It requires a `trace` target. See
-  [Agents and traces](/evalcore/guides/agents-and-traces/).
+  [Agents and traces](/guides/agents-and-traces/).
 
 ```yaml
 scorers:
@@ -149,11 +149,11 @@ run:
 - `budget_usd` stops dispatching new cases once accumulated cost reaches the
   cap (requires the target to declare `cost` rates). Skipped cases are reported
   as failures with a reason, so the run completes rather than aborting. See
-  [Cost and budgets](/evalcore/guides/cost-and-budgets/).
+  [Cost and budgets](/guides/cost-and-budgets/).
 - `gates` are absolute floors over the whole run: `pass_rate` (fraction of
   cases passing every scorer, in `[0,1]`) and `mean_score` (mean scorer value,
   optionally restricted to one `scorer`). See
-  [Gates and baselines](/evalcore/guides/gates-and-baselines/).
+  [Gates and baselines](/guides/gates-and-baselines/).
 
 ## The exit-code contract
 
@@ -167,7 +167,7 @@ mechanisms extend that contract additively:
   even when it is not a per-case failure or a regression.
 
 Users gate CI on this exit code and nothing else. The full truth table is in
-[Gates and baselines](/evalcore/guides/gates-and-baselines/).
+[Gates and baselines](/guides/gates-and-baselines/).
 
 ## Failures are data
 
@@ -204,5 +204,5 @@ makes an eval suite a *test* rather than a dashboard:
   request, so the *same* request always replays the *same* recorded response.
   Change the model, prompt, params, or input and the key changes, so a stale
   recording can never masquerade as a fresh one. See
-  [Record / replay](/evalcore/guides/record-replay/) and the
-  [cache and determinism reference](/evalcore/reference/cache-and-determinism/).
+  [Record / replay](/guides/record-replay/) and the
+  [cache and determinism reference](/reference/cache-and-determinism/).

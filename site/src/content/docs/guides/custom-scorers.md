@@ -38,7 +38,7 @@ Your command must print a single JSON object to stdout:
 
 A command that crashes or prints malformed JSON becomes a *failing score with a
 reason*, never a crash, so one bad scorer can't abort the run. The exact protocol
-is the [subprocess protocol reference](/evalcore/reference/subprocess-protocol/).
+is the [subprocess protocol reference](/reference/subprocess-protocol/).
 
 ## A complete Python faithfulness scorer
 
@@ -145,15 +145,15 @@ Keep the hot path cheap:
   genuinely need custom logic.
 
 For everything the protocol guarantees, see the
-[subprocess protocol reference](/evalcore/reference/subprocess-protocol/).
+[subprocess protocol reference](/reference/subprocess-protocol/).
 
 ## See also
 
-- [Subprocess scorer protocol](/evalcore/reference/subprocess-protocol/): the
+- [Subprocess scorer protocol](/reference/subprocess-protocol/): the
   stdin/stdout contract and payload fields a scorer command must handle.
-- [RAG evaluation](/evalcore/guides/rag-evaluation/): the shipped Ragas and
+- [RAG evaluation](/guides/rag-evaluation/): the shipped Ragas and
   DeepEval shims, real subprocess scorers you can wire in as-is.
-- [LLM-as-judge](/evalcore/guides/llm-as-judge/): a built-in alternative when
+- [LLM-as-judge](/guides/llm-as-judge/): a built-in alternative when
   the check is a graded rubric, not custom logic.
-- [Gates and baselines](/evalcore/guides/gates-and-baselines/): how a
+- [Gates and baselines](/guides/gates-and-baselines/): how a
   subprocess scorer's `score` feeds a `mean_score` suite gate.

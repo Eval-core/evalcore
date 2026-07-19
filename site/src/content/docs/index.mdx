@@ -17,9 +17,9 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 <figure class="ec-cast">
 	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore grades a support bot against the policy each answer must cite. Four cases pass, a compliance gate holds, and the run exits 0, all offline.">
-		<source src="/evalcore/casts/quickstart.webm" type="video/webm" />
+		<source src="/casts/quickstart.webm" type="video/webm" />
 		<img
-			src="/evalcore/casts/quickstart.gif"
+			src="/casts/quickstart.gif"
 			alt="Terminal recording: evalcore grades a support bot against the policy each answer must cite. Four cases pass, a compliance gate holds, and the run exits 0, all offline."
 			loading="lazy"
 		/>
@@ -36,7 +36,7 @@ replay the recorded cassette in CI forever.
 
 An eval is a YAML file plus a JSONL dataset. There is no SDK and no test harness to write.
 Point a target at your app, list the datasets, and stack scorers. Here a `contains`
-check and an [LLM-as-judge](/evalcore/guides/llm-as-judge/) grade every case:
+check and an [LLM-as-judge](/guides/llm-as-judge/) grade every case:
 
 ```yaml
 # evals.yaml
@@ -147,8 +147,8 @@ jobs:
 	<p>One dependency-free binary. No telemetry, no signup, no server.</p>
 	<div class="ec-cta-cmd"><code>cargo install evalcore</code></div>
 	<div class="ec-cta-actions">
-		<a class="ec-btn ec-btn-primary" href="/evalcore/getting-started/quickstart/">Get started</a>
-		<a class="ec-btn ec-btn-secondary" href="/evalcore/getting-started/installation/">All install options</a>
+		<a class="ec-btn ec-btn-primary" href="/getting-started/quickstart/">Get started</a>
+		<a class="ec-btn ec-btn-secondary" href="/getting-started/installation/">All install options</a>
 	</div>
 	<p class="ec-cta-note">No Rust toolchain? A prebuilt binary works on macOS, Linux, and CI.</p>
 </div>

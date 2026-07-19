@@ -35,12 +35,12 @@ exactly like an absent field, not as an empty-but-present list. Any other shape
 names the offending `file:line`, so a malformed case fails loudly at load time
 rather than scoring against garbage.
 
-See the [configuration reference](/evalcore/reference/configuration/#jsonl-case-format)
+See the [configuration reference](/reference/configuration/#jsonl-case-format)
 for the full case schema.
 
 ## Grade groundedness with the native judge
 
-The [`judge` scorer](/evalcore/guides/llm-as-judge/) is the recommended way to
+The [`judge` scorer](/guides/llm-as-judge/) is the recommended way to
 score groundedness. Like every LLM call in EvalCore, its verdicts go through the
 record/replay cache and replay deterministically. When a case carries `context`,
 the judge prompt gains a clearly delimited, numbered context section, placed
@@ -103,7 +103,7 @@ evalcore run evals.yaml --cache replay   # replays them: deterministic, keyless,
 ```
 
 For rubric design (keep it binary-decidable, name the evidence) and the full
-re-record table, see [LLM-as-judge](/evalcore/guides/llm-as-judge/).
+re-record table, see [LLM-as-judge](/guides/llm-as-judge/).
 
 ## Targets never see the context
 
@@ -130,7 +130,7 @@ The practical consequences:
 
   The `context` array is present on stdin only when the case carries it
   (omitted otherwise), and keys stay alphabetically ordered. See the
-  [subprocess protocol](/evalcore/reference/subprocess-protocol/) for the full
+  [subprocess protocol](/reference/subprocess-protocol/) for the full
   payload contract, and the shims below for retrieval-recall metrics you can drop
   in as-is.
 
@@ -208,7 +208,7 @@ through EvalCore's record/replay cache, so:
 
 That is the opposite of what you want on the pull-request path, where the native
 cached judge gives you fast, free, deterministic gating. Put the shims in a
-scheduled/nightly tier, the same place you catch [model drift](/evalcore/guides/running-in-ci/#7-split-pr-from-nightly-catching-model-drift):
+scheduled/nightly tier, the same place you catch [model drift](/guides/running-in-ci/#7-split-pr-from-nightly-catching-model-drift):
 
 ```yaml
 # .github/workflows/rag-nightly.yml
@@ -238,7 +238,7 @@ jobs:
 ```
 
 The nightly job is the only place that needs the provider key and spends money.
-It mirrors the [Running in CI](/evalcore/guides/running-in-ci/) split between a
+It mirrors the [Running in CI](/guides/running-in-ci/) split between a
 free, deterministic PR path and a scheduled tier that touches the network.
 
 ## Choosing between the judge and the shims
@@ -255,17 +255,17 @@ Start with the native judge on the PR path. Add a shim in a nightly tier only
 when you specifically need Ragas' or DeepEval's metric definitions.
 
 For the case schema see the [configuration
-reference](/evalcore/reference/configuration/#jsonl-case-format); for the scorer
-payload, the [subprocess protocol](/evalcore/reference/subprocess-protocol/); for
-rubric design and cache mechanics, [LLM-as-judge](/evalcore/guides/llm-as-judge/).
+reference](/reference/configuration/#jsonl-case-format); for the scorer
+payload, the [subprocess protocol](/reference/subprocess-protocol/); for
+rubric design and cache mechanics, [LLM-as-judge](/guides/llm-as-judge/).
 
 ## See also
 
-- [LLM-as-judge](/evalcore/guides/llm-as-judge/): rubric design and the full
+- [LLM-as-judge](/guides/llm-as-judge/): rubric design and the full
   re-record table for judge-scored cases.
-- [Custom scorers](/evalcore/guides/custom-scorers/): the subprocess
+- [Custom scorers](/guides/custom-scorers/): the subprocess
   protocol the Ragas and DeepEval shims are built on.
-- [Running in CI](/evalcore/guides/running-in-ci/): splitting the free
+- [Running in CI](/guides/running-in-ci/): splitting the free
   cached judge on the PR path from a billable nightly shim tier.
-- [Configuration reference](/evalcore/reference/configuration/): the full
+- [Configuration reference](/reference/configuration/): the full
   JSONL case schema, including the `context` field.

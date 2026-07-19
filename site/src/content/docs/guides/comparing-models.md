@@ -17,9 +17,9 @@ or two deployed endpoints. Anything you can configure as a target works.
 
 <figure class="ec-cast">
 	<video autoplay loop muted playsinline aria-label="Terminal recording: evalcore runs one suite against two shell targets, good and bad, in a single matrix invocation and prints a side-by-side comparison with a per-case winner column and a win/tie tally.">
-		<source src="/evalcore/casts/matrix.webm" type="video/webm" />
+		<source src="/casts/matrix.webm" type="video/webm" />
 		<img
-			src="/evalcore/casts/matrix.gif"
+			src="/casts/matrix.gif"
 			alt="Terminal recording: evalcore runs one suite against two shell targets, good and bad, in a single matrix invocation and prints a side-by-side comparison with a per-case winner column and a win/tie tally."
 			loading="lazy"
 		/>
@@ -180,7 +180,7 @@ is correct: a judge grades each arm's distinct output, so its prompt differs
 per arm anyway, and each arm gets its own recorded verdict. The practical
 consequence is the usual one. Record once with `--cache auto` (or `live`),
 commit the cassette, and `--cache replay` reruns the whole matrix offline,
-keyless, and deterministically. See [Record / replay](/evalcore/guides/record-replay/).
+keyless, and deterministically. See [Record / replay](/guides/record-replay/).
 
 ## The exit code
 
@@ -225,15 +225,15 @@ Error: baselines are per-run; run targets separately with --target to baseline t
 per-run in v1: a stored baseline is a single suite's per-case snapshot, and a
 matrix has no single set of results to save or diff. To baseline a target, run it
 on its own with `--target <name>` and the usual `--baseline` / `--save-baseline`
-flags (see [Gates and baselines](/evalcore/guides/gates-and-baselines/)).
+flags (see [Gates and baselines](/guides/gates-and-baselines/)).
 
 ## See also
 
-- [Cost and budgets](/evalcore/guides/cost-and-budgets/): the `cost:` rates each
+- [Cost and budgets](/guides/cost-and-budgets/): the `cost:` rates each
   arm prices with, and how `budget_usd` bounds a suite's spend.
-- [Gates and baselines](/evalcore/guides/gates-and-baselines/): per-arm gates
+- [Gates and baselines](/guides/gates-and-baselines/): per-arm gates
   and why baselines stay single-target in v1.
-- [Record / replay](/evalcore/guides/record-replay/): the cache the arms share,
+- [Record / replay](/guides/record-replay/): the cache the arms share,
   and per-arm replay.
-- [Configuration reference](/evalcore/reference/configuration/#run-block): the
+- [Configuration reference](/reference/configuration/#run-block): the
   `run.matrix` schema and validation rules.

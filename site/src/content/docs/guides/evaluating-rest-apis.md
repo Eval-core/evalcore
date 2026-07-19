@@ -187,20 +187,20 @@ FAIL new
 `http` targets do no token or cost accounting. Generic APIs have no standard
 usage shape, so there is no `cost:` block and no `$` line for them. If you need
 cost tracking, it lives on `openai-compatible` and `trace` targets; see
-[Cost and budgets](/evalcore/guides/cost-and-budgets/).
+[Cost and budgets](/guides/cost-and-budgets/).
 :::
 
 For the full field list, see the
-[configuration reference](/evalcore/reference/configuration/); for cache
-mechanics, [Record / replay](/evalcore/guides/record-replay/).
+[configuration reference](/reference/configuration/); for cache
+mechanics, [Record / replay](/guides/record-replay/).
 
 ## See also
 
-- [Configuration reference](/evalcore/reference/configuration/#http): the full
+- [Configuration reference](/reference/configuration/#http): the full
   `http` target field list, including the JSON Pointer response mapping.
-- [Custom scorers](/evalcore/guides/custom-scorers/): grade an API's response
+- [Custom scorers](/guides/custom-scorers/): grade an API's response
   with your own logic over stdin and stdout.
-- [Record / replay](/evalcore/guides/record-replay/): how `http` responses are
+- [Record / replay](/guides/record-replay/): how `http` responses are
   cached and replayed offline at $0.
-- [Agents and traces](/evalcore/guides/agents-and-traces/): when your app emits
+- [Agents and traces](/guides/agents-and-traces/): when your app emits
   a trace instead of a single response.

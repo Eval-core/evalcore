@@ -21,7 +21,7 @@ Suites that never call the network at all (`shell` targets, `trace` targets
 grading recorded traces, deterministic scorers) are offline by construction,
 with or without a cassette. The only things that ever need connectivity are the
 first recording (`--cache auto`/`live`) and a nightly drift check. See
-[Record / replay](/evalcore/guides/record-replay/).
+[Record / replay](/guides/record-replay/).
 
 ## How do I evaluate a Python app?
 
@@ -32,7 +32,7 @@ app over a protocol. Two common shapes:
   each case to your `POST /chat` (or GETs a URL), pulls the answer out with a
   JSON Pointer, and caches it like an LLM call. This works for a Flask/FastAPI
   RAG service, an agent behind a gateway, anything that speaks HTTP/JSON. See
-  [Evaluating REST APIs](/evalcore/guides/evaluating-rest-apis/).
+  [Evaluating REST APIs](/guides/evaluating-rest-apis/).
 
 - **Your app is a local script or CLI.** Use the `shell` target: EvalCore pipes
   the case input to stdin and reads stdout as the output.
@@ -47,7 +47,7 @@ app over a protocol. Two common shapes:
 Custom scoring logic, such as a Python faithfulness or similarity check, is a
 `subprocess` scorer: EvalCore hands it `{"input", "output", "expected"}` as JSON
 on stdin and reads a score back on stdout. See
-[Custom scorers](/evalcore/guides/custom-scorers/).
+[Custom scorers](/guides/custom-scorers/).
 
 ## How do I evaluate a RAG pipeline?
 
@@ -58,7 +58,7 @@ answer fully supported by the provided context?". Its verdicts go through the
 record/replay cache, so they replay deterministically and free. Your target
 never sees the context: a RAG app does its own retrieval, so context stays on the
 scoring side. For the shipped Ragas/DeepEval metric shims and a nightly-tier
-workflow, see [RAG evaluation](/evalcore/guides/rag-evaluation/).
+workflow, see [RAG evaluation](/guides/rag-evaluation/).
 
 ## What happens on a cache miss in replay mode?
 
@@ -90,7 +90,7 @@ Model drift, where the provider quietly changes the model behind the same name,
 is a real concern, but a separate and scheduled one. You catch it with a nightly
 `--cache live` job that re-records against the live provider and surfaces the
 diff, not by letting nondeterministic network calls flake every PR. See
-[Record / replay](/evalcore/guides/record-replay/).
+[Record / replay](/guides/record-replay/).
 
 ## Aren't cassettes just mocks?
 
@@ -123,7 +123,7 @@ targets:
 Cost is then `(input_tokens × input_per_1m + output_tokens × output_per_1m) / 1M`,
 using the usage the provider reported. If a rate is wrong, it's wrong in a file
 someone reviewed rather than hidden in the binary. See
-[Cost and budgets](/evalcore/guides/cost-and-budgets/).
+[Cost and budgets](/guides/cost-and-budgets/).
 
 ## Why Rust? Do I need to write Rust?
 
@@ -173,7 +173,7 @@ next to the code it checks.
 
 The canonical trajectory format and the assertion-rule semantics
 (`must_call`, `must_not_call`, `max_steps`) are specified in the
-[trajectory format reference](/evalcore/reference/trajectory-format/) here on
+[trajectory format reference](/reference/trajectory-format/) here on
 this site (mirrored from the [spec on GitHub](https://github.com/eval-core/evalcore/blob/main/docs/trajectory-spec.md)).
-The [Agents and traces](/evalcore/guides/agents-and-traces/) guide walks the
+The [Agents and traces](/guides/agents-and-traces/) guide walks the
 whole workflow.

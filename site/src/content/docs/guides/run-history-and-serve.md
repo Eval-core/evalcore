@@ -26,7 +26,7 @@ evalcore run evals.yaml --target gpt
 evalcore run evals.yaml --target claude
 ```
 
-Two runs, two history rows. A [matrix run](/evalcore/guides/comparing-models/)
+Two runs, two history rows. A [matrix run](/guides/comparing-models/)
 records **one row per arm**, each keyed by that arm's target name, so a single
 `--matrix gpt,claude` invocation lands two rows, exactly as if you had run the
 two targets separately:
@@ -62,7 +62,7 @@ History is metadata for the viewer, never part of the eval itself.
 ## Where history lives
 
 History rows go into the same `.evalcore/cache.db` SQLite file as the
-[record/replay cache](/evalcore/guides/record-replay/) and baselines. That is one
+[record/replay cache](/guides/record-replay/) and baselines. That is one
 local store per project, in a new `run_history` table that sits beside the
 existing ones (adding it doesn't touch the cache). Nothing is written anywhere
 else.
@@ -104,7 +104,7 @@ only ever reads the store. There is no telemetry, no external request, and no
 JavaScript framework; the pages are self-contained HTML. **Nothing leaves your
 machine.**
 
-This is the same principle stated in the [FAQ](/evalcore/faq/): EvalCore is
+This is the same principle stated in the [FAQ](/faq/): EvalCore is
 local-first and CI-native, with no server, no signup, and results in a SQLite
 file next to your repo. A hosted tier, if one ever exists, composes *with* that;
 it will never gate the local features. Run history and the viewer work fully
@@ -140,14 +140,14 @@ it shows `—`.
 Clicking a run id opens that run's full detail, and it is byte-for-byte the same
 document `--html` writes: the header counts, the gates panel, one expandable row
 per case with the output, per-scorer scores, trials detail, and agent trajectory.
-The viewer reuses the [HTML report](/evalcore/guides/html-reports/) renderer
+The viewer reuses the [HTML report](/guides/html-reports/) renderer
 verbatim, so a page you serve here is identical to a report you'd attach to a PR.
 (An unknown id is a plain 404.)
 
 ### `/diff?a=<id>&b=<id>`: compare any two runs
 
 The diff page lays any two stored runs side by side, using the same
-[matrix comparison](/evalcore/guides/comparing-models/) view a live matrix run
+[matrix comparison](/guides/comparing-models/) view a live matrix run
 prints: a per-case PASS/FAIL cell for each run and a winner column. Because it
 works over *stored* runs, the two sides don't have to come from one invocation:
 
@@ -162,13 +162,13 @@ by id, and missing cases are handled the way the matrix comparison already does.
 
 ## See also
 
-- [Comparing models](/evalcore/guides/comparing-models/): the matrix comparison
+- [Comparing models](/guides/comparing-models/): the matrix comparison
   the diff page reuses, live in a single invocation.
-- [HTML reports](/evalcore/guides/html-reports/): the exact document `/run/{id}`
+- [HTML reports](/guides/html-reports/): the exact document `/run/{id}`
   serves.
-- [Record / replay](/evalcore/guides/record-replay/): the `.evalcore/cache.db`
+- [Record / replay](/guides/record-replay/): the `.evalcore/cache.db`
   store history shares, and why committing it helps a team.
-- [CLI reference](/evalcore/reference/cli/#evalcore-serve): the `serve`
+- [CLI reference](/reference/cli/#evalcore-serve): the `serve`
   subcommand flags and the `--no-history` flag.
-- [Configuration reference](/evalcore/reference/configuration/#run-block): the
+- [Configuration reference](/reference/configuration/#run-block): the
   `run.history` field.

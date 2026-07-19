@@ -71,7 +71,7 @@ run:
 Both floors take a `min` in `[0, 1]` and compare with the same `1e-9` tolerance
 as every other gate, so a run that exactly meets its floor passes. They are
 additive to the existing exit-code contract (see [Gates and
-baselines](/evalcore/guides/gates-and-baselines/)): the run exits non-zero if any
+baselines](/guides/gates-and-baselines/)): the run exits non-zero if any
 case fails **or** either metric falls below its floor.
 
 ## What the numbers mean
@@ -183,16 +183,16 @@ prediction before it reaches the metric, in whichever layer you already control:
 - In the target. Prompt the model to answer with exactly one label and
   nothing else (`Reply with only one of: billing, technical, other.`), optionally
   with `params: { temperature: 0 }` and a tight `max_tokens`. For an [`http`
-  target](/evalcore/guides/evaluating-rest-apis/) wrapping your own classifier,
+  target](/guides/evaluating-rest-apis/) wrapping your own classifier,
   return the normalized label from the endpoint and point `response_path` at it.
-- In a scorer. A [`subprocess` scorer](/evalcore/reference/subprocess-protocol/)
+- In a scorer. A [`subprocess` scorer](/reference/subprocess-protocol/)
   can lowercase, strip, or map the output however you like and decide the
   per-case pass/fail. Note that the classification aggregates read the raw
   (trimmed) output, not a scorer's transformed view, so normalization that must
   reach accuracy/F1 belongs in the target's output itself.
 
 :::caution[Known gap]
-Under [`run.trials`](/evalcore/guides/trials-and-statistics/) a case runs several
+Under [`run.trials`](/guides/trials-and-statistics/) a case runs several
 times, but classification is a single-prediction-per-case metric. The prediction
 it scores is the case-level surfaced output, meaning the first successful trial,
 not a vote across trials. Accuracy and F1 therefore describe one representative
@@ -203,9 +203,9 @@ prediction) is intentionally out of scope for v1.
 
 ## See also
 
-- [Gates and baselines](/evalcore/guides/gates-and-baselines/): how the
+- [Gates and baselines](/guides/gates-and-baselines/): how the
   `accuracy` and `macro_f1` gates fold into the exit code.
-- [Configuration reference](/evalcore/reference/configuration/#run-block): the
+- [Configuration reference](/reference/configuration/#run-block): the
   `run.classification` flag and the classification gate schemas.
-- [Trials and statistics](/evalcore/guides/trials-and-statistics/): the
+- [Trials and statistics](/guides/trials-and-statistics/): the
   multi-trial machinery the prediction limitation above refers to.
