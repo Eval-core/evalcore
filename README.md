@@ -96,7 +96,7 @@ PASSED
 
 On an interactive terminal the status words are colored (green pass, red fail),
 a spinner counts cases on stderr while the run works, and the closing `PASSED`
-/ `FAILED` is bold — but the words are always there, so nothing depends on
+/ `FAILED` is bold, but the words are always there, so nothing depends on
 color. Piped, redirected, or under `NO_COLOR`, the output is exactly the plain
 text above: deterministic, greppable, and safe to paste into a pull request.
 `--color auto|always|never`, `--progress auto|never`, and `-q/--quiet` (failures
@@ -196,7 +196,7 @@ FAILED · 2 regressed, 1 new
   └─ PASSED / FAILED, matching the exit code exactly
 ```
 
-It reflects the *whole* contract — cases, gates, and any baseline — so it is
+It reflects the *whole* contract (cases, gates, and any baseline), so it is
 never at odds with the exit code. `evalcore run` exits **0** when the verdict is
 `PASSED` and **1** otherwise. That is the whole CI contract.
 
