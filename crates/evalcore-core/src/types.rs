@@ -87,6 +87,16 @@ pub struct Score {
     pub passed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    /// Provider-reported tokens the scorer itself consumed, when it calls an
+    /// LLM (only the `judge` scorer does today). `None` for deterministic
+    /// scorers; omitted on serialization so their `Score` bytes are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens: Option<TokenUsage>,
+    /// USD cost of this scorer's own LLM call, when the scorer was configured
+    /// with pricing. `None` when unpriced or deterministic; omitted on
+    /// serialization so pre-existing `Score` bytes are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost_usd: Option<f64>,
 }
 
 /// One trial's outcome within a multi-trial case (`run.trials` count > 1).
@@ -102,6 +112,12 @@ pub struct TrialResult {
     pub scores: Vec<Score>,
     /// This trial's target latency in milliseconds; `0` when the target errored.
     pub latency_ms: u64,
+    /// This trial's provider-reported TARGET tokens, when available. Held
+    /// per-trial so `RunSummary::total_tokens()` can sum every trial (the
+    /// case-level `output.tokens` surfaces only one trial). `None` when the
+    /// target reported no usage or errored; omitted on serialization.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tokens: Option<TokenUsage>,
     /// The target error reason for this trial, if the target failed. Omitted on
     /// serialization when the trial succeeded.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -238,17 +254,52 @@ impl RunSummary {
 
     /// Sum of provider-reported tokens across cases; `None` when no case
     /// reported usage (e.g. shell targets).
+    ///
+    /// Trial-aware and scorer-aware: a case's tokens are its TARGET tokens —
+    /// summed over every trial when the case ran multiple trials, else the
+    /// single surfaced `output.tokens` — PLUS the tokens consumed by any
+    /// token-bearing scorer (the LLM judge). For a single-trial case the
+    /// scorer tokens come from its `scores`; for a multi-trial case they come
+    /// from every trial's `scores`. Everything is additive and `None`
+    /// contributes nothing, so a single-trial run with only deterministic
+    /// scorers yields exactly the total it did before scorers reported usage.
     pub fn total_tokens(&self) -> Option<TokenUsage> {
         let mut any = false;
         let mut total = TokenUsage::default();
-        for tokens in self
-            .results
-            .iter()
-            .filter_map(|r| r.output.as_ref().and_then(|o| o.tokens))
-        {
+        let mut add = |tokens: TokenUsage| {
             any = true;
             total.input += tokens.input;
             total.output += tokens.output;
+        };
+        for result in &self.results {
+            match &result.trials {
+                // Multi-trial: target tokens per trial, plus each trial's
+                // scorer tokens (the case-level mean scores carry none).
+                Some(trials) if !trials.is_empty() => {
+                    for trial in trials {
+                        if let Some(tokens) = trial.tokens {
+                            add(tokens);
+                        }
+                        for score in &trial.scores {
+                            if let Some(tokens) = score.tokens {
+                                add(tokens);
+                            }
+                        }
+                    }
+                }
+                // Single-trial: the surfaced target tokens plus the case's
+                // scorer tokens.
+                _ => {
+                    if let Some(tokens) = result.output.as_ref().and_then(|o| o.tokens) {
+                        add(tokens);
+                    }
+                    for score in &result.scores {
+                        if let Some(tokens) = score.tokens {
+                            add(tokens);
+                        }
+                    }
+                }
+            }
         }
         any.then_some(total)
     }
@@ -361,6 +412,8 @@ mod tests {
                 value: 1.0,
                 passed: true,
                 reason: None,
+                tokens: None,
+                cost_usd: None,
             }],
             cost_usd: None,
             context: None,
@@ -392,15 +445,19 @@ mod tests {
                         value: 1.0,
                         passed: true,
                         reason: None,
+                        tokens: None,
+                        cost_usd: None,
                     }],
                     latency_ms: 5,
                     error: None,
+                    tokens: None,
                 },
                 TrialResult {
                     passed: false,
                     scores: vec![],
                     latency_ms: 0,
                     error: Some("boom".into()),
+                    tokens: None,
                 },
             ]),
         };

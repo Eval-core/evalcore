@@ -59,6 +59,8 @@ impl Scorer for TrajectoryScorer {
             value: if passed { 1.0 } else { 0.0 },
             passed,
             reason: (!passed).then(|| failures.join("; ")),
+            tokens: None,
+            cost_usd: None,
         })
     }
 }

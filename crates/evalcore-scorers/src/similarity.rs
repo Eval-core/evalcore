@@ -54,6 +54,8 @@ impl SimilarityScorer {
             value: 0.0,
             passed: false,
             reason: Some(reason),
+            tokens: None,
+            cost_usd: None,
         }
     }
 }
@@ -123,6 +125,8 @@ impl Scorer for SimilarityScorer {
                     self.threshold
                 ))
             },
+            tokens: None,
+            cost_usd: None,
         })
     }
 }

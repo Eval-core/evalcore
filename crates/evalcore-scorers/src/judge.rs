@@ -10,21 +10,39 @@ use std::fmt::Write;
 
 use anyhow::{bail, Context};
 use async_trait::async_trait;
-use evalcore_core::{Score, Scorer, Target, TargetOutput, TestCase};
+use evalcore_core::{CostRates, Score, Scorer, Target, TargetOutput, TestCase};
 use serde::Deserialize;
 
 pub struct JudgeScorer {
     target: Box<dyn Target>,
     rubric: String,
     threshold: f64,
+    /// Token prices for the judge endpoint, when configured. `Some` enables
+    /// per-verdict `Score.cost_usd`; `None` leaves cost unattributed.
+    cost_rates: Option<CostRates>,
 }
 
 impl JudgeScorer {
+    /// Build a judge with no cost attribution (its verdicts carry tokens when
+    /// the endpoint reports them, but no `cost_usd`).
     pub fn new(target: Box<dyn Target>, rubric: String, threshold: f64) -> Self {
+        Self::with_cost(target, rubric, threshold, None)
+    }
+
+    /// Build a judge, optionally priced. When `cost_rates` is `Some`, each
+    /// verdict's `Score.cost_usd` is computed from the judge call's reported
+    /// tokens.
+    pub fn with_cost(
+        target: Box<dyn Target>,
+        rubric: String,
+        threshold: f64,
+        cost_rates: Option<CostRates>,
+    ) -> Self {
         Self {
             target,
             rubric,
             threshold,
+            cost_rates,
         }
     }
 
@@ -118,11 +136,23 @@ impl Scorer for JudgeScorer {
             bail!("judge returned score {} outside 0.0..=1.0", verdict.score);
         }
 
+        // Attribute the judge call's usage to the score. Tokens ride along when
+        // the endpoint reported them; a missing `usage` simply yields no tokens
+        // and no cost (failures are data, never an error). Cost is computed only
+        // when the judge was configured with prices.
+        let tokens = response.tokens;
+        let cost_usd = self
+            .cost_rates
+            .zip(tokens)
+            .map(|(rates, tokens)| rates.cost_of(tokens));
+
         Ok(Score {
             scorer: self.name(),
             value: verdict.score,
             passed: verdict.score >= self.threshold,
             reason: verdict.reason,
+            tokens,
+            cost_usd,
         })
     }
 }
@@ -311,6 +341,75 @@ mod tests {
             .await
             .unwrap();
         server.verify().await;
+    }
+
+    /// Mount a judge whose response includes a `usage` block, and price it, so
+    /// the verdict carries tokens and a computed cost.
+    async fn priced_judge_with_usage(server: &MockServer, rates: Option<CostRates>) -> JudgeScorer {
+        Mock::given(method("POST"))
+            .and(path("/v1/chat/completions"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "choices": [{"message": {"role": "assistant", "content": "{\"score\": 1.0}"}}],
+                "usage": {"prompt_tokens": 30, "completion_tokens": 8},
+            })))
+            .mount(server)
+            .await;
+        let target = OpenAiCompatTarget::new(
+            format!("{}/v1", server.uri()),
+            "judge-model".into(),
+            None,
+            120,
+        )
+        .unwrap();
+        JudgeScorer::with_cost(Box::new(target), "grounded?".into(), 0.5, rates)
+    }
+
+    #[tokio::test]
+    async fn captures_usage_tokens_from_the_judge_call() {
+        let server = MockServer::start().await;
+        let judge = priced_judge_with_usage(&server, None).await;
+        let score = judge.score(&case("q"), &output("a")).await.unwrap();
+        let tokens = score.tokens.expect("judge usage rides onto the score");
+        assert_eq!((tokens.input, tokens.output), (30, 8));
+        assert!(score.cost_usd.is_none(), "no rate configured means no cost");
+    }
+
+    #[tokio::test]
+    async fn computes_cost_when_priced() {
+        let server = MockServer::start().await;
+        let judge = priced_judge_with_usage(
+            &server,
+            Some(CostRates {
+                input_per_1m: 1.0,
+                output_per_1m: 2.0,
+            }),
+        )
+        .await;
+        let score = judge.score(&case("q"), &output("a")).await.unwrap();
+        // 30 input @ $1/1M + 8 output @ $2/1M.
+        let expected = (30.0 * 1.0 + 8.0 * 2.0) / 1e6;
+        assert_eq!(score.cost_usd, Some(expected));
+        assert_eq!(score.tokens.map(|t| t.total()), Some(38));
+    }
+
+    #[tokio::test]
+    async fn no_usage_yields_no_tokens_and_no_cost_without_erroring() {
+        let server = MockServer::start().await;
+        // `judge_backed_by` mounts a response with no `usage` block.
+        let judge = judge_backed_by(&server, r#"{"score": 1.0}"#).await;
+        // Even priced, a usage-less response must not error and must not cost.
+        let judge = JudgeScorer::with_cost(
+            judge.target,
+            judge.rubric,
+            judge.threshold,
+            Some(CostRates {
+                input_per_1m: 5.0,
+                output_per_1m: 5.0,
+            }),
+        );
+        let score = judge.score(&case("q"), &output("a")).await.unwrap();
+        assert!(score.tokens.is_none(), "no usage → no tokens");
+        assert!(score.cost_usd.is_none(), "no tokens → no cost");
     }
 
     #[tokio::test]

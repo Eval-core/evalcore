@@ -159,9 +159,17 @@ async fn run_single(
             for scorer in scorers {
                 scores.push(score_one(scorer.as_ref(), &case, &output).await);
             }
-            let cost_usd = cost_rates
+            // Case cost = target-call cost (when the target is priced) plus the
+            // cost of any priced scorer's own LLM call (the judge). `Some` when
+            // either contributed, so a judge-only cost still surfaces and feeds
+            // the budget even for an unpriced target.
+            let target_cost = cost_rates
                 .zip(output.tokens)
                 .map(|(rates, tokens)| rates.cost_of(tokens));
+            let any_scorer_cost = scores.iter().any(|s| s.cost_usd.is_some());
+            let scorer_cost: f64 = scores.iter().filter_map(|s| s.cost_usd).sum();
+            let cost_usd = (target_cost.is_some() || any_scorer_cost)
+                .then(|| target_cost.unwrap_or(0.0) + scorer_cost);
             CaseResult {
                 case_id: case.id,
                 output: Some(output),
@@ -247,20 +255,38 @@ async fn run_multi(
             value: mean,
             passed: verdict,
             reason,
+            tokens: None,
+            cost_usd: None,
         });
     }
 
     let latency_mean = trial_results.iter().map(|t| t.latency_ms).sum::<u64>() / count as u64;
 
-    // Every trial's cost counts toward the budget; the case cost is their sum.
-    let cost_usd = cost_rates.and_then(|rates| {
-        let costs: Vec<f64> = outputs
+    // Every trial's cost counts toward the budget; the case cost is their sum
+    // over all trials: target-call cost (when priced) plus each trial's priced
+    // scorer costs (the judge). `Some` when anything was costed.
+    let target_cost: f64 = cost_rates
+        .map(|rates| {
+            outputs
+                .iter()
+                .filter_map(|o| o.as_ref().and_then(|o| o.tokens))
+                .map(|tokens| rates.cost_of(tokens))
+                .sum()
+        })
+        .unwrap_or(0.0);
+    let any_target_cost = cost_rates.is_some()
+        && outputs
             .iter()
-            .filter_map(|o| o.as_ref().and_then(|o| o.tokens))
-            .map(|tokens| rates.cost_of(tokens))
-            .collect();
-        (!costs.is_empty()).then(|| costs.iter().sum())
-    });
+            .any(|o| o.as_ref().and_then(|o| o.tokens).is_some());
+    let scorer_cost: f64 = trial_results
+        .iter()
+        .flat_map(|t| t.scores.iter())
+        .filter_map(|s| s.cost_usd)
+        .sum();
+    let any_scorer_cost = trial_results
+        .iter()
+        .any(|t| t.scores.iter().any(|s| s.cost_usd.is_some()));
+    let cost_usd = (any_target_cost || any_scorer_cost).then_some(target_cost + scorer_cost);
 
     // Surface the first successful trial's output (with the mean latency); if
     // every trial errored, surface a case error so `passed()` stays false.
@@ -300,11 +326,13 @@ async fn run_trial(
             }
             let passed = scores.iter().all(|s| s.passed);
             let latency_ms = output.latency_ms;
+            let tokens = output.tokens;
             (
                 TrialResult {
                     passed,
                     scores,
                     latency_ms,
+                    tokens,
                     error: None,
                 },
                 Some(output),
@@ -315,6 +343,7 @@ async fn run_trial(
                 passed: false,
                 scores: Vec::new(),
                 latency_ms: 0,
+                tokens: None,
                 error: Some(format!("{err:#}")),
             },
             None,
@@ -333,6 +362,8 @@ async fn score_one(scorer: &dyn Scorer, case: &TestCase, output: &TargetOutput) 
             value: 0.0,
             passed: false,
             reason: Some(format!("scorer error: {err}")),
+            tokens: None,
+            cost_usd: None,
         })
 }
 
@@ -377,6 +408,33 @@ mod tests {
                 value: if passed { 1.0 } else { 0.0 },
                 passed,
                 reason: (!passed).then(|| "output was empty".into()),
+                tokens: None,
+                cost_usd: None,
+            })
+        }
+    }
+
+    /// A scorer that reports fixed token usage and a fixed USD cost, standing
+    /// in for the priced LLM judge in engine-level accounting tests.
+    struct PricedScorer {
+        tokens: crate::types::TokenUsage,
+        cost_usd: f64,
+    }
+
+    #[async_trait]
+    impl Scorer for PricedScorer {
+        fn name(&self) -> String {
+            "priced".into()
+        }
+
+        async fn score(&self, _case: &TestCase, _output: &TargetOutput) -> anyhow::Result<Score> {
+            Ok(Score {
+                scorer: self.name(),
+                value: 1.0,
+                passed: true,
+                reason: None,
+                tokens: Some(self.tokens),
+                cost_usd: Some(self.cost_usd),
             })
         }
     }
@@ -482,6 +540,105 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn multi_trial_total_tokens_sums_every_trial() {
+        // gap #2: with trials > 1, token totals must reflect ALL trials, not
+        // just the one surfaced output. `Upper` reports (10,5) tokens per call.
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(NonEmpty)];
+        let summary = run_suite(
+            &Upper,
+            cases(&["a"]),
+            &scorers,
+            trials_opts(3, TrialRequire::All),
+        )
+        .await;
+        let tokens = summary.total_tokens().unwrap();
+        assert_eq!(
+            (tokens.input, tokens.output),
+            (30, 15),
+            "three trials of (10,5) target tokens sum to (30,15)"
+        );
+    }
+
+    #[tokio::test]
+    async fn priced_scorer_cost_and_tokens_fold_into_totals() {
+        // The target is unpriced (no cost_rates); the judge-like scorer carries
+        // the cost. It must still surface per case and in the run total, and its
+        // tokens must add to the token totals alongside the target tokens.
+        let tokens = crate::types::TokenUsage {
+            input: 4,
+            output: 6,
+        };
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(PricedScorer {
+            tokens,
+            cost_usd: 0.000_01,
+        })];
+        let summary = run_suite(&Upper, cases(&["a", "b"]), &scorers, options(1)).await;
+
+        assert_eq!(
+            summary.results[0].cost_usd,
+            Some(0.000_01),
+            "the scorer's cost is the case cost when the target is unpriced"
+        );
+        assert_eq!(summary.total_cost_usd(), Some(0.000_02));
+        // Target (10,5) + scorer (4,6) per case, over two cases.
+        let total = summary.total_tokens().unwrap();
+        assert_eq!((total.input, total.output), (28, 22));
+    }
+
+    #[tokio::test]
+    async fn priced_scorer_cost_counts_against_the_budget() {
+        // The budget accumulator reads `CaseResult.cost_usd`; a priced scorer's
+        // cost must flow in and exhaust the budget even with an unpriced target.
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(PricedScorer {
+            tokens: crate::types::TokenUsage::default(),
+            cost_usd: 0.000_01,
+        })];
+        let opts = RunOptions {
+            concurrency: 1,
+            budget_usd: Some(0.000_005),
+            cost_rates: None,
+            ..Default::default()
+        };
+        let summary = run_suite(&Upper, cases(&["a", "b", "c"]), &scorers, opts).await;
+        assert_eq!(
+            summary.passed(),
+            1,
+            "the first case's scorer cost exhausts the budget for the rest"
+        );
+        let skipped = &summary.results[1];
+        assert!(skipped.error.as_deref().unwrap().contains("budget"));
+        assert!(skipped.output.is_none(), "over-budget cases do not invoke");
+    }
+
+    #[tokio::test]
+    async fn multi_trial_priced_scorer_cost_sums_across_trials() {
+        // Each trial runs the priced scorer once; the case cost is the sum over
+        // all trials (target unpriced here).
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(PricedScorer {
+            tokens: crate::types::TokenUsage {
+                input: 1,
+                output: 1,
+            },
+            cost_usd: 0.000_01,
+        })];
+        let summary = run_suite(
+            &Upper,
+            cases(&["a"]),
+            &scorers,
+            trials_opts(3, TrialRequire::All),
+        )
+        .await;
+        let case_cost = summary.results[0].cost_usd.unwrap();
+        assert!(
+            (case_cost - 0.000_03).abs() < 1e-12,
+            "three trials of scorer cost sum into the case cost; got {case_cost}"
+        );
+        // total_tokens: target (10,5) per trial + scorer (1,1) per trial, ×3.
+        let total = summary.total_tokens().unwrap();
+        assert_eq!((total.input, total.output), (33, 18));
+    }
+
+    #[tokio::test]
     async fn budget_skips_remaining_cases_as_failures() {
         let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(NonEmpty)];
         let opts = RunOptions {
@@ -563,6 +720,8 @@ mod tests {
                 value: if passed { 1.0 } else { 0.0 },
                 passed,
                 reason: (!passed).then(|| "wanted yes".into()),
+                tokens: None,
+                cost_usd: None,
             })
         }
     }

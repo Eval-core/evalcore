@@ -42,6 +42,8 @@ impl Scorer for ExactScorer {
                     "case {:?} has no `expected` field and the scorer has no inline `value`",
                     case.id
                 )),
+                tokens: None,
+                cost_usd: None,
             });
         };
 
@@ -52,6 +54,8 @@ impl Scorer for ExactScorer {
             passed,
             reason: (!passed)
                 .then(|| format!("expected {:?}, got {:?}", expected, snippet(&output.text))),
+            tokens: None,
+            cost_usd: None,
         })
     }
 }

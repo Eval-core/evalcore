@@ -179,6 +179,13 @@ impl EvalConfig {
                         )));
                     }
                 }
+                ScorerConfig::Judge {
+                    cost: Some(cost), ..
+                } if cost.input_per_1m < 0.0 || cost.output_per_1m < 0.0 => {
+                    return Err(ConfigError::Invalid(
+                        "judge scorer has negative cost rates".into(),
+                    ));
+                }
                 _ => {}
             }
         }
@@ -724,6 +731,12 @@ pub enum ScorerConfig {
         /// Minimum score (0.0..=1.0) to pass.
         #[serde(default = "default_judge_threshold")]
         threshold: f64,
+        /// Token prices for the judge endpoint. When set, the judge call's
+        /// usage is costed and attributed to per-case cost, run totals, and
+        /// the run budget — exactly like target `cost`. Omit to leave judge
+        /// tokens uncosted (they still count toward token totals).
+        #[serde(default)]
+        cost: Option<CostConfig>,
     },
     /// Validate the output against a JSON Schema (draft 2020-12). Passes iff
     /// the output parses as JSON and validates; non-JSON output is a failing
@@ -1530,6 +1543,72 @@ scorers:
             }
             other => panic!("expected similarity scorer, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn parses_judge_scorer_with_and_without_cost() {
+        let priced = r#"
+targets:
+  echo: { type: shell, cmd: "cat" }
+datasets: [{ file: cases.jsonl }]
+scorers:
+  - type: judge
+    url: https://api.openai.com/v1
+    model: judge-model
+    rubric: "grounded?"
+    cost:
+      input_per_1m: 0.5
+      output_per_1m: 1.5
+"#;
+        let config = EvalConfig::from_yaml_str(priced).unwrap();
+        match &config.scorers[0] {
+            ScorerConfig::Judge { cost, .. } => {
+                let cost = cost.as_ref().expect("judge cost block parses");
+                assert_eq!(cost.input_per_1m, 0.5);
+                assert_eq!(cost.output_per_1m, 1.5);
+            }
+            other => panic!("expected judge scorer, got {other:?}"),
+        }
+
+        // Cost is optional: a judge without it parses to None (byte-compatible
+        // with judge configs written before the cost block existed).
+        let bare = r#"
+targets:
+  echo: { type: shell, cmd: "cat" }
+datasets: [{ file: cases.jsonl }]
+scorers:
+  - type: judge
+    url: https://api.openai.com/v1
+    model: judge-model
+    rubric: "grounded?"
+"#;
+        let config = EvalConfig::from_yaml_str(bare).unwrap();
+        match &config.scorers[0] {
+            ScorerConfig::Judge { cost, .. } => assert!(cost.is_none()),
+            other => panic!("expected judge scorer, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_negative_judge_cost() {
+        let yaml = r#"
+targets:
+  echo: { type: shell, cmd: "cat" }
+datasets: [{ file: cases.jsonl }]
+scorers:
+  - type: judge
+    url: https://api.openai.com/v1
+    model: judge-model
+    rubric: "grounded?"
+    cost:
+      input_per_1m: -0.5
+      output_per_1m: 1.0
+"#;
+        let err = EvalConfig::from_yaml_str(yaml).unwrap_err().to_string();
+        assert!(
+            err.contains("judge scorer has negative cost rates"),
+            "got: {err}"
+        );
     }
 
     #[test]

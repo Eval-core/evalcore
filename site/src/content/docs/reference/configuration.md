@@ -211,16 +211,18 @@ the `trajectory` scorer. Latency and token usage come from the trace itself.
 
 ### Cost rates
 
-The `cost` block (on `openai-compatible` and `trace` targets) declares USD
-prices per **one million** tokens. EvalCore ships no pricing table. Prices
-change and differ per deployment, so they are config.
+The `cost` block (on `openai-compatible` and `trace` targets, and on the
+[`judge`](#judge) scorer) declares USD prices per **one million** tokens.
+EvalCore ships no pricing table. Prices change and differ per deployment, so
+they are config.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `input_per_1m` | number | yes | USD per 1M input tokens. Must be non-negative. |
 | `output_per_1m` | number | yes | USD per 1M output tokens. Must be non-negative. |
 
-A negative rate is rejected: `target "<name>" has negative cost rates`.
+A negative rate is rejected: `target "<name>" has negative cost rates` on a
+target, `judge scorer has negative cost rates` on a judge.
 
 ## Datasets
 
@@ -425,6 +427,7 @@ replayed verdicts are deterministic.
 | `rubric` | string | yes | — | What the judge should assess, e.g. "Is the answer grounded in the provided context?". |
 | `api_key_env` | string | no | none | Name of the environment variable holding the judge's API key. |
 | `threshold` | number | no | `0.5` | Minimum score (0.0 to 1.0) to pass. |
+| `cost` | [cost block](#cost-rates) | no | none | Token prices for the judge model; enables per-case judge cost, run totals, and `run.budget_usd`. Since v0.8.0. |
 
 ```yaml
 scorers:
@@ -434,7 +437,18 @@ scorers:
     rubric: "Is the answer grounded in the provided context?"
     api_key_env: OPENAI_API_KEY
     threshold: 0.7
+    cost:                       # optional; prices the judge's own token usage
+      input_per_1m: 0.15
+      output_per_1m: 0.60
 ```
+
+The judge call's reported tokens always count toward the run's token total. With
+a `cost` block they are also priced and folded into the case cost, the run's
+total cost, and the `run.budget_usd` accumulator (the judge model is typically
+priced differently from the target, so it gets its own block). A negative rate is
+rejected: `judge scorer has negative cost rates`. The `cost` block is **not** part
+of the judge's cache identity, so adding or changing it re-costs cached verdicts
+without re-recording them.
 
 ### `json-schema`
 
@@ -510,7 +524,7 @@ The `run` block is optional; every field has a default.
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `concurrency` | integer | no | `4` | Maximum in-flight cases. Must be at least 1. |
-| `budget_usd` | number | no | none | Abort scheduling new cases once accumulated cost reaches this (USD). Requires the target to declare `cost` rates. Must be positive. |
+| `budget_usd` | number | no | none | Abort scheduling new cases once accumulated cost reaches this (USD). Requires a priced call — the target's `cost` rates, a `judge` scorer's `cost` rates, or both. Must be positive. |
 | `gates` | list of [gate](#gates) | no | `[]` | Suite-level aggregate acceptance criteria. Evaluated in list order. |
 | `trials` | integer or [trials block](#trials) | no | `1` | Run each case N times and aggregate. Since v0.7.0. |
 | `classification` | bool | no | `false` | Compute [classification aggregates](#classification) (accuracy, macro-F1, per-class metrics) over labeled cases. Since v0.7.0. |

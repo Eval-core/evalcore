@@ -151,6 +151,8 @@ mod tests {
             value,
             passed,
             reason: None,
+            tokens: None,
+            cost_usd: None,
         }
     }
 
