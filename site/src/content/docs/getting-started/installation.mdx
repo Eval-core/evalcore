@@ -1,0 +1,148 @@
+---
+title: Installation
+description: "Install EvalCore from a prebuilt binary, crates.io, or as a GitHub Action, then verify it and run the shipped example suite."
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+EvalCore is a single, dependency-free binary. There is nothing to run as a
+service and no runtime to install alongside it. You install one executable and
+gate CI on its exit code. Pick the tab for where you are running it, and copy
+the whole block: each one downloads, installs, and checks the binary in place.
+
+## Install
+
+<Tabs syncKey="install">
+	<TabItem label="macOS">
+		Downloads the right build for your Mac, whether Apple Silicon or Intel, and puts it on your `PATH`:
+
+		```sh
+		VERSION=v0.7.0
+		TARGET="$([ "$(uname -m)" = arm64 ] && echo aarch64-apple-darwin || echo x86_64-apple-darwin)"
+		curl -fsSL "https://github.com/eval-core/evalcore/releases/download/$VERSION/evalcore-$VERSION-$TARGET.tar.gz" | tar -xz
+		sudo mv evalcore /usr/local/bin/
+		evalcore --version
+		```
+	</TabItem>
+	<TabItem label="Linux">
+		Prebuilt binaries are published for x86_64:
+
+		```sh
+		VERSION=v0.7.0
+		curl -fsSL "https://github.com/eval-core/evalcore/releases/download/$VERSION/evalcore-$VERSION-x86_64-unknown-linux-gnu.tar.gz" | tar -xz
+		sudo mv evalcore /usr/local/bin/
+		evalcore --version
+		```
+
+		On arm64 or musl there is no prebuilt binary yet. Use the Cargo tab.
+	</TabItem>
+	<TabItem label="Windows">
+		There is no prebuilt Windows binary yet, but the crate builds anywhere a Rust toolchain does:
+
+		```sh
+		cargo install evalcore --locked
+		evalcore --version
+		```
+	</TabItem>
+	<TabItem label="Cargo">
+		With a Rust toolchain, build and install from [crates.io](https://crates.io/crates/evalcore):
+
+		```sh
+		cargo install evalcore --locked
+		evalcore --version
+		```
+
+		`--locked` builds against the versions in the published `Cargo.lock`, so you get the same dependency set the release was built and tested with. Drop it if you want Cargo to resolve fresh dependencies.
+	</TabItem>
+</Tabs>
+
+## Verify and run the example
+
+You already ran `evalcore --version` above. To run the shipped example suite,
+clone the repo, since the `examples/` directory lives there:
+
+```sh
+git clone https://github.com/eval-core/evalcore.git
+cd evalcore
+evalcore validate examples/quickstart/evals.yaml
+```
+
+`evalcore validate` parses and checks a config **without running anything**: no
+targets are invoked, no scorers run, and nothing touches the network. It confirms
+both that the binary works and that a suite is well-formed:
+
+```
+OK: 1 target(s), 1 dataset(s), 1 scorer(s)
+```
+
+Now head to the [Quickstart](/evalcore/getting-started/quickstart/) to run it for real.
+
+## Platform support
+
+Prebuilt binaries are attached to every
+[GitHub release](https://github.com/eval-core/evalcore/releases). Where there is
+no binary, `cargo install evalcore --locked` works anywhere a Rust toolchain does.
+
+| Platform | Prebuilt binary | Target triple |
+|---|---|---|
+| Linux x64 | Yes | `x86_64-unknown-linux-gnu` |
+| macOS arm64 (Apple Silicon) | Yes | `aarch64-apple-darwin` |
+| macOS x64 (Intel) | Yes | `x86_64-apple-darwin` |
+| Windows | No | — |
+| Linux arm64 / musl | No | — |
+
+## Upgrading
+
+How you upgrade depends on how you installed:
+
+- **Prebuilt binary:** download the newer release archive and replace the binary
+  on your `PATH` (re-run the download and move step above).
+- **crates.io:** `cargo install evalcore --locked --force` rebuilds the latest
+  published version over the old one.
+- **GitHub Action:** bump the pinned tag (`eval-core/evalcore@v0.7.0`), or set
+  the `version:` input to a specific release tag or `latest`.
+
+EvalCore is pre-1.0: minor versions may change config or CLI surface. Check the
+[CHANGELOG](https://github.com/eval-core/evalcore/blob/main/CHANGELOG.md) before
+upgrading, and re-run `evalcore validate` on your suites afterward.
+
+## In CI
+
+In GitHub Actions, one step installs EvalCore (prebuilt binary with a `cargo`
+fallback), runs a suite, writes the report to the job step summary, and exits
+with the suite's gate code, so the job passes or fails with your evals:
+
+```yaml
+- uses: eval-core/evalcore@v0.7.0
+  with:
+    config: evals/evals.yaml
+    args: --cache replay --baseline main
+```
+
+- `config` points at your `evals.yaml`.
+- `args` are passed straight through to `evalcore run`. Here that means replay
+  from the committed cassette (offline, keyless, $0) and gate against the `main`
+  baseline.
+- `version` (optional) pins the release to install; defaults to `latest`.
+
+Pin the action to a released tag (`@v0.7.0`) so CI is reproducible. On other
+runners, install the binary in a script:
+
+| Where you run | Recommended install | Why |
+|---|---|---|
+| GitHub Actions | The `eval-core/evalcore@v0.7.0` Action | Installs the binary, adds a step summary, and carries the exit code for you. |
+| GitLab CI / Jenkins / Buildkite | Download the release binary in a script | No Rust toolchain on the runner; fast and pinned. |
+| Any runner with Rust | `cargo install evalcore --locked` | Works everywhere, including Windows, at the cost of a build. |
+| Air-gapped / self-hosted | Vendor the binary into your image | Fully offline; no download at job time. |
+
+```sh
+# GitLab / Jenkins / Buildkite: fetch a pinned release binary
+VERSION=v0.7.0
+TARGET=x86_64-unknown-linux-gnu
+curl -fsSL "https://github.com/eval-core/evalcore/releases/download/$VERSION/evalcore-$VERSION-$TARGET.tar.gz" \
+  | tar -xz -C /usr/local/bin
+evalcore --version
+```
+
+See [Running in CI](/evalcore/guides/running-in-ci/) for complete GitLab and
+Jenkins pipelines.

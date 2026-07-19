@@ -21,6 +21,13 @@ No Rust toolchain? Grab a prebuilt binary from
 [GitHub Releases](https://github.com/eval-core/evalcore/releases) instead. See
 [Installation](/evalcore/getting-started/installation/) for every path.
 
+Then clone the repo, since the example suite this guide runs ships inside it:
+
+```sh
+git clone https://github.com/eval-core/evalcore.git
+cd evalcore
+```
+
 ## 2. Run the shipped suite
 
 The repo ships a ready-to-run example at `examples/quickstart/`. Run it:
@@ -74,7 +81,7 @@ run:
   input piped to stdin; whatever it writes to stdout is the answer. `bot.sh` is
   a stand-in support agent that returns canned, policy-grounded answers, so the
   suite runs with no model and no network. This is where your real app goes
-  (step 5).
+  (step 6).
 - `datasets` are JSONL files of test cases, resolved relative to the config
   file. Each case carries an `id`, the customer's `input`, and a `context`
   policy chunk: the retrieved passage the answer is supposed to be grounded in.

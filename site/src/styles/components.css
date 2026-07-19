@@ -87,16 +87,16 @@
 /* ---- Tabs --------------------------------------------------------------- */
 /* Hairline strip; active tab carries a 2px orange bottom rule and text color.
  * Inactive tabs are muted. No pills, no filled tabs. */
-/* Starlight 0.41.3 */
-.starlight-tabs [role='tablist'] {
+/* Starlight 0.41.3 — <starlight-tabs> is an element, not a class. */
+starlight-tabs [role='tablist'] {
 	border-bottom: var(--border);
 }
-.starlight-tabs [role='tab'] {
+starlight-tabs [role='tab'] {
 	border-bottom: 2px solid transparent;
 	color: var(--muted);
 	font-size: var(--fs-sm);
 }
-.starlight-tabs [role='tab'][aria-selected='true'] {
+starlight-tabs [role='tab'][aria-selected='true'] {
 	border-bottom-color: var(--sl-color-accent);
 	color: var(--sl-color-text);
 }
