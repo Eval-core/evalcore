@@ -1,6 +1,6 @@
 # EvalCore
 
-Snapshot testing for AI behavior: a single-binary, config-first eval runner for LLM apps and agents. Rust workspace, Apache-2.0, GitHub org `eval-core`. Full product context (positioning, roadmap, competitive landscape) lives in `PRD.md`.
+Snapshot testing for AI behavior: a single-binary, config-first eval runner for LLM apps and agents. Rust workspace, Apache-2.0, GitHub org `eval-core`. Full product context (positioning, roadmap, competitive landscape) lives in an internal Notion doc, "EvalCore PRD — Internal", kept outside this repository — there is no `PRD.md`. Agents with the Notion MCP connected should read it from there (search the workspace by that title); its URL is deliberately uncommitted. Never copy PRD contents into tracked files — it stays private.
 
 ## Commands
 

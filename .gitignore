@@ -4,7 +4,6 @@ junit.xml
 report.xml
 .DS_Store
 .env
-PRD.md
 __pycache__/
 *.pyc
 
