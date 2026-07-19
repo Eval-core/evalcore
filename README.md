@@ -84,7 +84,17 @@ PASS wire-eta (8ms)
 
 4 passed, 0 failed, 4 total
 GATE PASS pass_rate >= 0.95 (actual 1.00)
+
+PASSED
 ```
+
+On an interactive terminal the status words are colored (green pass, red fail),
+a spinner counts cases on stderr while the run works, and the closing `PASSED`
+/ `FAILED` is bold — but the words are always there, so nothing depends on
+color. Piped, redirected, or under `NO_COLOR`, the output is exactly the plain
+text above: deterministic, greppable, and safe to paste into a pull request.
+`--color auto|always|never`, `--progress auto|never`, and `-q/--quiet` (failures
+only) tune it; machine reporters and `--output` files are never colored.
 
 A suite is two files. The YAML says what to run and how to grade it:
 
@@ -171,8 +181,18 @@ The last three segments of the summary line appear only when they apply: tokens
 and cost when the run reported usage, `flaky` when a case ran multiple trials.
 A run with none of them prints just `4 passed, 0 failed, 4 total`.
 
-`evalcore run` exits **0** when the run passed and **1** otherwise. That is the
-whole CI contract.
+**The verdict**, always last, one word:
+
+```
+FAILED · 2 regressed, 1 new
+──┬───   ────────┬─────────
+  │              └─ a clause only when a baseline explains the failure
+  └─ PASSED / FAILED, matching the exit code exactly
+```
+
+It reflects the *whole* contract — cases, gates, and any baseline — so it is
+never at odds with the exit code. `evalcore run` exits **0** when the verdict is
+`PASSED` and **1** otherwise. That is the whole CI contract.
 
 Other output formats: `--reporter json` for the full result tree,
 `--reporter junit` for CI test panels, and `--html report.html` for a

@@ -26,6 +26,7 @@ evalcore-scorers = { workspace = true }
 evalcore-serve = { workspace = true }
 evalcore-store = { workspace = true }
 
+anstyle = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 tokio = { workspace = true }

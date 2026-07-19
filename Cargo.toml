@@ -28,6 +28,7 @@ evalcore-serve = { path = "crates/evalcore-serve", version = "0.7.0" }
 evalcore-store = { path = "crates/evalcore-store", version = "0.7.0" }
 
 # external
+anstyle = "1"
 anyhow = "1"
 async-trait = "0.1"
 # Local read-only run-history viewer (`evalcore serve`). Minimal feature set:

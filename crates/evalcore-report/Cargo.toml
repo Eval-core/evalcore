@@ -12,6 +12,7 @@ readme = "README.md"
 [dependencies]
 evalcore-core = { workspace = true }
 
+anstyle = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
 

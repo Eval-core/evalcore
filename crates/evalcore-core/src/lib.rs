@@ -23,7 +23,7 @@ pub use comparison::{
     MatrixSummary,
 };
 pub use dataset::load_jsonl;
-pub use engine::{run_suite, RunOptions};
+pub use engine::{run_suite, ProgressSink, RunOptions};
 pub use gates::{evaluate_gates, GateResult};
 pub use http_target::HttpTarget;
 pub use target::{

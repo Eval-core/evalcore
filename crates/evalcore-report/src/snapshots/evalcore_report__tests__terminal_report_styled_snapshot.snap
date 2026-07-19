@@ -1,0 +1,16 @@
+---
+source: crates/evalcore-report/src/lib.rs
+assertion_line: 1180
+expression: "terminal(&fixture_with_gates(), &STYLED)"
+---
+[32mPASS[0m refund-1 [2m(12ms)[0m
+[1m[31mFAIL[0m refund-2
+     contains: expected output to contain "refund" & <more>
+[1m[31mFAIL[0m boom
+     target error: connection refused
+
+1 passed, 2 failed, 3 total[2m · 210 tokens[0m[2m · $0.0020[0m
+GATE [32mPASS[0m pass_rate >= 0.3 (actual 0.33)
+GATE [1m[31mFAIL[0m mean_score(contains) >= 0.8 (actual 0.50)
+GATE [1m[31mFAIL[0m mean_score(judge) >= 0.7 (actual 0.00)
+     no scores from scorer "judge"

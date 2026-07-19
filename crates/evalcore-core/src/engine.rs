@@ -38,6 +38,32 @@ where
     TRIAL.scope(trial, fut).await
 }
 
+/// A per-case-completion callback the CLI installs to drive an interactive
+/// progress display. Fired exactly once as each case finishes — in completion
+/// order, not dataset order — so the callback must be cheap and internally
+/// synchronized (cases run concurrently). Purely observational: it never touches
+/// results, ordering, or the verdict, and `RunOptions::on_progress` is `None` by
+/// default, so non-interactive runs pay nothing and stay byte-identical.
+#[derive(Clone)]
+pub struct ProgressSink(std::sync::Arc<dyn Fn() + Send + Sync>);
+
+impl ProgressSink {
+    /// Wrap a closure fired once per completed case.
+    pub fn new(f: impl Fn() + Send + Sync + 'static) -> Self {
+        Self(std::sync::Arc::new(f))
+    }
+
+    fn notify(&self) {
+        (self.0)()
+    }
+}
+
+impl std::fmt::Debug for ProgressSink {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ProgressSink(..)")
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RunOptions {
     /// Maximum in-flight cases (minimum 1).
@@ -53,6 +79,10 @@ pub struct RunOptions {
     /// (the default) behaves exactly like a run with no trials configured —
     /// byte-identical results, cache keys, and reporter output.
     pub trials: TrialsConfig,
+    /// Optional interactive-progress callback, fired once per completed case.
+    /// `None` (the default) for non-interactive/CI runs; the engine's results,
+    /// ordering, and reporter bytes are identical either way.
+    pub on_progress: Option<ProgressSink>,
 }
 
 impl Default for RunOptions {
@@ -65,6 +95,7 @@ impl Default for RunOptions {
                 count: 1,
                 require: TrialRequire::All,
             },
+            on_progress: None,
         }
     }
 }
@@ -85,6 +116,10 @@ pub async fn run_suite(
                 if let Some(budget) = options.budget_usd {
                     let spent = spent_micros.load(Ordering::SeqCst) as f64 / 1e6;
                     if spent >= budget {
+                        // A budget-skipped case is still a completed case.
+                        if let Some(sink) = &options.on_progress {
+                            sink.notify();
+                        }
                         return CaseResult {
                             case_id: case.id,
                             output: None,
@@ -104,6 +139,11 @@ pub async fn run_suite(
                 // sum across trials (a single trial's cost for count == 1).
                 if let Some(cost) = result.cost_usd {
                     spent_micros.fetch_add((cost * 1e6) as u64, Ordering::SeqCst);
+                }
+                // Observational only — after results/costs are settled, never
+                // before, so a slow callback can't perturb budget accounting.
+                if let Some(sink) = &options.on_progress {
+                    sink.notify();
                 }
                 result
             }
@@ -470,6 +510,33 @@ mod tests {
         assert!(summary.all_passed());
         let ids: Vec<_> = summary.results.iter().map(|r| r.case_id.as_str()).collect();
         assert_eq!(ids, ["case-0", "case-1", "case-2"]);
+    }
+
+    #[tokio::test]
+    async fn on_progress_fires_exactly_once_per_case() {
+        use std::sync::atomic::AtomicUsize;
+        use std::sync::Arc;
+        let scorers: Vec<Box<dyn Scorer>> = vec![Box::new(NonEmpty)];
+        let ticks = Arc::new(AtomicUsize::new(0));
+        let sink = {
+            let ticks = Arc::clone(&ticks);
+            ProgressSink::new(move || {
+                ticks.fetch_add(1, Ordering::SeqCst);
+            })
+        };
+        let opts = RunOptions {
+            concurrency: 4,
+            on_progress: Some(sink),
+            ..Default::default()
+        };
+        // One case errors: it still completes, so it still ticks.
+        let summary = run_suite(&Upper, cases(&["a", "explode", "c"]), &scorers, opts).await;
+        assert_eq!(summary.total(), 3);
+        assert_eq!(
+            ticks.load(Ordering::SeqCst),
+            3,
+            "every completed case, pass or error, ticks progress exactly once"
+        );
     }
 
     #[tokio::test]

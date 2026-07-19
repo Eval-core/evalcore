@@ -12,8 +12,12 @@ use evalcore_config::{EvalConfig, GateConfig, ScorerConfig, TargetConfig};
 use evalcore_core::{
     build_target_with, load_jsonl, run_suite, CostRates, RunOptions, SecretPolicy, Target, TestCase,
 };
+use evalcore_report::Style;
 use evalcore_scorers::build_scorers;
 use evalcore_store::{CacheMode, CachedTarget, Store};
+
+mod ui;
+use ui::{ColorArg, ProgressArg};
 
 #[derive(Parser)]
 #[command(name = "evalcore", version, about = "Snapshot testing for AI behavior")]
@@ -68,6 +72,19 @@ enum Commands {
         /// metadata for `evalcore serve`.
         #[arg(long)]
         no_history: bool,
+        /// Colorize interactive output. auto: only a color-capable TTY (honors
+        /// NO_COLOR, TERM=dumb, CLICOLOR_FORCE); always/never force the choice.
+        /// Machine reporters and files are never colored.
+        #[arg(long, value_enum, default_value_t = ColorArg::Auto)]
+        color: ColorArg,
+        /// Interactive progress on stderr. auto: only when stderr is a TTY;
+        /// never disables it. Progress never touches stdout or captured reports.
+        #[arg(long, value_enum, default_value_t = ProgressArg::Auto)]
+        progress: ProgressArg,
+        /// Omit passing cases from the terminal report; show only failures,
+        /// totals, gates, and the verdict.
+        #[arg(long, short = 'q')]
+        quiet: bool,
     },
     /// Serve a local, read-only web viewer over the run history in a store.
     /// Binds 127.0.0.1 only (localhost is the security model) and runs until
@@ -132,6 +149,9 @@ async fn main() -> anyhow::Result<ExitCode> {
             baseline,
             save_baseline,
             no_history,
+            color,
+            progress,
+            quiet,
         } => {
             run(RunArgs {
                 config_path: &config,
@@ -144,6 +164,9 @@ async fn main() -> anyhow::Result<ExitCode> {
                 baseline: baseline.as_deref(),
                 save_baseline: save_baseline.as_deref(),
                 no_history,
+                color,
+                progress,
+                quiet,
             })
             .await
         }
@@ -176,6 +199,9 @@ struct RunArgs<'a> {
     baseline: Option<&'a str>,
     save_baseline: Option<&'a str>,
     no_history: bool,
+    color: ColorArg,
+    progress: ProgressArg,
+    quiet: bool,
 }
 
 /// Record a run-history row for one executed run (matrix: one call per arm),
@@ -246,7 +272,13 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         baseline,
         save_baseline,
         no_history,
+        color,
+        progress,
+        quiet,
     } = args;
+    // Terminal capability detection happens once, here in the CLI layer — the
+    // reporters never read the terminal, env, or clock.
+    let ui = ui::resolve(color, progress, quiet);
     let config = EvalConfig::from_path(config_path)?;
     // Paths inside the config resolve relative to the config file itself, so
     // suites run identically from any working directory (CI, editors, make).
@@ -280,6 +312,7 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
             baseline,
             save_baseline,
             no_history,
+            ui,
         })
         .await;
     }
@@ -380,11 +413,21 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         }),
         _ => None,
     };
+    // Interactive progress on stderr (TTY-only): the sink ticks per completed
+    // case; the handle erases the line before the report prints. Disabled → the
+    // engine gets no sink and the run is byte-identical.
+    let (progress_sink, progress) = if ui.progress {
+        let (sink, handle) = ui::Progress::start(cases.len(), &name, &ui.stderr);
+        (Some(sink), Some(handle))
+    } else {
+        (None, None)
+    };
     let options = RunOptions {
         concurrency: config.run.concurrency,
         budget_usd: config.run.budget_usd,
         cost_rates,
         trials: config.run.trials.clone(),
+        on_progress: progress_sink,
     };
     // Classification aggregates are computed when opted in, or implicitly when an
     // accuracy/macro_f1 gate needs them. Snapshot the cases' labels before the
@@ -398,6 +441,9 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         });
     let classification_cases = want_classification.then(|| cases.clone());
     let mut summary = run_suite(target.as_ref(), cases, &scorers, options).await;
+    if let Some(handle) = &progress {
+        handle.clear();
+    }
     // Attach classification before gates so accuracy/macro_f1 gates can read it.
     if let Some(cases) = classification_cases {
         summary.classification = Some(evalcore_core::compute_classification(
@@ -420,8 +466,12 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         record_history(store.as_ref(), base_dir, config_path, &name, &summary);
     }
 
+    // The Terminal report is colored only when it owns an interactive stdout; a
+    // file always gets plain bytes (no ANSI in files), and `--quiet` still
+    // applies. Machine reporters ignore the style entirely.
+    let report_style = report_style(&ui, output_path.is_some());
     let rendered = match reporter {
-        Reporter::Terminal => evalcore_report::terminal(&summary),
+        Reporter::Terminal => evalcore_report::terminal(&summary, &report_style),
         Reporter::Json => evalcore_report::json(&summary)?,
         Reporter::Junit => evalcore_report::junit(&summary),
     };
@@ -454,11 +504,15 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
             format!("no baseline {label:?} found — record one with --save-baseline {label}")
         })?;
         let diff = evalcore_core::compare(&baseline_run, &summary);
-        let section = evalcore_report::baseline(&diff, label);
-        // Keep machine reporters' stdout pure; the diff goes to stderr there.
-        match (reporter, output_path) {
-            (Reporter::Terminal, None) => print!("{section}"),
-            _ => eprint!("{section}"),
+        // The diff joins the Terminal report on stdout; for machine reporters
+        // (pure stdout) it goes to stderr instead, styled for whichever stream.
+        let to_stdout = matches!(reporter, Reporter::Terminal) && output_path.is_none();
+        let bstyle = if to_stdout { &ui.stdout } else { &ui.stderr };
+        let section = evalcore_report::baseline(&diff, label, bstyle);
+        if to_stdout {
+            print!("{section}");
+        } else {
+            eprint!("{section}");
         }
         gate_passed = !diff.gate_failed();
         baseline_diff = Some(diff);
@@ -497,11 +551,60 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         gate_passed = false;
     }
 
+    // The prominent, exit-code-true verdict — printed last so it summarizes
+    // everything above. It rides the Terminal report on stdout; for machine
+    // reporters it goes to stderr so their stdout stays pure bytes.
+    let verdict_to_stdout = matches!(reporter, Reporter::Terminal) && output_path.is_none();
+    let vstyle = if verdict_to_stdout {
+        &ui.stdout
+    } else {
+        &ui.stderr
+    };
+    let detail = baseline_diff.as_ref().and_then(ui::baseline_detail);
+    let banner = ui::verdict(gate_passed, detail.as_deref(), vstyle);
+    if verdict_to_stdout {
+        print!("{banner}");
+    } else {
+        eprint!("{banner}");
+    }
+
+    // Actionable next steps (dim, stderr): a replay cache miss, or how to accept
+    // a reviewed regression. Emitted only when one applies.
+    let config_display = config_path.display().to_string();
+    for hint in ui::hints(
+        &summary,
+        matches!(cache, CacheArg::Replay),
+        &config_display,
+        &ui.stderr,
+    ) {
+        eprintln!("{hint}");
+    }
+    if let (Some(diff), Some(label)) = (baseline_diff.as_ref(), baseline) {
+        if let Some(hint) = ui::baseline_accept_hint(diff, label, &ui.stderr) {
+            eprintln!("{hint}");
+        }
+    }
+
     Ok(if gate_passed {
         ExitCode::SUCCESS
     } else {
         ExitCode::from(1)
     })
+}
+
+/// Style for a Terminal report's bytes: colored/glyphed only when it owns an
+/// interactive stdout; a file always gets plain bytes, but `--quiet` still hides
+/// passing cases either way. Machine reporters ignore this.
+fn report_style(ui: &ui::Ui, to_file: bool) -> Style {
+    if to_file {
+        Style {
+            color: false,
+            unicode: false,
+            quiet: ui.quiet,
+        }
+    } else {
+        ui.stdout
+    }
 }
 
 struct RunMatrixArgs<'a> {
@@ -517,6 +620,7 @@ struct RunMatrixArgs<'a> {
     baseline: Option<&'a str>,
     save_baseline: Option<&'a str>,
     no_history: bool,
+    ui: ui::Ui,
 }
 
 /// Run the suite once per matrix target, in list order, and render the
@@ -537,6 +641,7 @@ async fn run_matrix(args: RunMatrixArgs<'_>) -> anyhow::Result<ExitCode> {
         baseline,
         save_baseline,
         no_history,
+        ui,
     } = args;
 
     // Matrix is mutually exclusive with target selection and with baselines —
@@ -620,14 +725,26 @@ async fn run_matrix(args: RunMatrixArgs<'_>) -> anyhow::Result<ExitCode> {
     for (name, raw) in raw_targets {
         let target = wrap_target(raw, cache_mode, store.as_ref());
         let target_config = config.targets.get(&name).expect("validated to exist");
+        // Per-arm progress, labeled with the arm's target name; cleared before
+        // the next arm and before the comparison prints.
+        let (progress_sink, progress) = if ui.progress {
+            let (sink, handle) = ui::Progress::start(cases.len(), &name, &ui.stderr);
+            (Some(sink), Some(handle))
+        } else {
+            (None, None)
+        };
         let options = RunOptions {
             concurrency: config.run.concurrency,
             budget_usd: config.run.budget_usd,
             cost_rates: cost_rates_for(target_config),
             trials: config.run.trials.clone(),
+            on_progress: progress_sink,
         };
         let classification_cases = want_classification.then(|| cases.clone());
         let mut summary = run_suite(target.as_ref(), cases.clone(), &scorers, options).await;
+        if let Some(handle) = &progress {
+            handle.clear();
+        }
         if let Some(cases) = classification_cases {
             summary.classification = Some(evalcore_core::compute_classification(
                 &cases,
@@ -651,8 +768,11 @@ async fn run_matrix(args: RunMatrixArgs<'_>) -> anyhow::Result<ExitCode> {
     let matrix_summary = evalcore_core::MatrixSummary { arms };
     let comparison = evalcore_core::compare_arms(&matrix_summary);
 
+    let report_style = report_style(&ui, output_path.is_some());
     let rendered = match reporter {
-        Reporter::Terminal => evalcore_report::terminal_matrix(&matrix_summary, &comparison),
+        Reporter::Terminal => {
+            evalcore_report::terminal_matrix(&matrix_summary, &comparison, &report_style)
+        }
         Reporter::Json => evalcore_report::json_matrix(&matrix_summary, &comparison)?,
         Reporter::Junit => evalcore_report::junit_matrix(&matrix_summary),
     };
@@ -675,6 +795,21 @@ async fn run_matrix(args: RunMatrixArgs<'_>) -> anyhow::Result<ExitCode> {
         let rendered_html = evalcore_report::html_matrix(&matrix_summary, &comparison);
         std::fs::write(path, &rendered_html)
             .with_context(|| format!("failed to write HTML report to {}", path.display()))?;
+    }
+
+    // Verdict: pass iff every arm satisfied the whole contract. Stdout when the
+    // Terminal comparison owns it, else stderr.
+    let verdict_to_stdout = matches!(reporter, Reporter::Terminal) && output_path.is_none();
+    let vstyle = if verdict_to_stdout {
+        &ui.stdout
+    } else {
+        &ui.stderr
+    };
+    let banner = ui::verdict(all_ok, None, vstyle);
+    if verdict_to_stdout {
+        print!("{banner}");
+    } else {
+        eprint!("{banner}");
     }
 
     Ok(if all_ok {
