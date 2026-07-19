@@ -83,7 +83,7 @@ evalcore serve
 
 It prints the URL and runs until you press Ctrl-C:
 
-```
+```text
 serving http://127.0.0.1:7878
 ```
 

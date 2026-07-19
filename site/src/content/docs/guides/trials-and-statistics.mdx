@@ -97,7 +97,7 @@ output stays byte-identical to a non-trial run.
 Here is a real run of a two-case suite with `trials: 3`, where the first case
 passes every trial and the second fails every trial:
 
-```
+```text
 PASS greeting (6ms) [3/3 trials]
 FAIL mismatch [0/3 trials]
      contains: trial 0: expected output to contain "hello", got: "goodbye"
@@ -109,7 +109,7 @@ The reason line names the scorer and the **first failing trial** (in trial
 order), so it stays actionable; the reason for every trial lives in the JSON and
 HTML detail. The same suite with no `trials` configured drops the tag entirely:
 
-```
+```text
 PASS greeting (7ms)
 FAIL mismatch
      contains: expected output to contain "hello", got: "goodbye"
@@ -135,7 +135,7 @@ not flaky. It is solid, just solidly passing or solidly failing. The terminal
 summary line appends a ` · N flaky` count whenever at least one case ran with
 trials detail:
 
-```
+```text
 PASS greeting (4ms) [3/3 trials]
 FAIL mismatch [0/3 trials]
      contains: trial 0: expected output to contain "hello", got: "goodbye"

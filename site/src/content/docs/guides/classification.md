@@ -102,7 +102,7 @@ class, and an error storm sinks accuracy exactly as it should.
 For a run over the dataset above with a two-label version (`billing` /
 `technical`) where the model gets two of three right, EvalCore reports:
 
-```
+```text
 classification: accuracy 0.67 · macro-F1 0.67 (3 labeled, 1 unlabeled)
 ```
 
@@ -129,7 +129,7 @@ Here is a real run of a four-case suite (`cat` echoes the input as the
 prediction, so the labels are exercised end to end) with `classification: true`
 and both gates set to a `0.6` floor:
 
-```
+```text
 PASS ticket-1 (6ms)
 FAIL ticket-2
      exact: expected "billing", got "technical"
@@ -158,7 +158,7 @@ If you configure an `accuracy` or `macro_f1` gate but no case carries an
 `expected`, there is nothing to measure. Rather than pass vacuously, the metric
 is `0.0` and the gate fails with an explicit reason:
 
-```
+```text
 2 passed, 0 failed, 2 total
 GATE FAIL accuracy >= 0.6 (actual 0.00)
      no labeled cases

@@ -78,7 +78,7 @@ scorers:
     cmd: python3 scorers/faithfulness.py
 ```
 
-```
+```text
 PASS grounded (4ms)
 FAIL ungrounded
      subprocess: 0/4 expected keywords grounded in the output

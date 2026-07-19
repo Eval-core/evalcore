@@ -27,12 +27,12 @@ is ever run.
 
 On success it prints a one-line summary and exits `0`:
 
-```
+```text
 OK: 2 target(s), 1 dataset(s), 5 scorer(s)
 ```
 
 On any parse or validation error it exits non-zero with the error message. See
-the [Configuration reference](../configuration/) for every validation rule.
+the [Configuration reference](/reference/configuration/) for every validation rule.
 
 ## `evalcore run <config>`
 
@@ -47,14 +47,14 @@ through every scorer, renders a report, and returns an exit code.
 
 | Flag | Value | Default | Description |
 |---|---|---|---|
-| `--target` | name | — | Target to run. May be omitted only when exactly one target is defined; with several, omitting it is an error naming the available targets. |
-| `--matrix` | comma list of names | — | Run the whole suite against several targets and print a side-by-side comparison. At least two distinct, defined names. Overrides `run.matrix`. Mutually exclusive with `--target`, `--baseline`, `--save-baseline`. Since v0.7.5. See [Matrix runs](#matrix-runs). |
+| `--target` | name | n/a | Target to run. May be omitted only when exactly one target is defined; with several, omitting it is an error naming the available targets. |
+| `--matrix` | comma list of names | n/a | Run the whole suite against several targets and print a side-by-side comparison. At least two distinct, defined names. Overrides `run.matrix`. Mutually exclusive with `--target`, `--baseline`, `--save-baseline`. Since v0.7.5. See [Matrix runs](#matrix-runs). |
 | `--reporter` | `terminal` \| `json` \| `junit` | `terminal` | Report format. See [Reporters](#reporters). |
-| `--output` | path | — | Write the report to a file instead of stdout. |
-| `--html` | path | — | Also write a self-contained HTML report to this path, in addition to the primary `--reporter` output. Since v0.5.0. |
+| `--output` | path | n/a | Write the report to a file instead of stdout. |
+| `--html` | path | n/a | Also write a self-contained HTML report to this path, in addition to the primary `--reporter` output. Since v0.5.0. |
 | `--cache` | `auto` \| `replay` \| `live` \| `off` | `auto` | Record/replay cache mode for cacheable targets. See [Cache modes](#cache-modes). |
-| `--baseline` | label | — | Gate on regressions against a stored baseline instead of absolute pass/fail. |
-| `--save-baseline` | label | — | Save this run's results as a named baseline. |
+| `--baseline` | label | n/a | Gate on regressions against a stored baseline instead of absolute pass/fail. |
+| `--save-baseline` | label | n/a | Save this run's results as a named baseline. |
 | `--no-history` | flag | off | Do not append a run-history row for this run (overrides `run.history: true`). The exit code and report bytes are unaffected; history is metadata for [`evalcore serve`](#evalcore-serve). Since v0.7.5. |
 
 ### Target selection
@@ -76,7 +76,7 @@ code is `0` iff **every** arm passes all its cases and gates, else `1`.
 A matrix is mutually exclusive with target selection and baselines. Each
 combination is a hard error rather than a silent choice:
 
-```
+```text
 $ evalcore run evals.yaml --matrix gpt,claude --target gpt
 Error: cannot combine --target with a matrix: a matrix already runs the suite against several targets. Drop --target, or drop the matrix.
 
@@ -85,7 +85,7 @@ Error: baselines are per-run; run targets separately with --target to baseline t
 ```
 
 `--save-baseline` is rejected identically. See the [Comparing models
-guide](../../guides/comparing-models/) for the comparison table and winner
+guide](/guides/comparing-models/) for the comparison table and winner
 semantics.
 
 ### Reporters
@@ -114,8 +114,8 @@ the run summary, so identical runs render byte-identical reports (see
 
 `--cache` controls how the record/replay cache participates for cacheable
 targets (LLM APIs, `http` targets, and judge scorers). Uncacheable targets
-(`shell`, `trace`) bypass the cache in every mode. See [Cache &
-determinism](../cache-and-determinism/) for the full model.
+(`shell`, `trace`) bypass the cache in every mode. See [Cache and
+determinism](/reference/cache-and-determinism/) for the full model.
 
 | Mode | Behavior |
 |---|---|
@@ -134,7 +134,7 @@ then this run is saved (after comparison). A `--baseline` label with no stored
 baseline is an error: `no baseline "<label>" found — record one with
 --save-baseline <label>`. Baselines are stored in the same `.evalcore/cache.db`
 file as the cache; the store is opened even for `shell` targets when a baseline
-flag is present. See [Cache & determinism](../cache-and-determinism/#baselines).
+flag is present. See [Cache and determinism](/reference/cache-and-determinism/#baselines).
 
 Baseline results print after the primary report as a diff section
 (`baseline "<label>": p/t passed -> current: p/t passed`, then `REGRESSED`,
@@ -154,7 +154,7 @@ run) it goes to **stderr**, keeping the machine reporter's stdout pure.
   `run.gates` floor is not met, the run exits `1`. With `--baseline`, an
   accepted baseline failure stays tolerated per-case yet can still sink a
   `pass_rate` gate it drops the run below. See
-  [Gates](../configuration/#gates).
+  [Gates](/reference/configuration/#gates).
 
 `validate` exits `0` on a valid config and non-zero on any error.
 
@@ -177,7 +177,7 @@ snapshot-tested layouts.
 
 ### terminal
 
-```
+```text
 PASS refund-1 (12ms)
 FAIL refund-2
      contains: expected output to contain "refund"
@@ -222,7 +222,7 @@ not include gate outcomes; the exit code carries the gate result.
 ## `evalcore serve`
 
 Since v0.7.5. Starts a **local, read-only** web viewer over the
-[run history](../../guides/run-history-and-serve/) stored in a `.evalcore/cache.db`
+[run history](/guides/run-history-and-serve/) stored in a `.evalcore/cache.db`
 file. Unlike `validate` and `run`, it takes no config argument, because it reads the
 store rather than a config.
 
@@ -238,7 +238,7 @@ evalcore serve --store path/db --port 9000  # explicit store and port
 
 On start it prints the URL and runs until interrupted (Ctrl-C):
 
-```
+```text
 serving http://127.0.0.1:7878
 ```
 
@@ -255,7 +255,20 @@ Three routes:
 |---|---|
 | `GET /` | The run listing, newest first: id, time, config, target, passed/failed/total, cost, a pass-rate sparkline, and a "diff vs previous same-target run" link. |
 | `GET /run/{id}` | That run's full detail, byte-for-byte the `--html` report. Unknown id → `404`; a non-integer id → `400`. |
-| `GET /diff?a=<id>&b=<id>` | Any two stored runs compared with the [matrix comparison](../../guides/comparing-models/) view. Missing/non-integer ids → `400`; an unknown id → `404`. |
+| `GET /diff?a=<id>&b=<id>` | Any two stored runs compared with the [matrix comparison](/guides/comparing-models/) view. Missing/non-integer ids → `400`; an unknown id → `404`. |
 
-See the [Run history and serve guide](../../guides/run-history-and-serve/) for the
+See the [Run history and serve guide](/guides/run-history-and-serve/) for the
 workflow.
+
+## See also
+
+- [Configuration reference](/reference/configuration/): the `evals.yaml`
+  fields these flags read and override.
+- [Running in CI](/guides/running-in-ci/): `--cache replay`, `--baseline`,
+  and `--reporter junit` wired into a pipeline.
+- [Gates and baselines](/guides/gates-and-baselines/): what `--baseline`
+  and `--save-baseline` do to the exit code.
+- [Cache and determinism](/reference/cache-and-determinism/): what each
+  `--cache` mode does to the store on disk.
+- [Run history and serve](/guides/run-history-and-serve/): the workflow
+  around `evalcore serve` and stored runs.

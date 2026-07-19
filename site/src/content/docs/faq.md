@@ -66,7 +66,7 @@ The case **fails with a reason**. It is never a silent live call, which would
 un-determinize a replay run. The run still completes and reports every other
 case; only the missing case is red:
 
-```
+```text
 FAIL new
      target error: cache miss for case "new" in replay mode — record it first with --cache auto (or live)
 ```
@@ -177,3 +177,16 @@ The canonical trajectory format and the assertion-rule semantics
 this site (mirrored from the [spec on GitHub](https://github.com/eval-core/evalcore/blob/main/docs/trajectory-spec.md)).
 The [Agents and traces](/guides/agents-and-traces/) guide walks the
 whole workflow.
+
+## See also
+
+- [Core concepts](/getting-started/core-concepts/): the mental model these
+  answers assume, in one page.
+- [Record / replay](/guides/record-replay/): the cassette lifecycle behind
+  the offline and cache-miss answers above.
+- [Custom scorers](/guides/custom-scorers/): the subprocess route for
+  grading an app written in Python or anything else.
+- [Cost and budgets](/guides/cost-and-budgets/): how to declare your own
+  rates, since no pricing table ships with the binary.
+- [Comparing models](/guides/comparing-models/): the matrix run for
+  deciding whether a cheaper model holds up.

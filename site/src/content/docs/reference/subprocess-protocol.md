@@ -138,3 +138,14 @@ scorers:
 
 Both examples read stdin to completion before writing, then emit exactly one
 JSON object with a required `score`, as the protocol requires.
+
+## See also
+
+- [Custom scorers](/guides/custom-scorers/): a complete scorer built on this
+  protocol, plus debugging tips when a command misbehaves.
+- [Configuration reference](/reference/configuration/#subprocess): the
+  `subprocess` scorer fields that point at your command.
+- [RAG evaluation](/guides/rag-evaluation/): the shipped Ragas and DeepEval
+  shims, working implementations of this contract.
+- [LLM-as-judge](/guides/llm-as-judge/): the built-in option when the check
+  is a graded rubric rather than code you write.

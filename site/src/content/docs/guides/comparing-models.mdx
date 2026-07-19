@@ -90,7 +90,7 @@ concurrency, gates, classification, and trials all apply per arm.
 A matrix needs at least two distinct, defined names. The validation is identical
 whether it comes from `run.matrix` or `--matrix`:
 
-```
+```text
 matrix must list at least two targets, got 1
 matrix lists target "gpt" more than once
 matrix target "mystery" is not defined; available: claude, gpt
@@ -102,7 +102,7 @@ Here is a real matrix run of a two-case suite over two shell targets, `echo`
 (passes the input through) and `upper` (uppercases it), scored by
 `contains: "REFUND"`:
 
-```
+```text
 == target: echo
 PASS refund-1 (7ms)
 FAIL refund-2
@@ -190,7 +190,7 @@ exactly like a single-target suite: gate the job on the exit code.
 In the two-shell-target run above, `echo` has a failing case, so the run exits
 `1` even though `upper` is all green. When both arms pass every case and gate:
 
-```
+```text
 == comparison
 case        echo    upper
 refund-1    PASS    PASS     tie

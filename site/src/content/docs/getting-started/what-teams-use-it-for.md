@@ -103,3 +103,16 @@ stdin/stdout, so your app can be written in **any language**. And because every
 LLM call is recorded and replayed, the evidence is **deterministic**: the same
 inputs produce the same report every time, which is what an audit, or a
 six-figure model decision, needs it to be.
+
+## See also
+
+- [Quickstart](/getting-started/quickstart/): the shortest path from reading
+  one of these to a suite that runs.
+- [Core concepts](/getting-started/core-concepts/): the target, dataset, and
+  scorer model every scenario above is built from.
+- [Comparing models](/guides/comparing-models/): the matrix run behind the
+  cheaper-model decision.
+- [LLM-as-judge](/guides/llm-as-judge/): rubric design for the graded suite
+  that was too expensive to run per PR.
+- [Agents and traces](/guides/agents-and-traces/): trajectory rules for the
+  agent that touches money.

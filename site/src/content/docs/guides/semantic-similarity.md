@@ -28,8 +28,8 @@ scorers:
 
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `url` | yes | — | Base URL of the embeddings API; `/embeddings` is appended. Must be non-empty. |
-| `model` | yes | — | Embedding model name. |
+| `url` | yes | n/a | Base URL of the embeddings API; `/embeddings` is appended. Must be non-empty. |
+| `model` | yes | n/a | Embedding model name. |
 | `api_key_env` | no | none | Name of the environment variable holding the API key. Secrets never appear inline in YAML. |
 | `threshold` | no | `0.8` | Minimum cosine similarity to pass; a finite value in `[-1, 1]`. |
 

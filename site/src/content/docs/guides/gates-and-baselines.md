@@ -28,7 +28,7 @@ passed, which failed) with no gate results or timing baked in.
 matched by `id`. Here is a real diff, where a case that passed in the baseline
 now fails:
 
-```
+```text
 baseline "main": 2/2 passed -> current: 1/2 passed
 REGRESSED greeting
      contains: expected output to contain "refund", got: "Hello there, nice weather today."
@@ -80,7 +80,7 @@ run:
 
 Outcomes print after the summary and ride along in the JSON report:
 
-```
+```text
 1 passed, 1 failed, 2 total
 GATE FAIL pass_rate >= 0.95 (actual 0.50)
 GATE PASS mean_score(contains) >= 0.4 (actual 0.50)

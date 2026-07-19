@@ -39,7 +39,7 @@ cost = (input_tokens × input_per_1m + output_tokens × output_per_1m) / 1_000_0
 Totals are the sum across cases. The terminal summary appends tokens and cost
 when they're available:
 
-```
+```text
 12 passed, 0 failed, 12 total · 48210 tokens · $0.0341
 ```
 
@@ -113,7 +113,7 @@ targets:
 The shipped agent-trace example shows this. One case's OTel trace carries
 `220` input + `48` output tokens, so the run reports:
 
-```
+```text
 2 passed, 0 failed, 2 total · 268 tokens · $0.0002
 ```
 

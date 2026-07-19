@@ -48,7 +48,7 @@ evalcore run evals.yaml --cache replay
 If a case was never recorded, replay says so plainly and fails that case. The run
 still finishes, because failures are data:
 
-```
+```text
 FAIL new
      target error: cache miss for case "new" in replay mode — record it first with --cache auto (or live)
 ```
@@ -184,7 +184,7 @@ a cassette for a service you deploy, evaluate it over the
 
 - [Running in CI](/guides/running-in-ci/): committing cassettes
   and splitting the PR path from a nightly drift job.
-- [Cache & determinism](/reference/cache-and-determinism/): the
+- [Cache and determinism](/reference/cache-and-determinism/): the
   full cache key invariants behind what re-records and what doesn't.
 - [Gates and baselines](/guides/gates-and-baselines/): baselines
   live in the same `.evalcore/cache.db` as the cassettes.

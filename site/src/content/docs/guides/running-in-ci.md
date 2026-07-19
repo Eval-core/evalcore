@@ -59,7 +59,7 @@ With `--baseline`, the exit contract changes: failures already present in the
 baseline are tolerated; a case that **regresses** (passed → failing) or a **new
 failing** case exits `1`, with a diff:
 
-```
+```text
 baseline "main": 2/2 passed -> current: 1/2 passed
 REGRESSED greeting
      contains: expected output to contain "refund", got: "Hello there, nice weather today."
@@ -89,7 +89,7 @@ run:
 
 Gate outcomes print after the summary and ride along in the JSON report:
 
-```
+```text
 1 passed, 1 failed, 2 total
 GATE FAIL pass_rate >= 0.95 (actual 0.50)
 GATE PASS mean_score(contains) >= 0.4 (actual 0.50)

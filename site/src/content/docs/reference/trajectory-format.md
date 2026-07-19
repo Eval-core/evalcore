@@ -169,5 +169,16 @@ relative to the dataset file:
 {"id": "agent-flow", "trace": "traces/run1.json"}
 ```
 
-See the [Configuration reference](../configuration/#trace) for the `trace`
-target and the [dataset format](../configuration/#jsonl-case-format).
+See the [Configuration reference](/reference/configuration/#trace) for the `trace`
+target and the [dataset format](/reference/configuration/#jsonl-case-format).
+
+## See also
+
+- [Agents and traces](/guides/agents-and-traces/): exporting a trace from
+  your framework and grading it end to end.
+- [Configuration reference](/reference/configuration/#trajectory): the
+  `trajectory` scorer fields that carry these rules.
+- [Cost and budgets](/guides/cost-and-budgets/): pricing the token usage
+  read out of the spans described here.
+- [What teams use it for](/getting-started/what-teams-use-it-for/): a
+  trajectory suite guarding an agent with access to money.

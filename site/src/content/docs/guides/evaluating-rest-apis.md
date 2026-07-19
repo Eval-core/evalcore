@@ -42,7 +42,7 @@ scorers:
 Run it once with `--cache auto` to record, then `--cache replay` in CI. A live
 localhost run of exactly this shape produces:
 
-```
+```text
 PASS refund (7ms)
 
 1 passed, 0 failed, 1 total
@@ -51,7 +51,7 @@ PASS refund (7ms)
 Re-run offline with the server stopped and `--cache replay`. It replays the
 recorded answer with no network and no key:
 
-```
+```text
 PASS refund (7ms)
 
 1 passed, 0 failed, 1 total
@@ -178,7 +178,7 @@ A replay cache miss (a request never recorded, usually because you changed the
 `url`, `body`, `headers`, `response_path`, or a case input) fails that case with
 a reason rather than calling out:
 
-```
+```text
 FAIL new
      target error: cache miss for case "new" in replay mode — record it first with --cache auto (or live)
 ```

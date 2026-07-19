@@ -48,8 +48,8 @@ stdin, and its stdout becomes the output. Local code, never cached.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `type` | `"shell"` | yes | — | Selects this target. |
-| `cmd` | string | yes | — | Command run via `sh -c`. Case input arrives on stdin; stdout is the output text. |
+| `type` | `"shell"` | yes | n/a | Selects this target. |
+| `cmd` | string | yes | n/a | Command run via `sh -c`. Case input arrives on stdin; stdout is the output text. |
 
 ```yaml
 targets:
@@ -71,9 +71,9 @@ speaks that format works with no additional code.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `type` | `"openai-compatible"` | yes | — | Selects this target. |
-| `url` | string | yes | — | Base URL, e.g. `https://api.openai.com/v1`. `/chat/completions` is appended (a trailing slash is trimmed first). |
-| `model` | string | yes | — | Model name sent in the request body. |
+| `type` | `"openai-compatible"` | yes | n/a | Selects this target. |
+| `url` | string | yes | n/a | Base URL, e.g. `https://api.openai.com/v1`. `/chat/completions` is appended (a trailing slash is trimmed first). |
+| `model` | string | yes | n/a | Model name sent in the request body. |
 | `api_key_env` | string | no | none | Name of the environment variable holding the API key. Secrets never appear inline in YAML. The key is sent as `Authorization: Bearer <key>`. |
 | `max_retries` | integer | no | `2` | Retries on transient failures (429 / 5xx / transport), with exponential backoff honoring `Retry-After`. |
 | `timeout_seconds` | integer | no | `120` | Per-attempt total time budget (connect + reading the response body). Each retry gets a fresh budget. Must be at least 1. Since v0.5.0. |
@@ -124,8 +124,8 @@ into every string **value** of the JSON `body` (object keys are never touched).
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `type` | `"http"` | yes | — | Selects this target. |
-| `url` | string | yes | — | Request URL. Must start with `http://` or `https://`. `{{input}}` is percent-encoded when substituted. |
+| `type` | `"http"` | yes | n/a | Selects this target. |
+| `url` | string | yes | n/a | Request URL. Must start with `http://` or `https://`. `{{input}}` is percent-encoded when substituted. |
 | `method` | string | no | `"POST"` | One of `GET`, `POST`, `PUT`, `PATCH` (case-insensitive). A `GET` may not carry a `body`. |
 | `headers` | map of string to string | no | none | Static headers, sent verbatim. Keys are matched case-insensitively. Never put secrets here: header values are hashed into the cache identity and persisted in the committed cache. |
 | `api_key_env` | string | no | none | Name of the environment variable holding the API key. Sent in the auth header; never enters the cache. |
@@ -187,11 +187,11 @@ Since v0.3.0. Ingests recorded agent traces instead of invoking anything. Each
 case names a trace file (via the case's `trace` field); the target reads it,
 normalizes it (native trajectory format or OTel/OpenInference JSON export), and
 outputs the canonical trajectory. Pair with the [`trajectory`](#trajectory)
-scorer. See [Trajectory format](../trajectory-format/) for the trace formats.
+scorer. See [Trajectory format](/reference/trajectory-format/) for the trace formats.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `type` | `"trace"` | yes | — | Selects this target. |
+| `type` | `"trace"` | yes | n/a | Selects this target. |
 | `cost` | [cost block](#cost-rates) | no | none | Token prices applied to usage extracted from trace spans; enables cost reporting and `run.budget_usd` for trace runs. Since v0.4.0. |
 
 ```yaml
@@ -271,7 +271,7 @@ construction.
 {"id": "agent-flow", "trace": "traces/run1.json"}
 ```
 
-See the [RAG evaluation guide](../../guides/rag-evaluation/) for how context
+See the [RAG evaluation guide](/guides/rag-evaluation/) for how context
 flows to the scorers.
 
 ## Scorers
@@ -287,8 +287,8 @@ Passes if the output contains `value` as a substring.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `type` | `"contains"` | yes | — | Selects this scorer. |
-| `value` | string | yes | — | Substring the output must contain. |
+| `type` | `"contains"` | yes | n/a | Selects this scorer. |
+| `value` | string | yes | n/a | Substring the output must contain. |
 | `case_sensitive` | bool | no | `true` | When false, the match ignores case. |
 
 ```yaml
@@ -305,7 +305,7 @@ Passes if the output equals `value`, or the case's `expected` field when
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `type` | `"exact"` | yes | — | Selects this scorer. |
+| `type` | `"exact"` | yes | n/a | Selects this scorer. |
 | `value` | string | no | none | The exact string to compare against. When omitted, the case's `expected` is used. |
 
 ```yaml
@@ -335,7 +335,7 @@ scorers:
 
 The any-language escape hatch. The command receives `{"input", "output",
 "expected"}` as JSON on stdin and must print `{"score", "passed"?, "reason"?}`
-on stdout. See [Subprocess protocol](../subprocess-protocol/) for the full
+on stdout. See [Subprocess protocol](/reference/subprocess-protocol/) for the full
 contract.
 
 | Field | Type | Required | Description |
@@ -354,7 +354,7 @@ scorers:
 Since v0.3.0. Asserts on an agent trajectory (tool calls, ordering, step
 budget). Requires a `trace` target, whose output is the normalized trajectory.
 The scorer passes iff **all** its rules hold. See [Trajectory
-format](../trajectory-format/) for full rule semantics.
+format](/reference/trajectory-format/) for full rule semantics.
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -419,10 +419,10 @@ replayed verdicts are deterministic.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `type` | `"judge"` | yes | — | Selects this scorer. |
-| `url` | string | yes | — | Base URL, e.g. `https://api.openai.com/v1`. |
-| `model` | string | yes | — | Judge model name. |
-| `rubric` | string | yes | — | What the judge should assess, e.g. "Is the answer grounded in the provided context?". |
+| `type` | `"judge"` | yes | n/a | Selects this scorer. |
+| `url` | string | yes | n/a | Base URL, e.g. `https://api.openai.com/v1`. |
+| `model` | string | yes | n/a | Judge model name. |
+| `rubric` | string | yes | n/a | What the judge should assess, e.g. "Is the answer grounded in the provided context?". |
 | `api_key_env` | string | no | none | Name of the environment variable holding the judge's API key. |
 | `threshold` | number | no | `0.5` | Minimum score (0.0 to 1.0) to pass. |
 
@@ -475,13 +475,13 @@ Since v0.7.5. Embeds the case's `expected` answer and the output
 through an OpenAI-compatible `/embeddings` endpoint and passes iff their **cosine
 similarity** is at least `threshold`. Embedding calls go through the
 record/replay cache, so replayed scores are deterministic, offline, and keyless.
-See the [Semantic similarity guide](../../guides/semantic-similarity/).
+See the [Semantic similarity guide](/guides/semantic-similarity/).
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `type` | `"similarity"` | yes | — | Selects this scorer. |
-| `url` | string | yes | — | Base URL of the OpenAI-compatible embeddings API, e.g. `https://api.openai.com/v1`. `/embeddings` is appended. Must be non-empty. |
-| `model` | string | yes | — | Embedding model name, e.g. `text-embedding-3-small`. |
+| `type` | `"similarity"` | yes | n/a | Selects this scorer. |
+| `url` | string | yes | n/a | Base URL of the OpenAI-compatible embeddings API, e.g. `https://api.openai.com/v1`. `/embeddings` is appended. Must be non-empty. |
+| `model` | string | yes | n/a | Embedding model name, e.g. `text-embedding-3-small`. |
 | `api_key_env` | string | no | none | Name of the environment variable holding the API key. Secrets never appear inline in YAML; the key never enters the cache. |
 | `threshold` | number | no | `0.8` | Minimum cosine similarity to pass. A finite value in `[-1, 1]`. |
 
@@ -515,7 +515,7 @@ The `run` block is optional; every field has a default.
 | `trials` | integer or [trials block](#trials) | no | `1` | Run each case N times and aggregate. Since v0.7.5. |
 | `classification` | bool | no | `false` | Compute [classification aggregates](#classification) (accuracy, macro-F1, per-class metrics) over labeled cases. Since v0.7.5. |
 | `matrix` | list of target names | no | none | Run the whole suite once per named target and print a side-by-side [comparison](#matrix). At least two distinct names, each defined in `targets`. Since v0.7.5. |
-| `history` | bool | no | `true` | Append one run-history row per executed run (a matrix records one per arm) to `.evalcore/cache.db`, so [`evalcore serve`](../../guides/run-history-and-serve/) can list and diff past runs. `--no-history` overrides to false. This is metadata only: the exit code, report bytes, and cache keys are identical either way, and a write failure is a warning, never a run failure. Since v0.7.5. |
+| `history` | bool | no | `true` | Append one run-history row per executed run (a matrix records one per arm) to `.evalcore/cache.db`, so [`evalcore serve`](/guides/run-history-and-serve/) can list and diff past runs. `--no-history` overrides to false. This is metadata only: the exit code, report bytes, and cache keys are identical either way, and a write failure is a warning, never a run failure. Since v0.7.5. |
 
 ```yaml
 run:
@@ -552,11 +552,11 @@ verdicts into one case verdict. Accepts an **integer shorthand** (`trials: 3`,
 meaning `require: all`) or the full `{ count, require }` map. Absent, or
 `trials: 1`, means one trial with `require: all`, byte-identical to a run with
 no trials configured. See the [Trials and statistics
-guide](../../guides/trials-and-statistics/) for aggregation and cache semantics.
+guide](/guides/trials-and-statistics/) for aggregation and cache semantics.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `count` | integer | yes | — | Number of trials per case. Must be at least 1. |
+| `count` | integer | yes | n/a | Number of trials per case. Must be at least 1. |
 | `require` | string | no | `all` | Fold policy from per-trial verdicts to the case verdict: `all` (every trial passes), `majority` (strictly more than half pass), or `any` (at least one passes). |
 
 ```yaml
@@ -584,7 +584,7 @@ metrics over the **labeled** cases (those with an `expected` field): accuracy,
 macro-averaged F1, and a per-class precision/recall/F1/support table. Off by
 default; also turned on implicitly by an [`accuracy` or `macro_f1`
 gate](#gates), which needs the metrics. See the [Classification
-guide](../../guides/classification/) for a worked example.
+guide](/guides/classification/) for a worked example.
 
 ```yaml
 run:
@@ -679,7 +679,7 @@ run:
 
 Gate outcomes print after the summary and ride along in the JSON and HTML
 reports; JUnit output is unchanged (the exit code carries the gate result). See
-the [CLI reference](../cli/) for how gates fold into the exit code.
+the [CLI reference](/reference/cli/) for how gates fold into the exit code.
 
 ### Matrix
 
@@ -689,7 +689,7 @@ comparison (model A vs B, or prompt v1 vs v2) from one invocation. Requires at
 least two distinct names, each defined in `targets`. Absent (the default): a single-target
 run, byte-identical to before. `--matrix name,name` on the CLI overrides this;
 combining a matrix with `--target`, `--baseline`, or `--save-baseline` is an
-error. See the [Comparing models guide](../../guides/comparing-models/) for a
+error. See the [Comparing models guide](/guides/comparing-models/) for a
 worked example.
 
 ```yaml
@@ -712,3 +712,16 @@ run:
 - One cassette store is shared across arms; each arm has its own cache identity,
   so `--cache replay` works per arm. Non-matrix runs take the unchanged
   single-target path.
+
+## See also
+
+- [Core concepts](/getting-started/core-concepts/): what each block is for,
+  before you read its fields.
+- [CLI reference](/reference/cli/): the flags that override these fields at
+  run time.
+- [Custom scorers](/guides/custom-scorers/): writing the command a
+  [`subprocess`](#subprocess) scorer points at.
+- [Gates and baselines](/guides/gates-and-baselines/): the pass/fail
+  semantics behind the [`gates`](#gates) block.
+- [Cache and determinism](/reference/cache-and-determinism/): which of these
+  target fields end up in the cache key.

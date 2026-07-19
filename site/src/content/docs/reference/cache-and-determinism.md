@@ -1,5 +1,5 @@
 ---
-title: Cache & determinism
+title: Cache and determinism
 description: The record/replay cache. Location, cache-key contents per target type, the four modes, the cassette-commit workflow, baseline storage, and EvalCore's determinism guarantees.
 ---
 
@@ -78,7 +78,7 @@ Header values are part of the identity, and are therefore hashed into the
 committed `.evalcore/cache.db`, so never put secrets in `headers:`. Use
 `api_key_env`, which never enters the cache. A `headers:` name that collides
 case-insensitively with the auth header is rejected at config validation (see
-the [http validation rules](../configuration/#http)).
+the [http validation rules](/reference/configuration/#http)).
 
 ### Uncacheable targets
 
@@ -90,7 +90,7 @@ recording could go stale silently. Traces are local files, never worth caching.
 ## The four modes
 
 `--cache <mode>` selects behavior for cacheable targets. See the [CLI
-reference](../cli/#cache-modes).
+reference](/reference/cli/#cache-modes).
 
 | Mode | Behavior |
 |---|---|
@@ -156,5 +156,18 @@ re-serialize byte-identically). Because the store also holds baselines, a
 `--baseline` or `--save-baseline` flag opens `.evalcore/cache.db` even for a
 `shell` target that never touches the cache.
 
-See the [CLI reference](../cli/#baselines) for how the baseline diff prints and
+See the [CLI reference](/reference/cli/#baselines) for how the baseline diff prints and
 how it flips the exit-code contract.
+
+## See also
+
+- [Record / replay](/guides/record-replay/): the day-to-day workflow these
+  invariants exist to support.
+- [Running in CI](/guides/running-in-ci/): replaying committed cassettes
+  offline, without credentials.
+- [CLI reference](/reference/cli/#cache-modes): the `--cache` values that
+  select the modes above.
+- [Gates and baselines](/guides/gates-and-baselines/): what a saved
+  baseline is compared against on the next run.
+- [Configuration reference](/reference/configuration/): the target fields
+  that feed the cache identities described here.

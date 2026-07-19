@@ -36,7 +36,7 @@ The repo ships a ready-to-run example at `examples/quickstart/`. Run it:
 evalcore run examples/quickstart/evals.yaml
 ```
 
-```
+```text
 PASS late-refund (12ms)
 PASS fee-dispute (11ms)
 PASS card-lost (10ms)
