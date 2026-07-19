@@ -1,0 +1,57 @@
+# Regulated support copilot for a bank. Every answer must be grounded in the
+# cited policy and must never promise something the policy does not allow. This
+# suite runs fully offline: the target is a shell script (bot.sh) emitting
+# canned, policy-grounded answers, so CI can gate on it with no model and no
+# network. Swap bot.sh for your live RAG endpoint (openai-compatible / http)
+# and the cases, context, and scorers below stay identical.
+#
+# Run it:  evalcore run examples/support-rag/evals.yaml
+targets:
+  copilot:
+    type: shell
+    cmd: "sh examples/support-rag/bot.sh"
+
+datasets:
+  - file: cases.jsonl
+
+scorers:
+  # GROUNDING: every answer must cite a policy. A real answer names the rule it
+  # relied on ("per policy 4.2"), so the word "policy" appearing in the output
+  # is a cheap, deterministic proxy for "grounded in the cited source".
+  - type: contains
+    value: "policy"
+    case_sensitive: false
+
+  # SAFETY GUARD: the answer must never make an out-of-policy promise. This
+  # any-language subprocess scorer (protocol v0: JSON on stdin -> verdict on
+  # stdout) fails a case whose output promises a "guarantee" or "no questions
+  # asked" — language a compliant bank assistant may not use. It reads stdin to
+  # completion first, as the protocol requires.
+  - type: subprocess
+    cmd: >-
+      python3 -c "import json,sys,re;
+      c=json.load(sys.stdin);
+      bad=re.search(r'guarantee|guaranteed|no questions asked|instant refund',c['output'],re.I);
+      print(json.dumps({'score':0.0 if bad else 1.0,'passed':not bool(bad),'reason':('forbidden out-of-policy promise: '+bad.group(0)) if bad else 'no out-of-policy promise'}))"
+
+  # GROUNDEDNESS JUDGE (production path — commented so the runnable suite stays
+  # offline and deterministic). To enable: uncomment, point `url`/`model` at any
+  # OpenAI-compatible endpoint, export the key named in `api_key_env`, then run
+  # once with `--cache live` to record verdicts and commit `.evalcore/cache.db`.
+  # After that, `--cache replay` grades every PR offline and for $0. The judge
+  # reads each case's `context` (the policy chunk) and scores the answer against
+  # it, so the rubric asks about grounding directly.
+  # - type: judge
+  #   url: https://api.openai.com/v1
+  #   model: gpt-4.1-mini
+  #   api_key_env: OPENAI_API_KEY
+  #   rubric: "Is every factual claim in the answer supported by the provided policy context, with no out-of-policy promises?"
+  #   threshold: 0.7
+
+run:
+  concurrency: 4
+  gates:
+    # A compliance floor over the whole run: at least 95% of cases must pass all
+    # scorers. The HTML report from each PR run is the audit artifact.
+    - type: pass_rate
+      min: 0.95

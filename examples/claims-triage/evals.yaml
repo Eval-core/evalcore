@@ -1,0 +1,35 @@
+# Claims triage: classify each free-text claim into one of four labels. This is
+# a label-prediction suite, so the interesting numbers are accuracy and
+# macro-F1, and the gates below turn an aggregate-quality bar into a CI check.
+# The target (triage.sh) misclassifies one case on purpose — a staged claim
+# routed to `auto` — so the report shows a real per-class gap (fraud-review
+# recall drops to 0.5) while both gates still clear their floor. That is the
+# whole point: per-class precision/recall in every report, and a gate that
+# would fail the build the moment fraud recall slips below the line.
+#
+# Run it:  evalcore run examples/claims-triage/evals.yaml
+targets:
+  classifier:
+    type: shell
+    cmd: "sh examples/claims-triage/triage.sh"
+
+datasets:
+  - file: cases.jsonl
+
+scorers:
+  # Per-case check: the output must be a well-formed label. This passes for
+  # every case (even the misclassified one — it still emits a valid label), so
+  # the exit code is driven by the classification gates below, not by whether
+  # any single prediction was right. Grading correctness is the gates' job.
+  - type: regex
+    pattern: "^(auto|property|injury|fraud-review)\\s*$"
+
+run:
+  classification: true
+  gates:
+    # Aggregate-quality floors over the labeled cases. Both clear with the one
+    # deliberate miss; drop the fraud recall further and macro-F1 sinks the gate.
+    - type: accuracy
+      min: 0.8
+    - type: macro_f1
+      min: 0.7

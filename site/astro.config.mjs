@@ -65,6 +65,7 @@ export default defineConfig({
 						{ label: 'Installation', slug: 'getting-started/installation' },
 						{ label: 'Quickstart', slug: 'getting-started/quickstart' },
 						{ label: 'Core concepts', slug: 'getting-started/core-concepts' },
+						{ label: 'What teams use it for', slug: 'getting-started/what-teams-use-it-for' },
 					],
 				},
 				{

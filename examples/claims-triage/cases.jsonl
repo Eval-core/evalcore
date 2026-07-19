@@ -1,0 +1,9 @@
+{"id": "auto-rear-end", "input": "My car was rear-ended at a stop light and the rear bumper is crushed.", "expected": "auto"}
+{"id": "auto-deer", "input": "A deer ran into my vehicle on the highway and damaged the front fender.", "expected": "auto"}
+{"id": "auto-parking", "input": "Someone backed into my parked truck in the lot and dented the door panel.", "expected": "auto"}
+{"id": "property-pipe", "input": "A burst pipe flooded my basement overnight and ruined the drywall.", "expected": "property"}
+{"id": "property-fire", "input": "A kitchen fire left smoke damage across the living room walls.", "expected": "property"}
+{"id": "injury-slip", "input": "I slipped on a wet floor at the store and fractured my wrist.", "expected": "injury"}
+{"id": "injury-whiplash", "input": "Whiplash from the accident has me in physical therapy twice a week.", "expected": "injury"}
+{"id": "fraud-duplicate", "input": "A duplicate of this repair invoice was already paid under another policy.", "expected": "fraud-review"}
+{"id": "fraud-staged-collision", "input": "The claimant reports a collision, but the damage is inconsistent with the police report and looks staged.", "expected": "fraud-review"}

@@ -33,6 +33,16 @@ In GitHub Actions, one step runs a suite and gates the job (report lands in the 
 
 The `html-artifact` input uploads a self-contained HTML report as a build artifact a reviewer can click straight from the PR — the pass/fail summary, gate outcomes, and every case's output, per-scorer scores, and agent trajectory, expandable inline. It uploads even when the suite fails (that's when it matters most), and embeds the baseline diff when `--baseline` is set. Locally or in any pipeline, `evalcore run … --html report.html` writes the same document alongside (never replacing) the primary `--reporter` output.
 
+## What teams use it for
+
+- **The support copilot that must not promise refunds** — a regulated bank's assistant, gated so every answer cites its policy and none makes an out-of-policy promise, with the PR's HTML report as the compliance audit artifact ([examples/support-rag](examples/support-rag)).
+- **Is the 10x-cheaper model good enough?** — `--matrix expensive,cheap` runs the suite against both in one shot and prints per-case winners and each model's cost, turning a six-figure model decision into an evidence-backed one ([comparing models](https://eval-core.github.io/evalcore/guides/comparing-models/)).
+- **The judge suite too expensive to run per-PR** — record the LLM-judge verdicts once, commit the cassette, and replay them for $0 and byte-for-byte deterministic, so the suite moves from a weekly job to a blocking check on every merge ([record / replay](https://eval-core.github.io/evalcore/guides/record-replay/)).
+- **Claims triage that catches a silent fraud-recall drop** — `accuracy` and `macro_f1` gates fail the build when the metric that matters slips, with per-class precision and recall in every report ([examples/claims-triage](examples/claims-triage)).
+- **The agent that touches money** — `trajectory` rules over an OTel trace (`must_not_call: issue_refund before: verify_identity`, `max_steps`) turn a prompt-enforced policy into a language-agnostic CI assertion on what the agent actually did ([agents and traces](https://eval-core.github.io/evalcore/guides/agents-and-traces/)).
+
+All of it runs local-first and offline — the suite, the cassette, and history live in a SQLite file next to your repo, nothing leaves the building. See [What teams use it for](https://eval-core.github.io/evalcore/getting-started/what-teams-use-it-for/) for the full walkthrough.
+
 ## Quickstart
 
 ```sh
