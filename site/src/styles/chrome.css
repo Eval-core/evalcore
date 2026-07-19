@@ -33,11 +33,24 @@ header.header button[data-open-modal]:hover {
 	border-color: var(--sl-color-gray-4);
 	color: var(--sl-color-text);
 }
-header.header button[data-open-modal] kbd {
+/* Starlight nests kbd>kbd+kbd; only the outer wrapper is a chip. */
+header.header button[data-open-modal] > kbd {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.2rem;
 	background: transparent;
 	border: 1px solid var(--sl-color-hairline);
 	border-radius: var(--radius-sm);
+	padding-inline: 0.4rem;
 	color: var(--muted);
+}
+header.header button[data-open-modal] > kbd kbd {
+	background: transparent;
+	border: 0;
+	padding: 0;
+	margin: 0;
+	color: inherit;
+	font-family: inherit;
 }
 
 /* ---- Sidebar ------------------------------------------------------------ */
@@ -211,12 +224,18 @@ starlight-toc a[aria-current='true']::before {
 .expressive-code .copy .feedback {
 	--tooltip-bg: #18181d;
 	background: #18181d;
-	border: 1px solid rgb(45 212 160 / 35%);
-	color: #2dd4a0;
+	border: 1px solid #2a2a30;
+	color: #e4e4e7;
 	font-size: var(--fs-xs);
 	font-weight: 500;
 	padding-inline: 0.5rem;
-	border-radius: 999px;
+	border-radius: var(--radius-sm);
+}
+/* When a block has a title bar, the copy button belongs IN the bar, not
+ * floating over the first line of code. */
+.expressive-code .frame.has-title .copy {
+	inset-block-start: 0.4rem;
+	inset-inline-end: 0.45rem;
 }
 
 /* ---- Landing footer (splash only) --------------------------------------- */

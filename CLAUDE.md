@@ -49,6 +49,10 @@ Each crate has its own CLAUDE.md with local rules. `examples/quickstart/` double
 - Agents: `rust-reviewer` (post-change review), `test-engineer` (coverage work).
 - Skills: `verify` (full check + E2E smoke), `new-scorer`, `new-target` (checklists that keep schema/impl/factory/tests/docs in sync).
 
+## Design system
+
+All design decisions for every user-facing surface (site, README, GitHub assets, banners, future apps and extensions) live in `design/`: philosophy docs under `design/philosophy/`, shipping brand assets under `design/assets/`. `design/README.md` is the entry point. Read it before styling anything new, and keep every surface consistent with it; if a decision changes, change it there first (`site/src/styles/tokens.css` is the machine-readable copy).
+
 ## Style
 
 - Errors: `thiserror` enums in library crates, `anyhow` + context at edges. Messages name the file/case/scorer involved.
