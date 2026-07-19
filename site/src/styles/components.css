@@ -30,12 +30,12 @@
 }
 
 /* ---- Cards (CardGrid) --------------------------------------------------- */
-/* Match the landing feature grid exactly: hairline top rule, no fill, no icon,
- * no box. The rule is the only chrome. */
+/* Bordered surfaces with a whisper of fill and an accent-lit hover. Same
+ * vocabulary on the landing and in the docs. */
 /* Starlight 0.41.3 */
 .card-grid {
 	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: var(--sp-6) var(--sp-7);
+	gap: var(--sp-5);
 }
 @media (max-width: 60rem) {
 	.card-grid {
@@ -49,11 +49,25 @@
 }
 /* Starlight 0.41.3 */
 .sl-markdown-content .card {
-	border: 0;
-	border-top: var(--border);
-	border-radius: 0;
-	padding: var(--sp-4) 0 0;
-	background: transparent;
+	border: var(--border);
+	border-radius: var(--radius);
+	padding: var(--sp-5);
+	background: color-mix(in srgb, var(--sl-color-text) 2%, transparent);
+	transition:
+		border-color 160ms ease,
+		transform 160ms ease,
+		background 160ms ease,
+		box-shadow 160ms ease;
+}
+.sl-markdown-content .card:hover {
+	border-color: color-mix(in srgb, var(--sl-color-accent) 42%, var(--sl-color-hairline));
+	background: color-mix(in srgb, var(--sl-color-text) 4%, transparent);
+	box-shadow: 0 14px 32px -20px rgb(0 0 0 / 55%);
+}
+@media (prefers-reduced-motion: no-preference) {
+	.sl-markdown-content .card:hover {
+		transform: translateY(-3px);
+	}
 }
 .card .icon {
 	display: none;

@@ -15,102 +15,239 @@
 	--sl-content-margin-inline: auto;
 }
 
-/* ---- Hero: centered, typographic, two quiet buttons --------------------- */
-/* The hero ships without an image, but Starlight still reserves its image
- * column at >=50rem and flips its .stack to text-align:start. Collapse to one
- * full-width centered column. (Unlayered rules beat @layer starlight.core.) */
-/* Starlight 0.41.3 */
-[data-has-hero] .hero {
-	grid-template-columns: 100%;
-}
-/* Starlight 0.41.3 */
-[data-has-hero] .hero .stack {
+/* ---- Hero: composed, centered, layered light --------------------------- */
+.ec-hero {
+	position: relative;
 	text-align: center;
+	padding-block: var(--sp-8) var(--sp-6);
+	margin-bottom: var(--sp-2);
+	overflow: hidden;
+}
+/* A faint line grid that dissolves toward the edges via a radial mask, so it
+ * reads as depth rather than a flat overlay. */
+.ec-hero::before {
+	content: '';
+	position: absolute;
+	inset: -1px 0 0 0;
+	background-image:
+		linear-gradient(to right, color-mix(in srgb, var(--sl-color-hairline) 60%, transparent) 1px, transparent 1px),
+		linear-gradient(to bottom, color-mix(in srgb, var(--sl-color-hairline) 60%, transparent) 1px, transparent 1px);
+	background-size: 58px 58px;
+	mask-image: radial-gradient(ellipse 65% 62% at 50% 22%, #000 20%, transparent 72%);
+	-webkit-mask-image: radial-gradient(ellipse 65% 62% at 50% 22%, #000 20%, transparent 72%);
+	z-index: 0;
+	pointer-events: none;
+}
+/* One warm radial glow behind the headline for depth. */
+.ec-hero-glow {
+	position: absolute;
+	inset: -160px 0 auto 0;
+	height: 520px;
+	background: radial-gradient(ellipse 55% 100% at 50% 0%, rgb(251 146 60 / 15%), transparent 66%);
+	pointer-events: none;
+	z-index: 0;
+}
+:root[data-theme='light'] .ec-hero-glow {
+	background: radial-gradient(ellipse 55% 100% at 50% 0%, rgb(194 65 12 / 10%), transparent 66%);
+}
+.ec-hero > *:not(.ec-hero-glow) {
+	position: relative;
+	z-index: 1;
+}
+
+/* Staggered rise-in on load. Guarded by reduced-motion; a static screenshot and
+ * the settled page are identical. */
+@media (prefers-reduced-motion: no-preference) {
+	.ec-hero > *:not(.ec-hero-glow) {
+		animation: ec-rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+	}
+	.ec-eyebrow {
+		animation-delay: 0.03s;
+	}
+	.ec-hero-title {
+		animation-delay: 0.09s;
+	}
+	.ec-hero-tagline {
+		animation-delay: 0.17s;
+	}
+	.ec-hero-actions {
+		animation-delay: 0.25s;
+	}
+	.ec-hero-trust {
+		animation-delay: 0.33s;
+	}
+}
+@keyframes ec-rise {
+	from {
+		opacity: 0;
+		transform: translateY(14px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+/* Eyebrow: a quiet pill that anchors the hero and states the positioning. */
+.ec-eyebrow {
+	display: inline-flex;
 	align-items: center;
-	margin-inline: auto;
+	gap: var(--sp-2);
+	margin: 0 auto var(--sp-5);
+	padding: var(--sp-1) var(--sp-3);
+	border: var(--border);
+	border-radius: 999px;
+	font-size: var(--fs-xs);
+	font-weight: 500;
+	color: var(--muted);
+	background: color-mix(in srgb, var(--sl-color-bg) 55%, transparent);
+	backdrop-filter: blur(6px);
 }
-.hero {
-	padding-block: var(--sp-6) var(--sp-4);
+.ec-eyebrow::before {
+	content: '';
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--sl-color-accent);
+	box-shadow: 0 0 8px 1px color-mix(in srgb, var(--sl-color-accent) 70%, transparent);
 }
-.hero h1 {
+
+.ec-hero-title {
+	max-width: 22ch;
+	margin: 0 auto;
 	font-size: var(--fs-3xl);
 	font-weight: 700;
-	letter-spacing: -0.02em;
-	line-height: var(--lh-tight);
-	color: var(--sl-color-text);
-	max-width: 46rem;
-	margin-inline: auto;
+	letter-spacing: -0.025em;
+	line-height: 1.05;
+	text-wrap: balance;
+	/* Subtle top-to-bottom sheen for dimension, clipped to the glyphs. Kept
+	 * shallow so the lower line still reads as strong, not faded. */
+	background: linear-gradient(
+		180deg,
+		var(--sl-color-text) 58%,
+		color-mix(in srgb, var(--sl-color-text) 86%, var(--sl-color-bg)) 100%
+	);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
 }
-.hero .tagline {
-	max-width: 38rem;
-	margin-inline: auto;
+.ec-hero-tagline {
+	max-width: 40rem;
+	margin: var(--sp-4) auto 0;
 	color: var(--muted);
 	font-size: var(--fs-lg);
 	line-height: var(--lh-snug);
 }
-/* Starlight 0.41.3 */
-.hero .actions {
+
+/* ---- Buttons: refined, with a hint of depth ---------------------------- */
+.ec-hero-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--sp-3);
 	justify-content: center;
 	margin-top: var(--sp-6);
 }
-
-/* Buttons: primary = solid text-color on bg (near-black->white, inverts in
- * dark); secondary = 1px hairline, no fill. --radius, never a pill. That, plus
- * the two hover states below, is the entire button interaction design. */
-/* Starlight 0.41.3 */
-.sl-link-button {
+.ec-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0.62rem 1.2rem;
 	border-radius: var(--radius);
-	font-weight: 500;
 	font-size: var(--fs-sm);
-	box-shadow: none;
+	font-weight: 600;
+	text-decoration: none;
+	transition:
+		transform 120ms ease,
+		box-shadow 120ms ease,
+		border-color 120ms ease,
+		background 120ms ease;
 }
-.sl-link-button.primary {
+.ec-btn-primary {
 	background: var(--sl-color-text);
 	color: var(--sl-color-bg);
 	border: 1px solid var(--sl-color-text);
+	box-shadow:
+		0 1px 2px rgb(0 0 0 / 22%),
+		0 10px 26px -14px rgb(0 0 0 / 55%),
+		0 0 0 0 color-mix(in srgb, var(--sl-color-accent) 40%, transparent);
 }
-.sl-link-button.primary:hover {
-	opacity: 0.85;
-	background: var(--sl-color-text);
-	color: var(--sl-color-bg);
+.ec-btn-primary:hover {
+	transform: translateY(-1px);
+	box-shadow:
+		0 2px 4px rgb(0 0 0 / 22%),
+		0 14px 30px -12px rgb(0 0 0 / 60%),
+		0 8px 30px -6px color-mix(in srgb, var(--sl-color-accent) 45%, transparent);
 }
-.sl-link-button.secondary {
-	background: transparent;
+.ec-btn-secondary {
+	background: color-mix(in srgb, var(--sl-color-text) 4%, transparent);
 	color: var(--sl-color-text);
-	border: 1px solid var(--sl-color-hairline);
+	border: var(--border);
 }
-.sl-link-button.secondary:hover {
+.ec-btn-secondary:hover {
+	transform: translateY(-1px);
 	border-color: var(--sl-color-text);
-	background: transparent;
-	color: var(--sl-color-text);
 }
 
-/* ---- Terminal cast: plain thin frame, the one permitted shadow ---------- */
-.ec-cast {
-	max-width: 46rem;
-	margin: var(--sp-8) auto 0;
+/* ---- Trust row: quiet factual signals as pills ------------------------- */
+.ec-hero-trust {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: var(--sp-2) var(--sp-3);
+	margin: var(--sp-6) auto 0;
+	padding: 0;
+	list-style: none;
 }
-/* Render at the asset's intrinsic ratio — no forced aspect-ratio/object-fit,
- * which cropped the first line on the recording. */
+.ec-hero-trust li {
+	padding: var(--sp-1) var(--sp-3);
+	border: var(--border);
+	border-radius: 999px;
+	font-size: var(--fs-xs);
+	color: var(--muted);
+	background: color-mix(in srgb, var(--sl-color-bg) 40%, transparent);
+}
+
+/* ---- Terminal cast: a framed terminal window --------------------------- */
+.ec-cast {
+	max-width: 52rem;
+	margin: var(--sp-7) auto 0;
+	border: var(--border);
+	border-radius: var(--radius);
+	overflow: hidden;
+	background: var(--code-bg);
+	box-shadow:
+		0 1px 2px rgb(0 0 0 / 20%),
+		0 30px 70px -30px rgb(0 0 0 / 60%);
+}
+/* Window title bar with the three terminal dots, drawn in CSS. */
+.ec-cast::before {
+	content: '';
+	display: block;
+	height: 36px;
+	border-bottom: var(--border);
+	background-color: color-mix(in srgb, var(--code-bg) 82%, var(--sl-color-text) 18%);
+	background-image:
+		radial-gradient(circle 5px at 22px 18px, #ff5f57 46%, transparent 52%),
+		radial-gradient(circle 5px at 42px 18px, #febc2e 46%, transparent 52%),
+		radial-gradient(circle 5px at 62px 18px, #28c840 46%, transparent 52%);
+	background-repeat: no-repeat;
+}
 .ec-cast video,
 .ec-cast img {
 	display: block;
 	width: 100%;
 	max-width: 100%;
 	height: auto;
-	border: var(--border);
-	border-radius: var(--radius);
-	box-shadow: var(--cast-shadow);
+	margin: 0;
 	background: var(--code-bg);
 }
-.ec-cast img {
-	margin: 0;
-}
 .ec-cast figcaption {
-	margin-top: var(--sp-3);
+	padding: var(--sp-3) var(--sp-4);
+	border-top: var(--border);
 	text-align: center;
 	font-size: var(--fs-sm);
 	color: var(--muted);
+	background: color-mix(in srgb, var(--code-bg) 60%, var(--sl-color-bg));
 }
 
 /* ---- Step numbers: a CSS counter on the section headings ---------------- */
@@ -156,23 +293,81 @@
 	color: var(--sl-color-text);
 }
 
-/* ---- Closing: plain centered block ------------------------------------- */
-.ec-closing {
+/* ---- Closing CTA panel ------------------------------------------------- */
+/* A bordered panel with its own soft glow, so the page lands on a confident
+ * finish instead of trailing off. */
+.ec-cta {
+	position: relative;
+	overflow: hidden;
+	max-width: 48rem;
+	margin: var(--sp-9) auto 0;
+	padding: var(--sp-8) var(--sp-6);
 	text-align: center;
-	margin: var(--sp-7) 0 var(--sp-4);
+	border: var(--border);
+	border-radius: calc(var(--radius) * 2);
+	background:
+		linear-gradient(180deg, color-mix(in srgb, var(--sl-color-text) 3%, transparent), transparent 55%),
+		var(--sl-color-bg);
 }
-.ec-closing code {
-	display: inline-block;
-	font-family: var(--sl-font-mono);
-	font-size: var(--fs-sm);
-	padding: var(--sp-2) var(--sp-3);
+.ec-cta-glow {
+	position: absolute;
+	inset: -60% 0 auto 0;
+	height: 320px;
+	background: radial-gradient(ellipse 50% 100% at 50% 0%, rgb(251 146 60 / 15%), transparent 70%);
+	pointer-events: none;
+}
+:root[data-theme='light'] .ec-cta-glow {
+	background: radial-gradient(ellipse 50% 100% at 50% 0%, rgb(194 65 12 / 10%), transparent 70%);
+}
+.ec-cta > *:not(.ec-cta-glow) {
+	position: relative;
+	z-index: 1;
+}
+.sl-markdown-content .ec-cta h2 {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: var(--fs-2xl);
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	color: var(--sl-color-text);
+}
+.ec-cta > p {
+	max-width: 34rem;
+	margin: var(--sp-3) auto 0;
+	color: var(--muted);
+	font-size: var(--fs-base);
+}
+.ec-cta-cmd {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--sp-2);
+	margin-top: var(--sp-5);
+	padding: var(--sp-2) var(--sp-4);
 	border: var(--border);
 	border-radius: var(--radius);
 	background: var(--code-bg);
+}
+.ec-cta-cmd::before {
+	content: '$';
+	color: var(--muted);
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-sm);
+}
+.ec-cta-cmd code {
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-sm);
 	color: var(--sl-color-text);
 }
-.ec-closing .muted {
+.ec-cta-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: var(--sp-3);
+	margin-top: var(--sp-5);
+}
+.ec-cta-note {
 	margin-top: var(--sp-4);
-	font-size: var(--fs-sm);
+	font-size: var(--fs-xs);
 	color: var(--muted);
 }

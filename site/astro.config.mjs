@@ -18,6 +18,7 @@ export default defineConfig({
 			// surfaced). Wraps Starlight's default footer so docs pages keep
 			// their prev/next pagination.
 			components: {
+				Hero: './src/components/Hero.astro',
 				Footer: './src/components/Footer.astro',
 			},
 			// The mark: orbit-and-check symbol next to the wordmark. Light/dark

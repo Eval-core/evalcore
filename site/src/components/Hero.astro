@@ -1,0 +1,40 @@
+---
+// Custom splash hero. Overrides Starlight's default so the landing gets a real
+// composed hero — eyebrow, headline, subhead, buttons, and a trust row — with
+// deliberate spacing, instead of the default's loose stack. Content still comes
+// from the page's `hero:` frontmatter so the copy lives with the page.
+const route = Astro.locals.starlightRoute;
+const hero = route.entry.data.hero ?? {};
+const title = hero.title ?? route.entry.data.title;
+const tagline = hero.tagline ?? '';
+const actions = hero.actions ?? [];
+
+const base = import.meta.env.BASE_URL;
+const href = (link = '') =>
+	/^(https?:)?\/\//.test(link) || link.startsWith('#')
+		? link
+		: `${base.replace(/\/$/, '')}/${link.replace(/^\//, '')}`;
+
+const trust = ['Offline', '$0 in CI', 'No telemetry', 'Any language'];
+---
+
+<section class="ec-hero">
+	<div class="ec-hero-glow" aria-hidden="true"></div>
+	<p class="ec-eyebrow">The eval engine for AI systems</p>
+	<h1 class="ec-hero-title">{title}</h1>
+	{tagline && <p class="ec-hero-tagline">{tagline}</p>}
+	{
+		actions.length > 0 && (
+			<div class="ec-hero-actions">
+				{actions.map((a) => (
+					<a href={href(a.link)} class={`ec-btn ec-btn-${a.variant ?? 'secondary'}`}>
+						{a.text}
+					</a>
+				))}
+			</div>
+		)
+	}
+	<ul class="ec-hero-trust" aria-label="At a glance">
+		{trust.map((t) => <li>{t}</li>)}
+	</ul>
+</section>
