@@ -1,0 +1,119 @@
+---
+source: crates/evalcore-report/src/lib.rs
+expression: "html_matrix(&matrix, &comparison)"
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EvalCore report</title>
+<style>
+:root{--bg:#ffffff;--fg:#1c1e21;--muted:#6b7280;--border:#e5e7eb;--panel:#f9fafb;--pass:#137333;--pass-bg:#e6f4ea;--fail:#c5221f;--fail-bg:#fce8e6;--code:#f3f4f6;}@media (prefers-color-scheme:dark){:root{--bg:#16181c;--fg:#e6e6e6;--muted:#9aa0a6;--border:#2c2f36;--panel:#1e2127;--pass:#81c995;--pass-bg:#1e3a28;--fail:#f28b82;--fail-bg:#3a1f1e;--code:#232733;}}*{box-sizing:border-box;}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}main{max-width:960px;margin:0 auto;padding:24px 16px 64px;}h1{font-size:20px;margin:0 0 12px;}h2{font-size:16px;margin:28px 0 10px;border-bottom:1px solid var(--border);padding-bottom:4px;}h3{font-size:13px;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}h3.pass{color:var(--pass);}h3.fail{color:var(--fail);}h3.muted{color:var(--muted);}.stats{display:flex;flex-wrap:wrap;gap:8px;}.stat{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-variant-numeric:tabular-nums;}.stat.pass{color:var(--pass);}.stat.fail{color:var(--fail);}.overall-pass{background:var(--pass-bg);color:var(--pass);border-color:transparent;font-weight:600;}.overall-fail{background:var(--fail-bg);color:var(--fail);border-color:transparent;font-weight:600;}table{width:100%;border-collapse:collapse;margin:4px 0;}th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top;}th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;}.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}.badge{display:inline-block;min-width:34px;text-align:center;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600;}.badge.pass{background:var(--pass-bg);color:var(--pass);}.badge.fail{background:var(--fail-bg);color:var(--fail);}.row{display:grid;grid-template-columns:70px 1fr 90px 80px;gap:8px;align-items:center;padding:6px 8px;}.row.head{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);}.c-id{overflow-wrap:anywhere;}details.case{border-bottom:1px solid var(--border);}details.case>summary{cursor:pointer;list-style:none;}details.case>summary::-webkit-details-marker{display:none;}details.case[open]>summary{background:var(--panel);}.case-body{padding:6px 12px 14px;}pre{background:var(--code);border:1px solid var(--border);border-radius:6px;padding:8px 10px;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0;font-size:12.5px;}code{background:var(--code);border-radius:4px;padding:1px 5px;font-size:12.5px;}.error{color:var(--fail);font-weight:600;}.muted{color:var(--muted);}ol.trajectory{margin:4px 0;padding-left:20px;}ol.trajectory>li{margin:6px 0;}.tool{font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}details.payload{margin:4px 0;}details.payload>summary{cursor:pointer;color:var(--muted);font-size:12px;}ul.reasons{color:var(--muted);}.gate.pass{color:var(--pass);font-weight:600;}.gate.fail{color:var(--fail);font-weight:600;}</style>
+</head>
+<body>
+<main>
+<section class="comparison">
+<h2>Comparison</h2>
+<table>
+<thead><tr><th>Case</th><th>gpt</th><th>claude</th><th>Winner</th></tr></thead>
+<tbody>
+<tr><td>refund-1</td><td><span class="badge pass">PASS</span></td><td><span class="badge pass">PASS</span></td><td>tie</td></tr>
+<tr><td>refund-2</td><td><span class="badge pass">PASS</span></td><td><span class="badge fail">FAIL</span></td><td>gpt</td></tr>
+</tbody>
+</table>
+<p class="muted">wins: gpt 1 &middot; claude 0 &middot; ties 1</p>
+</section>
+<section class="arm">
+<h2>target: gpt</h2>
+<header>
+<h1>EvalCore report</h1>
+<div class="stats">
+<span class="stat overall-pass">all passed</span>
+<span class="stat pass">2 passed</span>
+<span class="stat fail">0 failed</span>
+<span class="stat">2 total</span>
+<span class="stat">$0.0030</span>
+</div>
+</header>
+<section class="cases">
+<h2>Cases</h2>
+<div class="row head"><span class="c-status">Status</span><span class="c-id">Case</span><span class="c-latency">Latency</span><span class="c-cost">Cost</span></div>
+<details class="case">
+<summary class="row"><span class="c-status"><span class="badge pass">PASS</span></span><span class="c-id">refund-1</span><span class="c-latency num">10ms</span><span class="c-cost num">$0.0010</span></summary>
+<div class="case-body">
+<h3>Output</h3>
+<pre>refund issued</pre>
+<h3>Scores</h3>
+<table>
+<thead><tr><th>Scorer</th><th>Value</th><th>Passed</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td>contains</td><td class="num">1</td><td><span class="badge pass">yes</span></td><td></td></tr>
+</tbody>
+</table>
+</div>
+</details>
+<details class="case">
+<summary class="row"><span class="c-status"><span class="badge pass">PASS</span></span><span class="c-id">refund-2</span><span class="c-latency num">20ms</span><span class="c-cost num">$0.0020</span></summary>
+<div class="case-body">
+<h3>Output</h3>
+<pre>response</pre>
+<h3>Scores</h3>
+<table>
+<thead><tr><th>Scorer</th><th>Value</th><th>Passed</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td>contains</td><td class="num">1</td><td><span class="badge pass">yes</span></td><td></td></tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+</section>
+<section class="arm">
+<h2>target: claude</h2>
+<header>
+<h1>EvalCore report</h1>
+<div class="stats">
+<span class="stat overall-fail">failing</span>
+<span class="stat pass">1 passed</span>
+<span class="stat fail">1 failed</span>
+<span class="stat">2 total</span>
+<span class="stat">$0.0030</span>
+</div>
+</header>
+<section class="cases">
+<h2>Cases</h2>
+<div class="row head"><span class="c-status">Status</span><span class="c-id">Case</span><span class="c-latency">Latency</span><span class="c-cost">Cost</span></div>
+<details class="case">
+<summary class="row"><span class="c-status"><span class="badge pass">PASS</span></span><span class="c-id">refund-1</span><span class="c-latency num">10ms</span><span class="c-cost num">$0.0010</span></summary>
+<div class="case-body">
+<h3>Output</h3>
+<pre>refund issued</pre>
+<h3>Scores</h3>
+<table>
+<thead><tr><th>Scorer</th><th>Value</th><th>Passed</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td>contains</td><td class="num">1</td><td><span class="badge pass">yes</span></td><td></td></tr>
+</tbody>
+</table>
+</div>
+</details>
+<details class="case">
+<summary class="row"><span class="c-status"><span class="badge fail">FAIL</span></span><span class="c-id">refund-2</span><span class="c-latency num">20ms</span><span class="c-cost num">$0.0020</span></summary>
+<div class="case-body">
+<h3>Output</h3>
+<pre>response</pre>
+<h3>Scores</h3>
+<table>
+<thead><tr><th>Scorer</th><th>Value</th><th>Passed</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td>contains</td><td class="num">0</td><td><span class="badge fail">no</span></td><td>expected &quot;refund&quot;</td></tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+</section>
+</main>
+</body>
+</html>

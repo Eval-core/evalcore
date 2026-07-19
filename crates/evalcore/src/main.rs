@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use anyhow::{bail, Context};
+use anyhow::{anyhow, bail, Context};
 use clap::{Parser, Subcommand, ValueEnum};
 use evalcore_config::{EvalConfig, GateConfig, ScorerConfig, TargetConfig};
 use evalcore_core::{
@@ -32,6 +32,13 @@ enum Commands {
         /// Target to run (defaults to the only target when exactly one is defined).
         #[arg(long)]
         target: Option<String>,
+        /// Matrix mode: run the whole suite against several targets and print a
+        /// side-by-side comparison. Comma-separated target names (at least two,
+        /// distinct, each defined). Overrides `run.matrix` in the config.
+        /// `run.budget_usd` applies per arm. Mutually exclusive with `--target`,
+        /// `--baseline`, and `--save-baseline`.
+        #[arg(long)]
+        matrix: Option<String>,
         #[arg(long, value_enum, default_value_t = Reporter::Terminal)]
         reporter: Reporter,
         /// Write the report to a file instead of stdout.
@@ -101,6 +108,7 @@ async fn main() -> anyhow::Result<ExitCode> {
         Commands::Run {
             config,
             target,
+            matrix,
             reporter,
             output,
             html,
@@ -111,6 +119,7 @@ async fn main() -> anyhow::Result<ExitCode> {
             run(RunArgs {
                 config_path: &config,
                 target_name: target.as_deref(),
+                matrix: matrix.as_deref(),
                 reporter,
                 output_path: output.as_deref(),
                 html_path: html.as_deref(),
@@ -126,6 +135,7 @@ async fn main() -> anyhow::Result<ExitCode> {
 struct RunArgs<'a> {
     config_path: &'a Path,
     target_name: Option<&'a str>,
+    matrix: Option<&'a str>,
     reporter: Reporter,
     output_path: Option<&'a Path>,
     html_path: Option<&'a Path>,
@@ -134,10 +144,43 @@ struct RunArgs<'a> {
     save_baseline: Option<&'a str>,
 }
 
+/// Token cost rates declared by a target's config, if any. Only the priced
+/// target types (openai-compatible, trace) carry a `cost` block; others are
+/// uncosted.
+fn cost_rates_for(target_config: &TargetConfig) -> Option<CostRates> {
+    match target_config {
+        TargetConfig::OpenaiCompatible {
+            cost: Some(cost), ..
+        }
+        | TargetConfig::Trace { cost: Some(cost) } => Some(CostRates {
+            input_per_1m: cost.input_per_1m,
+            output_per_1m: cost.output_per_1m,
+        }),
+        _ => None,
+    }
+}
+
+/// Wrap a target in the record/replay cache when a cache mode and a store are
+/// active and the target has a cache identity; otherwise pass it through bare
+/// (shell targets, or cache off).
+fn wrap_target(
+    t: Box<dyn Target>,
+    cache_mode: Option<CacheMode>,
+    store: Option<&Arc<Store>>,
+) -> Box<dyn Target> {
+    if let (Some(mode), Some(store)) = (cache_mode, store) {
+        if t.cache_identity().is_some() {
+            return Box::new(CachedTarget::new(t, Arc::clone(store), mode));
+        }
+    }
+    t
+}
+
 async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
     let RunArgs {
         config_path,
         target_name,
+        matrix,
         reporter,
         output_path,
         html_path,
@@ -149,6 +192,36 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
     // Paths inside the config resolve relative to the config file itself, so
     // suites run identically from any working directory (CI, editors, make).
     let base_dir = config_path.parent().unwrap_or(Path::new("."));
+
+    // Matrix mode: `--matrix` (a comma list) overrides `run.matrix` in the
+    // config. When either is present, run the whole suite once per target and
+    // print a comparison — a separate code path from the single-target run
+    // below, which stays byte-identical for non-matrix runs.
+    let matrix_names: Option<Vec<String>> = match matrix {
+        Some(csv) => Some(
+            csv.split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(String::from)
+                .collect(),
+        ),
+        None => config.run.matrix.clone(),
+    };
+    if let Some(names) = matrix_names {
+        return run_matrix(RunMatrixArgs {
+            config: &config,
+            base_dir,
+            names,
+            target_name,
+            reporter,
+            output_path,
+            html_path,
+            cache,
+            baseline,
+            save_baseline,
+        })
+        .await;
+    }
 
     let (name, target_config) = match target_name {
         Some(name) => {
@@ -357,6 +430,177 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
     }
 
     Ok(if gate_passed {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(1)
+    })
+}
+
+struct RunMatrixArgs<'a> {
+    config: &'a EvalConfig,
+    base_dir: &'a Path,
+    names: Vec<String>,
+    target_name: Option<&'a str>,
+    reporter: Reporter,
+    output_path: Option<&'a Path>,
+    html_path: Option<&'a Path>,
+    cache: CacheArg,
+    baseline: Option<&'a str>,
+    save_baseline: Option<&'a str>,
+}
+
+/// Run the suite once per matrix target, in list order, and render the
+/// comparison. Each arm is priced with its own target's cost rates;
+/// `run.budget_usd` applies per arm. The exit code is 0 iff every arm satisfies
+/// today's whole contract (all cases pass and every gate holds), else 1.
+async fn run_matrix(args: RunMatrixArgs<'_>) -> anyhow::Result<ExitCode> {
+    let RunMatrixArgs {
+        config,
+        base_dir,
+        names,
+        target_name,
+        reporter,
+        output_path,
+        html_path,
+        cache,
+        baseline,
+        save_baseline,
+    } = args;
+
+    // Matrix is mutually exclusive with target selection and with baselines —
+    // both are per-run concepts. Reject loudly rather than silently choosing.
+    if target_name.is_some() {
+        bail!(
+            "cannot combine --target with a matrix: a matrix already runs the suite against \
+             several targets. Drop --target, or drop the matrix."
+        );
+    }
+    if baseline.is_some() || save_baseline.is_some() {
+        bail!("baselines are per-run; run targets separately with --target to baseline them");
+    }
+    // Validate the resolved names (CLI form; the config form is validated at
+    // parse). Same message, so both surfaces report identically.
+    evalcore_config::validate_matrix_names(&names, &config.targets)
+        .map_err(|msg| anyhow!("{msg}"))?;
+
+    let cache_mode = cache.mode();
+    let secrets = if cache_mode == Some(CacheMode::Replay) {
+        SecretPolicy::Optional
+    } else {
+        SecretPolicy::Require
+    };
+
+    // Build every arm's target up front (list order), so the store decision can
+    // see whether any arm is cacheable before opening it.
+    let mut raw_targets: Vec<(String, Box<dyn Target>)> = Vec::new();
+    for name in &names {
+        let target_config = config.targets.get(name).expect("validated to exist");
+        let target = build_target_with(target_config, secrets)
+            .with_context(|| format!("failed to build target {name:?}"))?;
+        raw_targets.push((name.clone(), target));
+    }
+
+    // One shared store across arms: judges/embeddings scorers reuse the same
+    // cassettes (they grade each arm's distinct output, so their prompts differ
+    // per arm anyway). Baselines are rejected above, so no history is needed.
+    let judge_configured = config
+        .scorers
+        .iter()
+        .any(|s| matches!(s, ScorerConfig::Judge { .. }));
+    let any_cacheable = raw_targets
+        .iter()
+        .any(|(_, t)| t.cache_identity().is_some());
+    let store: Option<Arc<Store>> = match cache_mode {
+        Some(_) if any_cacheable || judge_configured => {
+            Some(Arc::new(Store::open(&base_dir.join(".evalcore/cache.db"))?))
+        }
+        _ => None,
+    };
+
+    let scorers = build_scorers(&config.scorers, base_dir, |spec| {
+        Ok(wrap_target(
+            evalcore_core::embeddings::build_scorer_target(spec, secrets)?,
+            cache_mode,
+            store.as_ref(),
+        ))
+    })?;
+
+    let mut cases: Vec<TestCase> = Vec::new();
+    for dataset in &config.datasets {
+        cases.extend(load_jsonl(&base_dir.join(&dataset.file))?);
+    }
+    if cases.is_empty() {
+        bail!("datasets contain no test cases");
+    }
+
+    let want_classification = config.run.classification
+        || config.run.gates.iter().any(|gate| {
+            matches!(
+                gate,
+                GateConfig::Accuracy { .. } | GateConfig::MacroF1 { .. }
+            )
+        });
+
+    // Run each arm sequentially, in the user's list order — determinism and
+    // predictable rate-limit behavior. Every arm honors today's whole contract.
+    let mut arms: Vec<evalcore_core::MatrixArm> = Vec::new();
+    let mut all_ok = true;
+    for (name, raw) in raw_targets {
+        let target = wrap_target(raw, cache_mode, store.as_ref());
+        let target_config = config.targets.get(&name).expect("validated to exist");
+        let options = RunOptions {
+            concurrency: config.run.concurrency,
+            budget_usd: config.run.budget_usd,
+            cost_rates: cost_rates_for(target_config),
+            trials: config.run.trials.clone(),
+        };
+        let classification_cases = want_classification.then(|| cases.clone());
+        let mut summary = run_suite(target.as_ref(), cases.clone(), &scorers, options).await;
+        if let Some(cases) = classification_cases {
+            summary.classification = Some(evalcore_core::compute_classification(
+                &cases,
+                &summary.results,
+            ));
+        }
+        summary.gates = evalcore_core::evaluate_gates(&config.run.gates, &summary);
+        let gates_passed = summary.gates.iter().all(|g| g.passed);
+        all_ok &= summary.all_passed() && gates_passed;
+        arms.push(evalcore_core::MatrixArm {
+            target: name,
+            summary,
+        });
+    }
+
+    let matrix_summary = evalcore_core::MatrixSummary { arms };
+    let comparison = evalcore_core::compare_arms(&matrix_summary);
+
+    let rendered = match reporter {
+        Reporter::Terminal => evalcore_report::terminal_matrix(&matrix_summary, &comparison),
+        Reporter::Json => evalcore_report::json_matrix(&matrix_summary, &comparison)?,
+        Reporter::Junit => evalcore_report::junit_matrix(&matrix_summary),
+    };
+    match output_path {
+        Some(path) => {
+            std::fs::write(path, &rendered)
+                .with_context(|| format!("failed to write report to {}", path.display()))?;
+            let passed: usize = matrix_summary.arms.iter().map(|a| a.summary.passed()).sum();
+            let failed: usize = matrix_summary.arms.iter().map(|a| a.summary.failed()).sum();
+            let total: usize = matrix_summary.arms.iter().map(|a| a.summary.total()).sum();
+            eprintln!(
+                "{passed} passed, {failed} failed, {total} total across {} targets — report written to {}",
+                matrix_summary.arms.len(),
+                path.display()
+            );
+        }
+        None => print!("{rendered}"),
+    }
+    if let Some(path) = html_path {
+        let rendered_html = evalcore_report::html_matrix(&matrix_summary, &comparison);
+        std::fs::write(path, &rendered_html)
+            .with_context(|| format!("failed to write HTML report to {}", path.display()))?;
+    }
+
+    Ok(if all_ok {
         ExitCode::SUCCESS
     } else {
         ExitCode::from(1)

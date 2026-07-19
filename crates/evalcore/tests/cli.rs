@@ -380,3 +380,125 @@ fn accuracy_gate_unmet_exits_one() {
         .stdout(predicate::str::contains("GATE FAIL accuracy >= 0.9"))
         .stdout(predicate::str::contains("classification: accuracy 0.67"));
 }
+
+/// Write a two-target matrix suite: `echo` (`cat`) passes any case containing
+/// "refund"; `upper` uppercases, so it never contains lowercase "refund". The
+/// caller supplies the `scorers` block so a suite can be made all-pass.
+fn write_matrix_suite(dir: &std::path::Path, scorers: &str) {
+    std::fs::write(
+        dir.join("evals.yaml"),
+        format!(
+            r#"
+targets:
+  echo: {{ type: shell, cmd: "cat" }}
+  upper: {{ type: shell, cmd: "tr '[:lower:]' '[:upper:]'" }}
+datasets:
+  - file: cases.jsonl
+scorers:
+{scorers}
+run:
+  matrix: [echo, upper]
+"#
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("cases.jsonl"),
+        concat!(
+            r#"{"id": "refund-1", "input": "please process my refund"}"#,
+            "\n",
+            r#"{"id": "refund-2", "input": "another refund request"}"#,
+            "\n",
+        ),
+    )
+    .unwrap();
+}
+
+#[test]
+fn matrix_run_renders_comparison_and_exits_one_when_an_arm_fails() {
+    // echo passes both cases; upper fails both (uppercased, no lowercase
+    // "refund"). Any failing arm fails the whole matrix contract → exit 1.
+    let dir = tempfile::tempdir().unwrap();
+    write_matrix_suite(
+        dir.path(),
+        "  - type: contains\n    value: \"refund\"\n    case_sensitive: true",
+    );
+
+    evalcore()
+        .arg("run")
+        .arg(dir.path().join("evals.yaml"))
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("== target: echo"))
+        .stdout(predicate::str::contains("== target: upper"))
+        .stdout(predicate::str::contains("== comparison"))
+        // Arms run in list order; the header names them in that order.
+        .stdout(predicate::str::contains("case"))
+        .stdout(predicate::str::contains("echo"))
+        .stdout(predicate::str::contains("upper"))
+        // echo uniquely wins refund-1; the wins footer tallies it.
+        .stdout(predicate::str::contains("wins: echo 2 · upper 0 · ties 0"));
+}
+
+#[test]
+fn matrix_run_all_arms_pass_exits_zero() {
+    // An always-passing scorer (`contains: ""`) makes every arm satisfy the
+    // contract, so the matrix exits 0.
+    let dir = tempfile::tempdir().unwrap();
+    write_matrix_suite(dir.path(), "  - type: contains\n    value: \"\"");
+
+    evalcore()
+        .arg("run")
+        .arg(dir.path().join("evals.yaml"))
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("== comparison"));
+}
+
+#[test]
+fn matrix_unknown_name_errors_naming_available_targets() {
+    let dir = tempfile::tempdir().unwrap();
+    write_matrix_suite(dir.path(), "  - type: contains\n    value: \"\"");
+
+    evalcore()
+        .arg("run")
+        .arg(dir.path().join("evals.yaml"))
+        .args(["--matrix", "echo,mystery"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "matrix target \"mystery\" is not defined; available: echo, upper",
+        ));
+}
+
+#[test]
+fn matrix_with_target_is_a_hard_error() {
+    let dir = tempfile::tempdir().unwrap();
+    write_matrix_suite(dir.path(), "  - type: contains\n    value: \"\"");
+
+    evalcore()
+        .arg("run")
+        .arg(dir.path().join("evals.yaml"))
+        .args(["--matrix", "echo,upper", "--target", "echo"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "cannot combine --target with a matrix",
+        ));
+}
+
+#[test]
+fn matrix_with_baseline_is_a_hard_error() {
+    let dir = tempfile::tempdir().unwrap();
+    write_matrix_suite(dir.path(), "  - type: contains\n    value: \"\"");
+
+    evalcore()
+        .arg("run")
+        .arg(dir.path().join("evals.yaml"))
+        .args(["--matrix", "echo,upper", "--baseline", "main"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "baselines are per-run; run targets separately with --target",
+        ));
+}

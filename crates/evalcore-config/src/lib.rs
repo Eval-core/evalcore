@@ -224,6 +224,10 @@ impl EvalConfig {
                 }
             }
         }
+        if let Some(matrix) = &self.run.matrix {
+            validate_matrix_names(matrix, &self.targets)
+                .map_err(|msg| ConfigError::Invalid(format!("run.{msg}")))?;
+        }
         Ok(())
     }
 }
@@ -342,6 +346,15 @@ pub struct RunConfig {
     /// on implicitly by an `accuracy`/`macro_f1` gate, which needs the metrics.
     #[serde(default)]
     pub classification: bool,
+    /// Matrix mode: run the whole suite once per named target, in list order,
+    /// producing a side-by-side comparison. At least two distinct names, each
+    /// defined in `targets`. Absent (the default): a single-target run, exactly
+    /// as before. `--matrix` on the CLI overrides this; combining it with
+    /// `--target`, `--baseline`, or `--save-baseline` is an error (baselines are
+    /// per-run; `run.budget_usd` applies per arm). Omitted from serialization
+    /// when absent so single-target configs round-trip unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matrix: Option<Vec<String>>,
 }
 
 impl Default for RunConfig {
@@ -352,8 +365,41 @@ impl Default for RunConfig {
             gates: Vec::new(),
             trials: default_trials(),
             classification: false,
+            matrix: None,
         }
     }
+}
+
+/// Validate a matrix target list: at least two names, all distinct, and each
+/// defined in `targets`. Returns an error message — naming the available
+/// targets when a name is unknown — suitable for either a [`ConfigError`] (the
+/// `run.matrix` form) or a CLI error (the `--matrix` form), so both report the
+/// same thing. Pure: does not touch I/O or the environment.
+pub fn validate_matrix_names(
+    names: &[String],
+    targets: &BTreeMap<String, TargetConfig>,
+) -> Result<(), String> {
+    if names.len() < 2 {
+        return Err(format!(
+            "matrix must list at least two targets, got {}",
+            names.len()
+        ));
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for name in names {
+        if !seen.insert(name.as_str()) {
+            return Err(format!("matrix lists target {name:?} more than once"));
+        }
+    }
+    for name in names {
+        if !targets.contains_key(name) {
+            let available = targets.keys().cloned().collect::<Vec<_>>().join(", ");
+            return Err(format!(
+                "matrix target {name:?} is not defined; available: {available}"
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// How many times each case runs and how per-trial verdicts fold into the
@@ -1524,6 +1570,56 @@ scorers:
             config.run.gates[1],
             GateConfig::MacroF1 { min } if min == 0.8
         ));
+    }
+
+    #[test]
+    fn parses_matrix_and_defaults_to_none() {
+        // Absent: single-target mode, byte-identical to a run with no matrix.
+        let config = EvalConfig::from_yaml_str(&config_with_run("")).unwrap();
+        assert!(config.run.matrix.is_none());
+
+        let yaml = r#"
+targets:
+  gpt: { type: shell, cmd: "cat" }
+  claude: { type: shell, cmd: "cat" }
+datasets: [{ file: cases.jsonl }]
+scorers: [{ type: exact }]
+run:
+  matrix: [gpt, claude]
+"#;
+        let config = EvalConfig::from_yaml_str(yaml).unwrap();
+        assert_eq!(
+            config.run.matrix.as_deref(),
+            Some(["gpt".to_string(), "claude".to_string()].as_slice())
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_matrix() {
+        // (matrix list, fragment the error must mention)
+        let cases = [
+            ("[gpt]", "at least two targets"),
+            ("[gpt, gpt]", "more than once"),
+            ("[gpt, mystery]", "not defined; available: claude, gpt"),
+        ];
+        for (list, fragment) in cases {
+            let yaml = format!(
+                r#"
+targets:
+  gpt: {{ type: shell, cmd: "cat" }}
+  claude: {{ type: shell, cmd: "cat" }}
+datasets: [{{ file: cases.jsonl }}]
+scorers: [{{ type: exact }}]
+run:
+  matrix: {list}
+"#
+            );
+            let err = EvalConfig::from_yaml_str(&yaml).unwrap_err().to_string();
+            assert!(
+                err.contains(fragment),
+                "matrix {list:?} should be rejected mentioning {fragment:?}, got: {err}"
+            );
+        }
     }
 
     #[test]

@@ -90,6 +90,10 @@ pub fn load_jsonl(path: &Path) -> anyhow::Result<Vec<TestCase>> {
         .with_context(|| format!("failed to read dataset {}", path.display()))?;
     let dataset_dir = path.parent().unwrap_or(Path::new("."));
 
+    // Case ids must be unique: baseline matching and matrix comparison rows
+    // are keyed by id, so a duplicate would silently collapse two cases into
+    // one row. Fail at load with the offending line instead.
+    let mut seen_ids: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
     content
         .lines()
         .enumerate()
@@ -104,8 +108,15 @@ pub fn load_jsonl(path: &Path) -> anyhow::Result<Vec<TestCase>> {
                     path.display()
                 );
             }
+            let id = raw.id.unwrap_or_else(|| format!("case-{line_no}"));
+            if let Some(first_line) = seen_ids.insert(id.clone(), line_no) {
+                anyhow::bail!(
+                    "duplicate case id {id:?} at {}:{line_no} (first used at line {first_line})",
+                    path.display()
+                );
+            }
             Ok(TestCase {
-                id: raw.id.unwrap_or_else(|| format!("case-{line_no}")),
+                id,
                 input: raw.input.unwrap_or_default(),
                 expected: raw.expected,
                 trace: raw.trace.map(|t| dataset_dir.join(t)),
@@ -214,5 +225,16 @@ mod tests {
     fn missing_file_names_the_path() {
         let err = load_jsonl(Path::new("/nonexistent/cases.jsonl")).unwrap_err();
         assert!(err.to_string().contains("/nonexistent/cases.jsonl"));
+    }
+
+    #[test]
+    fn rejects_duplicate_case_ids_naming_both_lines() {
+        let (_dir, path) =
+            write_dataset("{\"id\": \"x\", \"input\": \"a\"}\n{\"id\": \"x\", \"input\": \"b\"}\n");
+        let err = load_jsonl(&path).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("duplicate case id \"x\""), "got: {msg}");
+        assert!(msg.contains(":2"), "got: {msg}");
+        assert!(msg.contains("first used at line 1"), "got: {msg}");
     }
 }

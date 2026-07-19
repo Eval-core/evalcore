@@ -3,7 +3,9 @@
 //! identical for identical runs.
 
 use evalcore_core::types::TrialResult;
-use evalcore_core::{BaselineDiff, CaseResult, RunSummary, TargetOutput, Trajectory};
+use evalcore_core::{
+    BaselineDiff, CaseResult, MatrixComparison, MatrixSummary, RunSummary, TargetOutput, Trajectory,
+};
 
 /// The ` [k/N trials]` suffix appended to a case's terminal PASS/FAIL line when
 /// it ran more than one trial (`k` = passing trials, `N` = total). Empty for
@@ -184,29 +186,42 @@ fn scorer_trial_stats(
         .collect()
 }
 
-/// JUnit XML for CI systems (GitHub Actions, GitLab, Jenkins all ingest it).
-pub fn junit(summary: &RunSummary) -> String {
+/// One `<testsuite>` block (the cases plus its open/close tags), reused by both
+/// the single-run [`junit`] and the matrix [`junit_matrix`] roots. `name` is
+/// XML-escaped; the single-run name `evalcore` has no metacharacters, so its
+/// output is byte-identical to before this was factored out.
+fn junit_suite_block(name: &str, summary: &RunSummary) -> String {
     let mut cases = String::new();
     for result in &summary.results {
-        let name = xml_escape(&result.case_id);
+        let case_name = xml_escape(&result.case_id);
         let time = result.output.as_ref().map_or(0, |o| o.latency_ms) as f64 / 1000.0;
         if result.passed() {
             cases.push_str(&format!(
-                r#"    <testcase name="{name}" time="{time:.3}"/>"#
+                r#"    <testcase name="{case_name}" time="{time:.3}"/>"#
             ));
             cases.push('\n');
         } else {
             let message = xml_escape(&result.failure_reasons().join("; "));
             cases.push_str(&format!(
-                "    <testcase name=\"{name}\" time=\"{time:.3}\">\n      <failure message=\"{message}\"/>\n    </testcase>\n"
+                "    <testcase name=\"{case_name}\" time=\"{time:.3}\">\n      <failure message=\"{message}\"/>\n    </testcase>\n"
             ));
         }
     }
-
     format!(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<testsuites tests=\"{total}\" failures=\"{failed}\">\n  <testsuite name=\"evalcore\" tests=\"{total}\" failures=\"{failed}\">\n{cases}  </testsuite>\n</testsuites>\n",
+        "  <testsuite name=\"{name}\" tests=\"{total}\" failures=\"{failed}\">\n{cases}  </testsuite>\n",
+        name = xml_escape(name),
         total = summary.total(),
         failed = summary.failed(),
+    )
+}
+
+/// JUnit XML for CI systems (GitHub Actions, GitLab, Jenkins all ingest it).
+pub fn junit(summary: &RunSummary) -> String {
+    format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<testsuites tests=\"{total}\" failures=\"{failed}\">\n{block}</testsuites>\n",
+        total = summary.total(),
+        failed = summary.failed(),
+        block = junit_suite_block("evalcore", summary),
     )
 }
 
@@ -258,6 +273,191 @@ pub fn baseline(diff: &evalcore_core::BaselineDiff, label: &str) -> String {
 /// names, JSON payloads) is HTML-escaped, so a hostile output renders inert.
 pub fn html(summary: &RunSummary, diff: Option<&BaselineDiff>) -> String {
     let mut out = String::new();
+    html_head(&mut out);
+    push_report_body(&mut out, summary, diff);
+    out.push_str("</main>\n</body>\n</html>\n");
+    out
+}
+
+/// Human-readable terminal report for a matrix run: each arm's single-run block
+/// (prefixed by a `== target: <name>` line), then a `== comparison` section — a
+/// case-by-case PASS/FAIL grid with the per-case winner and a wins footer.
+/// Pure and deterministic; arms in matrix order, comparison rows in dataset
+/// order, no color codes beyond the single-run reporter's.
+pub fn terminal_matrix(matrix: &MatrixSummary, comparison: &MatrixComparison) -> String {
+    let mut out = String::new();
+    for arm in &matrix.arms {
+        out.push_str(&format!("== target: {}\n", arm.target));
+        out.push_str(&terminal(&arm.summary));
+        out.push('\n');
+    }
+    out.push_str("== comparison\n");
+
+    // Case column at least 8 wide; each arm column fits its name (min 4, the
+    // width of PASS/FAIL). Columns are separated by four spaces.
+    let id_w = comparison
+        .rows
+        .iter()
+        .map(|r| r.case_id.len())
+        .max()
+        .unwrap_or(0)
+        .max(8);
+    let col_w = |name: &str| name.len().max(4);
+
+    let mut header = format!("{:<id_w$}", "case");
+    for arm in &comparison.arms {
+        header.push_str("    ");
+        header.push_str(&format!("{:<w$}", arm.target, w = col_w(&arm.target)));
+    }
+    out.push_str(header.trim_end());
+    out.push('\n');
+
+    for row in &comparison.rows {
+        let mut line = format!("{:<id_w$}", row.case_id);
+        for (i, cell) in row.cells.iter().enumerate() {
+            line.push_str("    ");
+            let mark = if cell.passed { "PASS" } else { "FAIL" };
+            let w = col_w(&comparison.arms[i].target);
+            line.push_str(&format!("{mark:<w$}"));
+        }
+        line.push_str("    ");
+        line.push_str(match row.winner {
+            Some(i) => comparison.arms[i].target.as_str(),
+            None => "tie",
+        });
+        out.push_str(line.trim_end());
+        out.push('\n');
+    }
+
+    out.push_str(&format!("wins: {}\n", wins_line(comparison)));
+    out
+}
+
+/// The `<name> <wins> · … · ties <n>` summary shared by the terminal and HTML
+/// comparison sections.
+fn wins_line(comparison: &MatrixComparison) -> String {
+    let mut parts: Vec<String> = comparison
+        .arms
+        .iter()
+        .map(|a| format!("{} {}", a.target, a.wins))
+        .collect();
+    parts.push(format!("ties {}", comparison.ties));
+    parts.join(" · ")
+}
+
+/// Machine-readable matrix report: `{"arms": [{"target", "summary"}...],
+/// "comparison": {...}}`, pretty-printed. Each arm's `summary` is the single-run
+/// JSON shape (struct field order); the comparison carries per-case rows and
+/// per-arm aggregates.
+pub fn json_matrix(
+    matrix: &MatrixSummary,
+    comparison: &MatrixComparison,
+) -> anyhow::Result<String> {
+    let arms = matrix
+        .arms
+        .iter()
+        .map(|arm| {
+            let mut obj = serde_json::Map::new();
+            obj.insert(
+                "target".into(),
+                serde_json::Value::String(arm.target.clone()),
+            );
+            obj.insert("summary".into(), serde_json::to_value(&arm.summary)?);
+            Ok(serde_json::Value::Object(obj))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    let mut root = serde_json::Map::new();
+    root.insert("arms".into(), serde_json::Value::Array(arms));
+    root.insert("comparison".into(), serde_json::to_value(comparison)?);
+    Ok(serde_json::to_string_pretty(&serde_json::Value::Object(
+        root,
+    ))?)
+}
+
+/// JUnit XML for a matrix run: one `<testsuite name="evalcore/<target>">` per
+/// arm under a single `<testsuites>` root whose totals sum the arms. Target
+/// names are XML-escaped.
+pub fn junit_matrix(matrix: &MatrixSummary) -> String {
+    let total: usize = matrix.arms.iter().map(|a| a.summary.total()).sum();
+    let failed: usize = matrix.arms.iter().map(|a| a.summary.failed()).sum();
+    let mut blocks = String::new();
+    for arm in &matrix.arms {
+        blocks.push_str(&junit_suite_block(
+            &format!("evalcore/{}", arm.target),
+            &arm.summary,
+        ));
+    }
+    format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<testsuites tests=\"{total}\" failures=\"{failed}\">\n{blocks}</testsuites>\n",
+    )
+}
+
+/// Self-contained HTML matrix report: a comparison table at the top, then each
+/// arm's single-run report body under a `target:` heading. Reuses the single-run
+/// chrome and sections; every target name and case id is HTML-escaped.
+pub fn html_matrix(matrix: &MatrixSummary, comparison: &MatrixComparison) -> String {
+    let mut out = String::new();
+    html_head(&mut out);
+    push_comparison_table(&mut out, comparison);
+    for arm in &matrix.arms {
+        out.push_str(&format!(
+            "<section class=\"arm\">\n<h2>target: {}</h2>\n",
+            html_escape(&arm.target)
+        ));
+        push_report_body(&mut out, &arm.summary, None);
+        out.push_str("</section>\n");
+    }
+    out.push_str("</main>\n</body>\n</html>\n");
+    out
+}
+
+/// Render the top-of-page comparison table: one row per case, one column per
+/// arm (PASS/FAIL badge), a winner column, and a wins footer. Names and case
+/// ids are escaped, so hostile targets/cases render inert.
+fn push_comparison_table(out: &mut String, comparison: &MatrixComparison) {
+    out.push_str("<section class=\"comparison\">\n<h2>Comparison</h2>\n");
+    out.push_str("<table>\n<thead><tr><th>Case</th>");
+    for arm in &comparison.arms {
+        out.push_str(&format!("<th>{}</th>", html_escape(&arm.target)));
+    }
+    out.push_str("<th>Winner</th></tr></thead>\n<tbody>\n");
+    for row in &comparison.rows {
+        out.push_str(&format!("<tr><td>{}</td>", html_escape(&row.case_id)));
+        for cell in &row.cells {
+            let (cls, label) = if cell.passed {
+                ("pass", "PASS")
+            } else {
+                ("fail", "FAIL")
+            };
+            out.push_str(&format!(
+                "<td><span class=\"badge {cls}\">{label}</span></td>"
+            ));
+        }
+        let winner = match row.winner {
+            Some(i) => html_escape(&comparison.arms[i].target),
+            None => "tie".to_string(),
+        };
+        out.push_str(&format!("<td>{winner}</td></tr>\n"));
+    }
+    out.push_str("</tbody>\n</table>\n");
+    // Escaped wins footer: the terminal `wins_line` emits raw names, so the HTML
+    // path builds its own escaped version rather than reusing it.
+    let mut parts: Vec<String> = comparison
+        .arms
+        .iter()
+        .map(|a| format!("{} {}", html_escape(&a.target), a.wins))
+        .collect();
+    parts.push(format!("ties {}", comparison.ties));
+    out.push_str(&format!(
+        "<p class=\"muted\">wins: {}</p>\n",
+        parts.join(" &middot; ")
+    ));
+    out.push_str("</section>\n");
+}
+
+/// Emit the document prelude through the opening `<main>` tag — the shared
+/// chrome for the single-run and matrix HTML reports.
+fn html_head(out: &mut String) {
     out.push_str("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
     out.push_str("<meta charset=\"utf-8\">\n");
     out.push_str("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
@@ -266,7 +466,12 @@ pub fn html(summary: &RunSummary, diff: Option<&BaselineDiff>) -> String {
     out.push_str(HTML_STYLE);
     out.push_str("</style>\n</head>\n<body>\n");
     out.push_str("<main>\n");
+}
 
+/// Emit one run's report sections (header, gates, classification, cases, and an
+/// optional baseline diff) — everything between `<main>` and `</main>`. Shared
+/// so each matrix arm renders exactly the single-run body.
+fn push_report_body(out: &mut String, summary: &RunSummary, diff: Option<&BaselineDiff>) {
     // Header: the same figures the terminal reporter's summary line shows.
     let overall = if summary.all_passed() { "pass" } else { "fail" };
     out.push_str("<header>\n");
@@ -326,24 +531,21 @@ pub fn html(summary: &RunSummary, diff: Option<&BaselineDiff>) -> String {
     // Classification panel — omitted entirely when the run computed no
     // classification aggregates, so classification-free reports stay identical.
     if let Some(classification) = &summary.classification {
-        push_classification(&mut out, classification);
+        push_classification(out, classification);
     }
 
     // Case table: one expandable row per case, in dataset order.
     out.push_str("<section class=\"cases\">\n<h2>Cases</h2>\n");
     out.push_str("<div class=\"row head\"><span class=\"c-status\">Status</span><span class=\"c-id\">Case</span><span class=\"c-latency\">Latency</span><span class=\"c-cost\">Cost</span></div>\n");
     for result in &summary.results {
-        push_case(&mut out, result);
+        push_case(out, result);
     }
     out.push_str("</section>\n");
 
     // Baseline diff — same data the terminal diff renderer shows.
     if let Some(diff) = diff {
-        push_baseline(&mut out, diff);
+        push_baseline(out, diff);
     }
-
-    out.push_str("</main>\n</body>\n</html>\n");
-    out
 }
 
 /// Render the classification panel: the headline accuracy/macro-F1 figures and
@@ -1374,5 +1576,196 @@ mod tests {
             rendered.contains("2/3 passed (pass fraction 0.67)"),
             "got: {rendered}"
         );
+    }
+
+    // ---- Matrix reporters ----
+
+    use evalcore_core::{compare_arms, MatrixArm, MatrixSummary};
+
+    /// One arm with two fixed-latency cases; `refund-1` always passes, `refund-2`
+    /// passes iff `r2_pass`.
+    fn matrix_arm(target: &str, r2_pass: bool) -> MatrixArm {
+        MatrixArm {
+            target: target.into(),
+            summary: RunSummary {
+                results: vec![
+                    CaseResult {
+                        case_id: "refund-1".into(),
+                        output: Some(TargetOutput {
+                            text: "refund issued".into(),
+                            latency_ms: 10,
+                            tokens: None,
+                            trajectory: None,
+                        }),
+                        error: None,
+                        scores: vec![Score {
+                            scorer: "contains".into(),
+                            value: 1.0,
+                            passed: true,
+                            reason: None,
+                        }],
+                        cost_usd: Some(0.0010),
+                        context: None,
+                        trials: None,
+                    },
+                    CaseResult {
+                        case_id: "refund-2".into(),
+                        output: Some(TargetOutput {
+                            text: "response".into(),
+                            latency_ms: 20,
+                            tokens: None,
+                            trajectory: None,
+                        }),
+                        error: None,
+                        scores: vec![Score {
+                            scorer: "contains".into(),
+                            value: if r2_pass { 1.0 } else { 0.0 },
+                            passed: r2_pass,
+                            reason: if r2_pass {
+                                None
+                            } else {
+                                Some("expected \"refund\"".into())
+                            },
+                        }],
+                        cost_usd: Some(0.0020),
+                        context: None,
+                        trials: None,
+                    },
+                ],
+                gates: Vec::new(),
+                classification: None,
+            },
+        }
+    }
+
+    /// Two-arm matrix: `gpt` passes both cases, `claude` fails `refund-2`. So
+    /// `refund-1` ties and `gpt` wins `refund-2`.
+    fn matrix_fixture() -> MatrixSummary {
+        MatrixSummary {
+            arms: vec![matrix_arm("gpt", true), matrix_arm("claude", false)],
+        }
+    }
+
+    #[test]
+    fn terminal_matrix_snapshot() {
+        let matrix = matrix_fixture();
+        let comparison = compare_arms(&matrix);
+        insta::assert_snapshot!(terminal_matrix(&matrix, &comparison));
+    }
+
+    #[test]
+    fn html_matrix_snapshot() {
+        let matrix = matrix_fixture();
+        let comparison = compare_arms(&matrix);
+        insta::assert_snapshot!(html_matrix(&matrix, &comparison));
+    }
+
+    #[test]
+    fn json_matrix_shape() {
+        let matrix = matrix_fixture();
+        let comparison = compare_arms(&matrix);
+        let rendered = json_matrix(&matrix, &comparison).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&rendered).unwrap();
+        // Two arms, first is gpt, each carrying a single-run summary.
+        assert_eq!(value["arms"].as_array().unwrap().len(), 2);
+        assert_eq!(value["arms"][0]["target"], "gpt");
+        assert!(value["arms"][0]["summary"]["results"].is_array());
+        // Comparison rows in dataset order; refund-2 won by gpt (arm 0).
+        let rows = value["comparison"]["rows"].as_array().unwrap();
+        assert_eq!(rows[0]["case_id"], "refund-1");
+        assert!(rows[0]["winner"].is_null(), "refund-1 is a tie");
+        assert_eq!(rows[1]["winner"], 0);
+        assert_eq!(value["comparison"]["ties"], 1);
+        assert_eq!(value["comparison"]["arms"][0]["wins"], 1);
+    }
+
+    #[test]
+    fn junit_matrix_has_one_suite_per_arm() {
+        let matrix = matrix_fixture();
+        let xml = junit_matrix(&matrix);
+        assert!(
+            xml.contains("<testsuites tests=\"4\" failures=\"1\">"),
+            "root sums the arms; got: {xml}"
+        );
+        assert!(
+            xml.contains("<testsuite name=\"evalcore/gpt\""),
+            "got: {xml}"
+        );
+        assert!(
+            xml.contains("<testsuite name=\"evalcore/claude\""),
+            "got: {xml}"
+        );
+    }
+
+    #[test]
+    fn html_matrix_escapes_hostile_target_names_and_case_ids() {
+        let matrix = MatrixSummary {
+            arms: vec![
+                MatrixArm {
+                    target: "<script>alert(1)</script>".into(),
+                    summary: RunSummary {
+                        results: vec![CaseResult {
+                            case_id: "<img src=x>".into(),
+                            output: Some(TargetOutput {
+                                text: "ok".into(),
+                                latency_ms: 5,
+                                tokens: None,
+                                trajectory: None,
+                            }),
+                            error: None,
+                            scores: vec![Score {
+                                scorer: "contains".into(),
+                                value: 1.0,
+                                passed: true,
+                                reason: None,
+                            }],
+                            cost_usd: None,
+                            context: None,
+                            trials: None,
+                        }],
+                        gates: Vec::new(),
+                        classification: None,
+                    },
+                },
+                MatrixArm {
+                    target: "safe".into(),
+                    summary: RunSummary {
+                        results: vec![CaseResult {
+                            case_id: "<img src=x>".into(),
+                            output: None,
+                            error: Some("boom".into()),
+                            scores: vec![],
+                            cost_usd: None,
+                            context: None,
+                            trials: None,
+                        }],
+                        gates: Vec::new(),
+                        classification: None,
+                    },
+                },
+            ],
+        };
+        let comparison = compare_arms(&matrix);
+        let rendered = html_matrix(&matrix, &comparison);
+        assert!(
+            rendered.contains("&lt;script&gt;alert(1)&lt;/script&gt;"),
+            "hostile target name escaped; got: {rendered}"
+        );
+        assert!(
+            rendered.contains("&lt;img src=x&gt;"),
+            "hostile case id escaped"
+        );
+        assert!(
+            !rendered.contains("<script>alert(1)"),
+            "no live script tag survives"
+        );
+    }
+
+    #[test]
+    fn matrix_reporters_do_not_disturb_single_run_output() {
+        // A one-arm-style single summary still renders byte-identically through
+        // the single-run reporters — the refactor kept them pure.
+        assert_eq!(terminal(&fixture()), terminal(&fixture()));
+        assert_eq!(junit(&fixture()), junit(&fixture()));
     }
 }

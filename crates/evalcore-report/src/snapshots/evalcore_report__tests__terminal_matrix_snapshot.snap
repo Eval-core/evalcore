@@ -1,0 +1,22 @@
+---
+source: crates/evalcore-report/src/lib.rs
+expression: "terminal_matrix(&matrix, &comparison)"
+---
+== target: gpt
+PASS refund-1 (10ms)
+PASS refund-2 (20ms)
+
+2 passed, 0 failed, 2 total · $0.0030
+
+== target: claude
+PASS refund-1 (10ms)
+FAIL refund-2
+     contains: expected "refund"
+
+1 passed, 1 failed, 2 total · $0.0030
+
+== comparison
+case        gpt     claude
+refund-1    PASS    PASS      tie
+refund-2    PASS    FAIL      gpt
+wins: gpt 1 · claude 0 · ties 1

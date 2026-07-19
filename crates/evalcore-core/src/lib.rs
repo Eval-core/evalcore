@@ -6,6 +6,7 @@
 
 pub mod baseline;
 pub mod classification;
+pub mod comparison;
 pub mod dataset;
 pub mod embeddings;
 pub mod engine;
@@ -17,6 +18,10 @@ pub mod types;
 
 pub use baseline::{compare, BaselineDiff, CaseRegression};
 pub use classification::compute_classification;
+pub use comparison::{
+    compare_arms, ArmStats, ComparisonCell, ComparisonRow, MatrixArm, MatrixComparison,
+    MatrixSummary,
+};
 pub use dataset::load_jsonl;
 pub use engine::{run_suite, RunOptions};
 pub use gates::{evaluate_gates, GateResult};
