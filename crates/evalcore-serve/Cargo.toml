@@ -2,10 +2,12 @@
 name = "evalcore-serve"
 description = "Local, read-only web viewer over the EvalCore run-history store (`evalcore serve`)"
 version.workspace = true
+authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+readme = "README.md"
 
 [dependencies]
 evalcore-core = { workspace = true }

@@ -1,12 +1,18 @@
 [package]
 name = "evalcore"
-description = "Know when your AI gets worse before your users do — the eval engine for AI systems: record, replay, compare, and gate LLM and agent behavior"
+description = "Know when your AI gets worse before your users do. The eval engine for AI systems: record, replay, compare, and gate LLM and agent behavior"
 version.workspace = true
+authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 readme = "../../README.md"
+homepage = "https://eval-core.github.io/evalcore/"
+documentation = "https://eval-core.github.io/evalcore/"
+# crates.io caps these at 5 keywords (<=20 chars each) and 5 categories.
+keywords = ["llm", "eval", "testing", "ai", "agent"]
+categories = ["command-line-utilities", "development-tools::testing", "development-tools"]
 
 [[bin]]
 name = "evalcore"

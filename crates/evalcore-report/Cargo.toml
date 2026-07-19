@@ -2,6 +2,7 @@
 name = "evalcore-report"
 description = "Report rendering (terminal, JSON, JUnit XML) for EvalCore run results"
 version.workspace = true
+authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
