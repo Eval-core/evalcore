@@ -116,7 +116,8 @@ the run summary, so identical runs render byte-identical reports (see
 ### Cache modes
 
 `--cache` controls how the record/replay cache participates for cacheable
-targets (LLM APIs, `http` targets, and judge scorers). Uncacheable targets
+targets (LLM APIs, `http` targets, judge scorers, and `similarity` embedding
+calls). Uncacheable targets
 (`shell`, `trace`) bypass the cache in every mode. See [Cache and
 determinism](/reference/cache-and-determinism/) for the full model.
 
@@ -183,7 +184,7 @@ snapshot-tested layouts.
 ```text
 PASS refund-1 (12ms)
 FAIL refund-2
-     contains: expected output to contain "refund"
+     contains: expected output to contain "refund", got: "I can't help with that"
 
 2 passed, 1 failed, 3 total · 210 tokens · $0.0020
 GATE PASS pass_rate >= 0.95 (actual 1.00)

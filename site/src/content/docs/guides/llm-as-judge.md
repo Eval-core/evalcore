@@ -1,6 +1,6 @@
 ---
 title: LLM-as-judge
-description: "Grade open-ended answers against a rubric with any OpenAI-compatible endpoint: designing rubrics, choosing a threshold, and why cached verdicts are CI-safe."
+description: "Grade open-ended answers against a rubric with any OpenAI-compatible endpoint: designing binary-decidable rubrics, choosing a threshold, why cached verdicts are CI-safe, what actually re-records a judge, and how judge tokens and cost count toward totals and budgets."
 ---
 
 Some answers can't be checked with `contains` or a regex. Is this grounded in the
@@ -17,6 +17,9 @@ scorers:
     rubric: "Does the answer state a concrete refund window in days?"
     api_key_env: OPENAI_API_KEY
     threshold: 0.6                   # pass iff score >= threshold (default 0.5)
+    cost:                            # optional; prices the judge's own tokens
+      input_per_1m: 0.15
+      output_per_1m: 0.60
 ```
 
 The judge is prompted to return `{"score": 0.0..1.0, "reason": "..."}`; the case
@@ -98,6 +101,7 @@ answer being graded. So a judge verdict re-records when any of these change:
 | The graded answer (because the main target changed) | Yes | The answer is embedded in the judge prompt. |
 | A case's `input` or `expected` | Yes | Both are embedded in the judge prompt. |
 | `threshold` | No | It's applied *after* the verdict; the cached score is reused, only the pass/fail line moves. |
+| The judge `cost` block | No | Pricing is metadata, not part of the request; it re-costs the cached tokens without re-grading. |
 
 The rubric is **not** a field of the judge target's `cache_identity()`, which is
 just `url`/`model`/`system`/`params`. Instead it enters the key through the judge
@@ -119,14 +123,38 @@ that's why you won't find the rubric listed as an identity field.
   model. Catch it with the nightly `--cache live` job, not by un-determinizing PR
   runs. See [Record / replay](/guides/record-replay/).
 
-:::note[Judge calls are costed]
-**LLM-judge calls are included in the run's cost totals and counted against
-`run.budget_usd`** when the judge declares `cost:` rates. Their token usage is
-added to the tokens and dollars reported by the summary, alongside the target's
-usage, so a grading-heavy suite shows the money it spends on judging. A judge
-without `cost:` rates contributes no `$` figure, just like a target without
-rates. See [Cost and budgets](/guides/cost-and-budgets/).
-:::
+## Judge tokens and cost count toward totals and budgets
+
+Judge calls consume real tokens, and EvalCore attributes them. The summary's
+token total includes the tokens a judge reported (from the endpoint's `usage`
+block) alongside the target's, so a grading-heavy suite's true token footprint
+shows up in the `$`/token line rather than being silently dropped.
+
+To turn judge tokens into dollars, give the `judge` scorer its own `cost` block
+(same shape as a target's: USD per 1M input and output tokens, priced for the
+judge model, which is often different from the target's):
+
+```yaml
+scorers:
+  - type: judge
+    url: https://api.openai.com/v1
+    model: gpt-4.1-mini
+    api_key_env: OPENAI_API_KEY
+    rubric: "Is the answer grounded in the provided context?"
+    cost:
+      input_per_1m: 0.15
+      output_per_1m: 0.60
+```
+
+With `cost` set, each judge call's cost folds into that case's cost, the run's
+`total_cost_usd`, and the `run.budget_usd` accumulator, so a judge-heavy suite
+can exhaust the budget and stop dispatching new cases, exactly like target
+spend. Without `cost`, judge tokens still count toward token totals; they just
+carry no dollar figure. An endpoint that returns no `usage` block contributes
+neither tokens nor cost, and never errors; failures are data.
+
+Only the judge scorer is costed today; the `similarity` scorer's embedding
+calls are not yet attributed. See [Cost and budgets](/guides/cost-and-budgets/).
 
 For the exact judge protocol and verdict parsing, see the
 [configuration reference](/reference/configuration/); for the cache

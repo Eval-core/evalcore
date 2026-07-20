@@ -82,11 +82,20 @@ to fully custom:
 - Deterministic checks: `contains` (substring, with `case_sensitive`),
   `exact` (equals `value`, or the case's `expected` field), `regex` (matches a
   pattern). No network, instant, perfectly reproducible.
+- `json-schema` validates the output as JSON against a draft 2020-12 schema
+  file. Failing reasons name violations by JSON pointer, deterministically
+  ordered, and validation never touches the network. See the
+  [configuration reference](/reference/configuration/#json-schema).
 - `subprocess` is the any-language escape hatch. Your command receives
   `{"input", "output", "expected"}` as JSON on stdin and prints
   `{"score": 0.0..=1.0, "passed"?: bool, "reason"?: string}` on stdout. Write
   scorers in Python, Node, Go, or anything else that reads stdin and writes
   stdout. See [Custom scorers](/guides/custom-scorers/).
+- `similarity` grades semantic closeness between the output and the case's
+  `expected` via any OpenAI-compatible embeddings endpoint, passing at a
+  `threshold` (default 0.8). Embedding calls ride the record/replay cache like
+  judge calls, so replayed scores are free and offline. See
+  [Semantic similarity](/guides/semantic-similarity/).
 - `judge` is LLM-as-judge. It grades the output against a `rubric` using any
   OpenAI-compatible endpoint, with a configurable pass `threshold`. Judge calls
   go through the record/replay cache, so replayed verdicts are deterministic,

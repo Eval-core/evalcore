@@ -21,7 +21,7 @@ Step by step, the first time:
 export OPENAI_API_KEY=sk-...
 evalcore run evals.yaml --cache auto        # replay hits, record misses
 
-# 2. The recordings now live in .evalcore/cache.db — commit them.
+# 2. The recordings now live in .evalcore/cache.db. Commit them.
 git add .evalcore/cache.db evals.yaml cases.jsonl
 git commit -m "Record eval cassettes"
 ```
@@ -135,7 +135,7 @@ jobs:
         with:
           config: evals/evals.yaml
           args: --cache replay --baseline main
-          # html-artifact defaults to "evalcore-report" — a shareable report is
+          # html-artifact defaults to "evalcore-report": a shareable report is
           # uploaded even when the suite fails. Set to "" to disable.
 ```
 

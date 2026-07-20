@@ -148,8 +148,8 @@ Anything you put in `headers:` is persisted in your repo's cassette.
 
 ```yaml
 headers:
-  x-tenant: acme                   # fine — not a secret
-  # authorization: "Bearer sk-..." # NEVER — this would be committed in the cassette
+  x-tenant: acme                   # fine, not a secret
+  # authorization: "Bearer sk-..." # NEVER: this would be committed in the cassette
 api_key_env: MYAPP_API_KEY         # the right home for the credential
 ```
 

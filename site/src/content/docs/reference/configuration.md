@@ -425,6 +425,7 @@ replayed verdicts are deterministic.
 | `rubric` | string | yes | n/a | What the judge should assess, e.g. "Is the answer grounded in the provided context?". |
 | `api_key_env` | string | no | none | Name of the environment variable holding the judge's API key. |
 | `threshold` | number | no | `0.5` | Minimum score (0.0 to 1.0) to pass. |
+| `cost` | [cost block](#cost-rates) | no | none | Token prices for the judge's own calls, priced for the judge model. Judge usage then folds into per-case cost, `total_cost_usd`, and `run.budget_usd`. See [LLM-as-judge](/guides/llm-as-judge/#judge-tokens-and-cost-count-toward-totals-and-budgets). |
 
 ```yaml
 scorers:
@@ -562,7 +563,7 @@ guide](/guides/trials-and-statistics/) for aggregation and cache semantics.
 ```yaml
 run:
   trials: 3                # shorthand: 3 trials, require: all
-# — or the full form —
+# or the full form:
 run:
   trials:
     count: 5

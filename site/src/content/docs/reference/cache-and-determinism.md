@@ -39,6 +39,12 @@ rather than serialized as `null`, so adding a new config field never
 invalidates existing cassettes. Secrets and call mechanics are excluded, so
 they never get persisted and changing them never re-records.
 
+Under `run.trials`, trial 0 keeps this exact key, so cassettes recorded before
+trials existed (or by a single-trial run) replay unchanged. Trials 1..N add the
+trial index to the key, giving each trial its own cache entry, and judge and
+embedding calls made while scoring trial *i* re-key the same way. Since v0.7.0.
+See [Trials and statistics](/guides/trials-and-statistics/).
+
 ### `openai-compatible` identity
 
 ```json
@@ -136,6 +142,13 @@ Identical inputs produce identical outputs everywhere:
   latencies, so even timing is reproducible under `--cache replay`.
 - **Deterministic retries.** Transient failures back off on a fixed schedule
   (500ms, 1s, 2s, … capped at 10s, honoring `Retry-After`) with no jitter.
+- **Sanitized terminal output.** User-derived text in the terminal reporters
+  (case ids, scorer reasons, target errors, gate and class labels) is
+  neutralized against ANSI/control-sequence injection: ESC, C0/C1/DEL,
+  CR/LF/TAB, and Unicode bidirectional controls render as visible escapes, so a
+  hostile model output or dataset can't move the cursor or reorder a report
+  line. The escaping itself is deterministic; benign text is unchanged. Since
+  v0.7.5.
 
 A corrupt cache entry surfaces as an error telling you to delete the cache
 file. EvalCore never falls back to a silent live call, which would

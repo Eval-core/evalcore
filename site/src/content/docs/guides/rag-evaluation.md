@@ -231,7 +231,7 @@ jobs:
         with:
           config: evals/rag-nightly.yaml
           # Target answers replay from the committed cassette; the shim scorers
-          # call the provider live and bill per case — nightly, never per PR.
+          # call the provider live and bill per case: nightly, never per PR.
           args: --cache replay
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
