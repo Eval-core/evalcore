@@ -1651,3 +1651,25 @@ rect.fx-inset {
 		min-width: 28rem;
 	}
 }
+
+/* ---- Product Hunt featured badge ---------------------------------------- *
+ * Product Hunt ships light and dark SVGs; swap on the site theme toggle
+ * (data-theme), not prefers-color-scheme, so it tracks the manual switch. */
+.ec-ph-badge {
+	margin-block: var(--sp-8) 0;
+	text-align: center;
+}
+.ec-ph-badge img {
+	display: inline-block;
+	width: 250px;
+	height: 54px;
+}
+.ec-ph-badge .ec-ph-dark {
+	display: none;
+}
+[data-theme='dark'] .ec-ph-badge .ec-ph-light {
+	display: none;
+}
+[data-theme='dark'] .ec-ph-badge .ec-ph-dark {
+	display: inline-block;
+}

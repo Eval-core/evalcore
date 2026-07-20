@@ -29,6 +29,16 @@
 </p>
 
 <p align="center">
+  <a href="https://www.producthunt.com/products/evalcore?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-evalcore-2" target="_blank" rel="noopener noreferrer">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1201007&theme=dark&t=1784567129943">
+      <source media="(prefers-color-scheme: light)" srcset="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1201007&theme=light&t=1784567129943">
+      <img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1201007&theme=light&t=1784567129943" alt="EvalCore - Snapshot-test AI behavior in CI | Product Hunt" width="250" height="54">
+    </picture>
+  </a>
+</p>
+
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="design/assets/readme-terminal-dark.gif">
     <source media="(prefers-color-scheme: light)" srcset="design/assets/readme-terminal.gif">
