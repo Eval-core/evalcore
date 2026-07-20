@@ -4,7 +4,9 @@
     <img src="design/assets/mark.svg" alt="" width="88" height="88">
   </picture>
 </p>
-
+<p align="center">
+  <img src="design/assets/social-preview.png" alt="EvalCore: snapshot testing for AI behavior. Know when your AI gets worse, before your users do." width="760">
+</p>
 <h1 align="center">EvalCore</h1>
 
 <p align="center">
@@ -16,10 +18,6 @@
   <a href="https://crates.io/crates/evalcore"><img src="https://img.shields.io/crates/v/evalcore.svg" alt="crates.io"></a>
   <a href="https://evalcore.cc"><img src="https://img.shields.io/badge/docs-evalcore.cc-2dd4a0" alt="Documentation"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-informational" alt="Apache-2.0"></a>
-</p>
-
-<p align="center">
-  <img src="design/assets/social-preview.png" alt="EvalCore: snapshot testing for AI behavior. Know when your AI gets worse, before your users do." width="760">
 </p>
 
 <p align="center">
