@@ -1654,39 +1654,51 @@ rect.fx-inset {
 
 /* ---- Product Hunt featured badge ---------------------------------------- *
  * Sits at the top of the hero, above the headline, as a launch trust signal.
- * Product Hunt ships light and dark SVGs; swap on the site theme toggle
- * (data-theme), not prefers-color-scheme, so it tracks the manual switch. */
+ * A native pill in the site's badge language (hairline border, 999px radius)
+ * with an inline logomark, so it needs no external images, causes no layout
+ * shift, and inherits both themes for free. */
 .ec-ph-badge {
 	margin: 0 0 var(--sp-6);
-	line-height: 0;
 	text-align: center;
 }
 .ec-ph-badge a {
-	display: inline-block;
-	border-radius: 10px;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.55rem;
+	padding: 0.4rem 0.95rem 0.4rem 0.55rem;
+	border: var(--border);
+	border-radius: 999px;
+	background: var(--sl-color-bg);
+	font-size: var(--fs-xs);
+	line-height: 1;
+	color: var(--muted);
+	text-decoration: none;
 	transition:
 		transform var(--dur-fast) ease,
-		opacity var(--dur-fast) ease;
+		border-color var(--dur-fast) ease,
+		box-shadow var(--dur-fast) ease;
 }
 .ec-ph-badge a:hover {
 	transform: translateY(-1px);
-	opacity: 0.92;
+	border-color: color-mix(in srgb, #ff6154 45%, var(--sl-color-hairline));
+	box-shadow: 0 2px 10px color-mix(in srgb, #ff6154 14%, transparent);
 }
 .ec-ph-badge a:focus-visible {
 	outline: 2px solid var(--sl-color-accent);
-	outline-offset: 3px;
+	outline-offset: 2px;
 }
-.ec-ph-badge img {
-	display: inline-block;
-	width: 250px;
-	height: 54px;
+.ec-ph-badge strong {
+	font-weight: 600;
+	color: var(--sl-color-white);
 }
-.ec-ph-badge .ec-ph-dark {
-	display: none;
+.ec-ph-mark {
+	flex: none;
 }
-[data-theme='dark'] .ec-ph-badge .ec-ph-light {
-	display: none;
+.ec-ph-arrow {
+	flex: none;
+	opacity: 0.45;
+	transition: opacity var(--dur-fast) ease;
 }
-[data-theme='dark'] .ec-ph-badge .ec-ph-dark {
-	display: inline-block;
+.ec-ph-badge a:hover .ec-ph-arrow {
+	opacity: 0.9;
 }
