@@ -2,7 +2,7 @@
 // capability, each explained by a small purpose-built visual plus two
 // sentences and the config/flag that turns it on. Styles live in landing.css
 // (the island shares the page's design tokens).
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
 
 type Feature = {
@@ -16,40 +16,56 @@ type Feature = {
 };
 
 function CassetteVisual() {
+	// The pipeline reads left to right into the cassette (the one accent
+	// element), then drops to the replay card. Cards are raised surfaces, not
+	// bare strokes, so the diagram carries the same weight as the DOM visuals.
 	return (
-		<svg viewBox="0 0 320 190" className="fx-svg" aria-hidden="true">
-			<g className="fx-muted-stroke">
-				<rect x="14" y="24" width="86" height="34" rx="8" />
-				<text x="57" y="45" className="fx-label" textAnchor="middle">
+		<svg viewBox="0 0 520 268" className="fx-svg" aria-hidden="true">
+			<g>
+				<rect x="18" y="34" width="120" height="60" rx="10" className="fx-svg-card" />
+				<text x="78" y="61" className="fx-label" textAnchor="middle">
 					request
 				</text>
-				<path d="M100 41 h34" markerEnd="url(#fx-arr)" />
-				<rect x="136" y="24" width="62" height="34" rx="8" />
-				<text x="167" y="45" className="fx-label" textAnchor="middle">
+				<text x="78" y="79" className="fx-sub" textAnchor="middle">
+					canonical JSON
+				</text>
+				<path d="M142 64 h32" className="fx-flow" markerEnd="url(#fx-arr)" />
+				<rect x="178" y="34" width="96" height="60" rx="10" className="fx-svg-card" />
+				<text x="226" y="61" className="fx-label" textAnchor="middle">
 					hash
 				</text>
-				<path d="M198 41 h34" markerEnd="url(#fx-arr)" />
+				<text x="226" y="79" className="fx-sub" textAnchor="middle">
+					sha-256
+				</text>
+				<path d="M278 64 h32" className="fx-flow" markerEnd="url(#fx-arr)" />
 			</g>
 			<g>
-				<rect x="234" y="14" width="74" height="54" rx="10" className="fx-accent-stroke" />
-				<circle cx="256" cy="41" r="9" className="fx-reel" />
-				<circle cx="286" cy="41" r="9" className="fx-reel" />
-				<path d="M256 50 h30" className="fx-accent-stroke" />
-			</g>
-			<g className="fx-muted-stroke">
-				<path d="M271 68 v22" markerEnd="url(#fx-arr)" />
-				<rect x="180" y="96" width="128" height="34" rx="8" />
-				<text x="244" y="117" className="fx-label" textAnchor="middle">
-					replay: 0ms · $0
+				<rect x="314" y="18" width="186" height="112" rx="14" className="fx-accent-stroke" />
+				<rect x="336" y="38" width="142" height="46" rx="23" className="fx-cassette-window" />
+				<circle cx="366" cy="61" r="12" className="fx-reel" />
+				<circle cx="448" cy="61" r="12" className="fx-reel" />
+				<path d="M380 61 h54" className="fx-tape" />
+				<text x="407" y="112" className="fx-label" textAnchor="middle">
+					cassette.db · sqlite
 				</text>
 			</g>
-			<text x="14" y="120" className="fx-note">
+			<g>
+				<path d="M407 130 v34" className="fx-flow" markerEnd="url(#fx-arr)" />
+				<rect x="314" y="172" width="186" height="72" rx="10" className="fx-svg-card" />
+				<text x="407" y="203" className="fx-label" textAnchor="middle">
+					replay
+				</text>
+				<text x="407" y="223" className="fx-sub" textAnchor="middle">
+					0 ms · $0 · no network
+				</text>
+			</g>
+			<text x="18" y="186" className="fx-note">
 				same request hash →
 			</text>
-			<text x="14" y="138" className="fx-note">
+			<text x="18" y="206" className="fx-note">
 				same recorded answer,
 			</text>
-			<text x="14" y="156" className="fx-note">
+			<text x="18" y="226" className="fx-note">
 				byte for byte
 			</text>
 			<defs>
@@ -68,12 +84,17 @@ function TrialsVisual() {
 		['tone-check', [true, false, true]],
 	];
 	return (
-		<div className="fx-trials" aria-hidden="true">
+		<div className="fx-trials fx-card" aria-hidden="true">
+			<div className="fx-table-head fx-trials-grid">
+				<span>case</span>
+				<span>trials</span>
+				<span>verdict</span>
+			</div>
 			{rows.map(([id, trials]) => {
 				const passed = trials.filter(Boolean).length;
 				const flaky = passed > 0 && passed < trials.length;
 				return (
-					<div key={id} className="fx-trial-row">
+					<div key={id} className="fx-trial-row fx-trials-grid">
 						<code>{id}</code>
 						<span className="fx-dots">
 							{trials.map((t, i) => (
@@ -81,19 +102,23 @@ function TrialsVisual() {
 							))}
 						</span>
 						<span className={`fx-tag ${flaky ? 'is-flaky' : passed === 3 ? 'is-pass' : 'is-fail'}`}>
-							{flaky ? `flaky [${passed}/3]` : `[${passed}/3 trials]`}
+							{flaky ? `flaky ${passed}/3` : passed === 3 ? 'pass 3/3' : 'fail 0/3'}
 						</span>
 					</div>
 				);
 			})}
+			<div className="fx-table-foot">
+				<code>fold: majority</code>
+				<span>1 pass · 1 fail · 1 flaky</span>
+			</div>
 		</div>
 	);
 }
 
 function MatrixVisual() {
 	return (
-		<div className="fx-matrix" aria-hidden="true">
-			<div className="fx-matrix-row fx-matrix-head">
+		<div className="fx-matrix fx-card" aria-hidden="true">
+			<div className="fx-matrix-row fx-table-head">
 				<span>case</span>
 				<span>gpt</span>
 				<span>claude</span>
@@ -102,7 +127,6 @@ function MatrixVisual() {
 			{[
 				['refund-1', true, true, 'tie'],
 				['refund-2', false, true, 'claude'],
-				['policy-1', true, true, 'tie'],
 				['tone-1', false, true, 'claude'],
 			].map(([id, a, b, w]) => (
 				<div key={String(id)} className="fx-matrix-row">
@@ -116,72 +140,87 @@ function MatrixVisual() {
 				<span>wins</span>
 				<span>0</span>
 				<span className="t-pass">2</span>
-				<span>ties 2</span>
+				<span>ties 1</span>
+			</div>
+			<div className="fx-matrix-row fx-matrix-foot fx-matrix-cost">
+				<span>cost</span>
+				<span>$0.014</span>
+				<span>$0.011</span>
+				<span>exit 0</span>
 			</div>
 		</div>
 	);
 }
 
-function TrajectoryVisual() {
+function StepArrow() {
 	return (
-		<svg viewBox="0 0 400 210" className="fx-svg" aria-hidden="true">
-			<g className="fx-muted-stroke">
-				<path d="M116 58 h30" markerEnd="url(#fx-arr2)" />
-				<path d="M252 58 h30" markerEnd="url(#fx-arr2)" />
-			</g>
-			{[
-				['search_kb', 18],
-				['get_policy', 154],
-				['refund', 290],
-			].map(([name, x]) => (
-				<g key={String(name)}>
-					<rect x={Number(x)} y="38" width="94" height="40" rx="10" className="fx-node is-ok" />
-					<text x={Number(x) + 47} y="62" className="fx-label" textAnchor="middle">
-						{name}
-					</text>
-				</g>
-			))}
-			<g className="fx-check">
-				<path d="M24 120 l7 7 12 -14" />
-				<text x="58" y="128" className="fx-note">
-					must_call order held
-				</text>
-			</g>
-			<g className="fx-cross">
-				<path d="M26 152 l12 12 M38 152 l-12 12" />
-				<text x="58" y="162" className="fx-note">
-					must_not_call: delete_user
-				</text>
-			</g>
-			<g className="fx-check">
-				<path d="M24 188 l7 7 12 -14" />
-				<text x="58" y="196" className="fx-note">
-					3 steps ≤ max_steps 6
-				</text>
-			</g>
-			<defs>
-				<marker id="fx-arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-					<path d="M0 0 L10 5 L0 10 z" className="fx-arrow" />
-				</marker>
-			</defs>
+		<svg viewBox="0 0 24 12" className="fx-trace-arrow" aria-hidden="true">
+			<path d="M1 6 h17 M14 1.5 l5.5 4.5 -5.5 4.5" />
 		</svg>
+	);
+}
+
+function TrajectoryVisual() {
+	// The recorded tool calls flow across the top; the assertions the
+	// trajectory scorer checked read as a verdict list beneath them.
+	const checks: ['ok' | 'no', string][] = [
+		['ok', 'must_call order held'],
+		['no', 'must_not_call: delete_user'],
+		['ok', '3 steps ≤ max_steps: 6'],
+	];
+	return (
+		<div className="fx-trace" aria-hidden="true">
+			<div className="fx-trace-flow">
+				{['search_kb', 'get_policy', 'refund'].map((name, i) => (
+					<span key={name} className="fx-trace-step">
+						{i > 0 && <StepArrow />}
+						<span className="fx-trace-node">
+							<i>{i + 1}</i>
+							<code>{name}</code>
+						</span>
+					</span>
+				))}
+			</div>
+			<div className="fx-trace-checks fx-card">
+				{checks.map(([kind, text]) => (
+					<div key={text} className="fx-trace-check">
+						{kind === 'ok' ? (
+							<svg viewBox="0 0 24 24" className="fx-glyph is-pass">
+								<path d="M5 13l5 5 9-11" />
+							</svg>
+						) : (
+							<svg viewBox="0 0 24 24" className="fx-glyph is-fail">
+								<path d="M6 6l12 12 M18 6L6 18" />
+							</svg>
+						)}
+						<code>{text}</code>
+					</div>
+				))}
+			</div>
+		</div>
 	);
 }
 
 function GatesVisual() {
 	return (
 		<div className="fx-gates" aria-hidden="true">
-			<div className="fx-gate">
+			<div className="fx-gate fx-card">
 				<div className="fx-gate-head">
 					<code>pass_rate ≥ 0.95</code>
 					<span className="fx-tag is-pass">holds</span>
 				</div>
 				<div className="fx-meter">
-					<i className="fx-meter-fill" style={{ width: '100%' }} />
+					<i className="fx-meter-fill" style={{ width: '98%' }} />
 					<i className="fx-meter-mark" style={{ left: '95%' }} />
 				</div>
+				<div className="fx-meter-scale">
+					<span>0</span>
+					<span className="fx-meter-cap" style={{ left: '95%' }}>
+						0.95
+					</span>
+				</div>
 			</div>
-			<div className="fx-gate">
+			<div className="fx-gate fx-card">
 				<div className="fx-gate-head">
 					<code>--baseline main</code>
 					<span className="fx-tag is-pass">no regressions</span>
@@ -198,20 +237,35 @@ function GatesVisual() {
 function ReportsVisual() {
 	return (
 		<div className="fx-report" aria-hidden="true">
-			<div className="fx-report-doc">
-				<div className="fx-report-title">
-					<span />
-					<b className="t-pass">98%</b>
+			<div className="fx-report-doc fx-card">
+				<div className="fx-report-bar">
+					<span className="fx-report-dots">
+						<i />
+						<i />
+						<i />
+					</span>
+					<code>report.html</code>
 				</div>
-				<div className="fx-report-row is-pass" />
-				<div className="fx-report-row is-pass" />
-				<div className="fx-report-row is-fail" />
-				<div className="fx-report-row is-pass" />
+				<div className="fx-report-body">
+					<div className="fx-report-title">
+						<span />
+						<b className="t-pass">98%</b>
+					</div>
+					<div className="fx-report-row is-pass" style={{ width: '92%' }} />
+					<div className="fx-report-row is-pass" style={{ width: '78%' }} />
+					<div className="fx-report-row is-fail" style={{ width: '85%' }} />
+					<div className="fx-report-row is-pass" style={{ width: '64%' }} />
+				</div>
 			</div>
 			<div className="fx-report-side">
 				<span className="fx-note">pass rate, last 12 runs</span>
-				<svg viewBox="0 0 120 40" className="fx-spark">
+				<svg viewBox="0 0 120 44" className="fx-spark">
+					<path
+						className="fx-spark-area"
+						d="M0 26 L12 22 L24 24 L36 18 L48 20 L60 12 L72 16 L84 10 L96 12 L108 6 L120 8 L120 44 L0 44 Z"
+					/>
 					<polyline points="0,26 12,22 24,24 36,18 48,20 60,12 72,16 84,10 96,12 108,6 120,8" />
+					<circle className="fx-spark-dot" cx="120" cy="8" r="3" />
 				</svg>
 				<code>evalcore serve</code>
 			</div>
@@ -221,21 +275,25 @@ function ReportsVisual() {
 
 function CostVisual() {
 	return (
-		<div className="fx-cost" aria-hidden="true">
-			<div className="fx-cost-row">
-				<span className="fx-note">this run</span>
-				<b>2,202 tokens · $0.0038</b>
+		<div className="fx-cost fx-card" aria-hidden="true">
+			<div className="fx-cost-stat">
+				<b>$0.0038</b>
+				<span>2,202 tokens · this run</span>
 			</div>
 			<div className="fx-meter">
-				<i className="fx-meter-fill" style={{ width: '38%' }} />
+				<i className="fx-meter-fill is-accent" style={{ width: '38%' }} />
 				<i className="fx-meter-mark" style={{ left: '80%' }} />
 			</div>
-			<div className="fx-cost-row">
-				<span className="fx-note">budget_usd 0.01 stops scheduling at the cap</span>
+			<div className="fx-meter-scale">
+				<span>$0</span>
+				<span className="fx-meter-cap" style={{ left: '80%' }}>
+					budget_usd 0.01
+				</span>
 			</div>
+			<p className="fx-cost-note">New cases stop scheduling at the cap; the run still exits cleanly.</p>
 			<div className="fx-cost-replay">
 				<span className="t-pass">replayed run</span>
-				<span className="t-dim">same totals, virtual: $0 spent</span>
+				<span className="t-dim">same totals · virtual: $0 spent</span>
 			</div>
 		</div>
 	);
@@ -343,15 +401,32 @@ const FEATURES: Feature[] = [
 
 export default function FeatureExplorer() {
 	const [active, setActive] = useState(0);
+	// The rail is vertical on wide screens and lies down horizontally under
+	// 60rem; keep aria-orientation honest so keyboard users are told the right
+	// axis. Starts vertical (the SSR/wide default) and corrects on mount.
+	const [orientation, setOrientation] = useState<'vertical' | 'horizontal'>('vertical');
+	useEffect(() => {
+		const mq = window.matchMedia('(max-width: 60rem)');
+		const sync = () => setOrientation(mq.matches ? 'horizontal' : 'vertical');
+		sync();
+		mq.addEventListener('change', sync);
+		return () => mq.removeEventListener('change', sync);
+	}, []);
 	const baseId = useId();
 	const feature = FEATURES[active];
+	// One panel is rendered and its content swaps, so every tab points at this
+	// single stable id — the old per-feature id left 6 of 7 tabs referencing a
+	// panel that was not in the DOM.
+	const panelId = `${baseId}-panel`;
 
 	return (
-		<div className="fx">
+		// not-content opts the island out of Starlight's prose sibling margins,
+		// which otherwise add 1rem above every div/i inside the visuals.
+		<div className="fx not-content">
 			<div
 				className="fx-rail"
 				role="tablist"
-				aria-orientation="vertical"
+				aria-orientation={orientation}
 				aria-label="EvalCore capabilities"
 			>
 				{FEATURES.map((f, i) => (
@@ -360,7 +435,7 @@ export default function FeatureExplorer() {
 						role="tab"
 						id={`${baseId}-tab-${f.id}`}
 						aria-selected={i === active}
-						aria-controls={`${baseId}-panel-${f.id}`}
+						aria-controls={panelId}
 						tabIndex={i === active ? 0 : -1}
 						className={i === active ? 'fx-tab is-active' : 'fx-tab'}
 						onClick={() => setActive(i)}
@@ -387,7 +462,7 @@ export default function FeatureExplorer() {
 			<div
 				className="fx-panel"
 				role="tabpanel"
-				id={`${baseId}-panel-${feature.id}`}
+				id={panelId}
 				aria-labelledby={`${baseId}-tab-${feature.id}`}
 			>
 				<div className="fx-panel-copy">
@@ -403,8 +478,10 @@ export default function FeatureExplorer() {
 						</a>
 					</div>
 				</div>
-				<div className="fx-panel-visual" key={feature.id}>
-					{feature.visual}
+				<div className="fx-stage">
+					<div className="fx-panel-visual" key={feature.id}>
+						{feature.visual}
+					</div>
 				</div>
 			</div>
 		</div>

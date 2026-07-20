@@ -10,10 +10,29 @@
 [data-has-hero] .sl-markdown-content {
 	max-width: none;
 }
-[data-has-hero] .sl-markdown-content > section,
+/* The CTA keeps the reading measure (it is a centered panel, not a full-bleed
+ * section), so it is excluded from the wide splash width here — otherwise this
+ * rule (0,3,1) beats .ec-cta (0,1,0) and stretched it to 1152px. */
+[data-has-hero] .sl-markdown-content > section:not(.ec-cta),
 [data-has-hero] .sl-markdown-content > p.ec-stack {
 	max-width: var(--measure-splash);
 	margin-inline: auto;
+}
+/* Vertical rhythm on the splash comes entirely from each section's own
+ * padding/margin. Neutralize Starlight's 1rem sibling margin so the cadence is
+ * an even 96px, not the 96/112/48 it drifted to. */
+[data-has-hero] .sl-markdown-content > * {
+	margin-top: 0;
+}
+/* The reset above out-specifies the single-class components, which zeroed the
+ * stack line's and the CTA's own top margins and glued explorer → stack → CTA
+ * into one block. Restate them at the reset's specificity: the stack line
+ * annotates the explorer (one step), the CTA starts a new section (full step). */
+[data-has-hero] .sl-markdown-content > p.ec-stack {
+	margin-top: var(--sp-6);
+}
+[data-has-hero] .sl-markdown-content > section.ec-cta {
+	margin-top: var(--sp-9);
 }
 
 /* ---- Hero --------------------------------------------------------------- */
@@ -23,8 +42,15 @@
 	flex-direction: column;
 	align-items: center;
 	text-align: center;
-	padding: var(--sp-9) var(--sp-4) var(--sp-8);
+	/* Bottom padding is smaller than top: the terminal already carries visual
+	 * weight below the fold line. (Was set here and then silently overwritten
+	 * 230 lines down; consolidated to this one declaration.) */
+	padding: var(--sp-9) var(--sp-4) var(--sp-6);
 	isolation: isolate;
+	/* The aurora's drift + scale pushes past the viewport on phones and gave
+	 * the whole page a 14px sideways scroll. Clip x only; shadows still paint
+	 * below. */
+	overflow-x: clip;
 }
 
 /* Fine dot matrix that fades on every side — quieter and sharper than the old
@@ -137,7 +163,7 @@
 	height: 2.75rem;
 	padding-inline: 1.5rem;
 	border: 1px solid transparent;
-	border-radius: 12px;
+	border-radius: var(--radius-md);
 	font-size: var(--fs-sm);
 	font-weight: 600;
 	letter-spacing: 0.005em;
@@ -169,14 +195,9 @@
 		0 1px 2px rgb(19 19 22 / 20%),
 		0 8px 24px -12px var(--accent-line);
 }
-/* Hover lifts; it does not re-tint. Changing the fill on hover made the
- * button read as a different button, so only depth and the arrow move. */
-.ec-btn-primary:hover {
-	box-shadow:
-		inset 0 1px 0 rgb(255 255 255 / 22%),
-		0 2px 6px rgb(19 19 22 / 22%),
-		0 14px 34px -14px var(--accent-line);
-}
+/* Hover repaints nothing. The lift-on-hover pass made the buttons flash a
+ * lighter surface (most visibly in the CTA); the only hover signal now is the
+ * primary's arrow leading 2px. Depth changes are reserved for :active. */
 .ec-btn-primary:hover svg {
 	transform: translateX(2px);
 }
@@ -185,15 +206,12 @@
 	box-shadow: inset 0 2px 4px rgb(0 0 0 / 22%);
 }
 .ec-btn-secondary {
-	border-color: var(--sl-color-hairline);
+	/* --control-border, not the divider hairline: on the raised white fill the
+	 * hairline sat at ~1.3:1 and the button read as floating text. */
+	border-color: var(--control-border);
 	color: var(--sl-color-text);
 	background: var(--surface-raised);
 	box-shadow: var(--sl-shadow-sm);
-}
-.ec-btn-secondary:hover {
-	border-color: var(--sl-color-gray-4);
-	color: var(--heading);
-	box-shadow: var(--sl-shadow-md);
 }
 .ec-btn-secondary:active {
 	background: var(--surface);
@@ -215,12 +233,6 @@
 		inset 0 1px 0 rgb(255 255 255 / 28%),
 		0 1px 2px rgb(0 0 0 / 45%),
 		0 8px 24px -12px color-mix(in srgb, var(--sl-color-accent) 45%, transparent);
-}
-[data-theme='dark'] .ec-btn-primary:hover {
-	box-shadow:
-		inset 0 1px 0 rgb(255 255 255 / 28%),
-		0 2px 6px rgb(0 0 0 / 50%),
-		0 14px 34px -14px color-mix(in srgb, var(--sl-color-accent) 55%, transparent);
 }
 [data-theme='dark'] .ec-btn-primary:active {
 	background: color-mix(in srgb, var(--sl-color-accent) 88%, #000);
@@ -256,16 +268,13 @@
 	margin-top: var(--sp-7);
 	text-align: left;
 }
-.ec-hero {
-	padding-bottom: var(--sp-6);
-}
 
 .ec-term {
 	border: 1px solid var(--glass-border);
 	border-radius: var(--radius-lg);
 	background: var(--glass-bg);
-	backdrop-filter: blur(14px);
-	-webkit-backdrop-filter: blur(14px);
+	backdrop-filter: blur(var(--blur-glass));
+	-webkit-backdrop-filter: blur(var(--blur-glass));
 	box-shadow:
 		inset 0 1px 0 var(--glass-highlight),
 		var(--shadow-lg);
@@ -311,8 +320,10 @@
 }
 .ec-term-screen {
 	margin: 0;
-	/* Fixed, not min: the reveal must never resize the window mid-animation. */
-	height: 14em;
+	/* Fixed, not min: the reveal must never resize the window mid-animation.
+	 * The tallest act is 10 lines; at line-height 1.75 that is 17.5em, so 14em
+	 * clipped the last two lines including the closing "PASSED". */
+	height: 18em;
 	font-family: var(--sl-font-mono);
 	font-size: var(--fs-sm);
 	line-height: 1.75;
@@ -369,7 +380,7 @@
 }
 .ec-how-head,
 .ec-features-head {
-	max-width: 46rem;
+	max-width: var(--measure-prose);
 	margin-bottom: var(--sp-7);
 }
 .sl-markdown-content .ec-how-head h2,
@@ -454,7 +465,7 @@
 	border: 1px solid var(--glass-border);
 	border-radius: var(--radius-lg);
 	background: var(--glass-bg);
-	backdrop-filter: blur(14px);
+	backdrop-filter: blur(var(--blur-glass));
 	box-shadow:
 		inset 0 1px 0 var(--glass-highlight),
 		var(--shadow-lg);
@@ -520,7 +531,7 @@
 	border: 1px solid var(--glass-border);
 	border-radius: var(--radius-lg);
 	background: var(--glass-bg);
-	backdrop-filter: blur(14px);
+	backdrop-filter: blur(var(--blur-glass));
 	box-shadow:
 		inset 0 1px 0 var(--glass-highlight),
 		var(--shadow-lg);
@@ -563,7 +574,7 @@
 	border: 1px solid var(--glass-border);
 	border-radius: var(--radius-lg);
 	background: var(--glass-bg);
-	backdrop-filter: blur(14px);
+	backdrop-filter: blur(var(--blur-glass));
 	box-shadow:
 		inset 0 1px 0 var(--glass-highlight),
 		var(--shadow-lg);
@@ -654,8 +665,9 @@
 	grid-template-columns: 15rem minmax(0, 1fr);
 	border: var(--border);
 	border-radius: var(--radius-lg);
-	background: color-mix(in srgb, var(--sl-color-text) 2%, transparent);
+	background: var(--sl-color-bg);
 	overflow: hidden;
+	box-shadow: var(--sl-shadow-sm);
 }
 .fx-rail {
 	display: flex;
@@ -668,7 +680,7 @@
 .fx-tab {
 	position: relative;
 	width: 100%;
-	padding: 0.55rem 0.75rem;
+	padding: 0.65rem 0.8rem;
 	border: 0;
 	border-radius: var(--radius-sm);
 	background: transparent;
@@ -708,15 +720,21 @@
 	border-radius: 1px;
 	background: var(--sl-color-accent);
 }
+/* Copy sits left at a reading width; the visual takes the wider right column
+ * on a stage that fills the panel's height. The old stacked layout centered a
+ * small drawing inside a 36rem void — the panel was mostly empty. */
 .fx-panel {
 	display: grid;
-	grid-template-rows: auto 1fr;
+	grid-template-columns: minmax(0, 9fr) minmax(0, 14fr);
 	gap: var(--sp-6);
-	padding: var(--sp-6) var(--sp-7);
-	min-height: 20rem;
+	align-items: center;
+	padding: var(--sp-6);
+	/* Fixed floor tall enough for the tallest tab so switching tabs never
+	 * resizes the box. */
+	min-height: 31rem;
 }
 .fx-panel-copy {
-	max-width: 62ch;
+	max-width: 44ch;
 }
 .sl-markdown-content .fx-panel-copy h3 {
 	margin: 0 0 var(--sp-3);
@@ -765,16 +783,17 @@
 }
 .fx-proto-lane {
 	display: grid;
-	grid-template-columns: 7.5rem minmax(0, 1fr) 6.5rem;
+	grid-template-columns: 7rem minmax(0, 1fr) 7rem;
 	align-items: center;
-	gap: var(--sp-2);
+	gap: var(--sp-3);
 }
 .fx-proto-side {
-	padding: 0.45rem 0.6rem;
+	padding: 0.6rem 0.7rem;
 	border: var(--border);
 	border-radius: var(--radius-sm);
-	background: var(--surface);
-	font-size: var(--fs-xs);
+	background: var(--surface-raised);
+	box-shadow: var(--sl-shadow-sm);
+	font-size: var(--fs-sm);
 	color: var(--sl-color-text);
 	text-align: center;
 }
@@ -803,7 +822,7 @@
 	border-radius: 999px;
 	background: var(--code-bg);
 	font-family: var(--sl-font-mono);
-	font-size: var(--fs-xs);
+	font-size: 0.7rem;
 	color: var(--muted);
 	white-space: nowrap;
 }
@@ -814,11 +833,38 @@
 	text-align: center;
 }
 
-.fx-panel-visual {
-	min-width: 0;
+/* The stage: a quiet dotted plate that grounds each visual, echoing the hero's
+ * dot matrix. It stretches to the panel's full height so the drawing owns the
+ * column instead of floating in whitespace. */
+.fx-stage {
+	position: relative;
+	align-self: stretch;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	padding: var(--sp-6) var(--sp-5);
+	border: 1px solid var(--sl-color-hairline-light);
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--sl-color-text) 2%, transparent);
+	overflow: hidden;
+}
+.fx-stage::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background-image: radial-gradient(
+		color-mix(in srgb, var(--sl-color-gray-4) 45%, transparent) 1px,
+		transparent 1px
+	);
+	background-size: 22px 22px;
+	mask-image: radial-gradient(ellipse 75% 70% at 50% 45%, black 30%, transparent 78%);
+	-webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 45%, black 30%, transparent 78%);
+	pointer-events: none;
+}
+.fx-panel-visual {
+	position: relative;
+	width: 100%;
+	max-width: 34rem;
 	animation: fx-in var(--dur-slow) var(--ease-out);
 }
 @keyframes fx-in {
@@ -833,23 +879,47 @@
 	}
 }
 
-/* Explorer visuals — shared drawing vocabulary. SVGs are capped so their
- * viewBox text renders at the same optical size as the DOM visuals. */
+/* Explorer visuals — shared vocabulary. Raised cards on the dotted stage; the
+ * single focal element takes the accent; verdict colors mark verdicts only. */
+.fx-card {
+	border: var(--border);
+	border-radius: var(--radius);
+	background: var(--surface-raised);
+	box-shadow: var(--sl-shadow-sm);
+}
+.fx-table-head {
+	text-transform: uppercase;
+	letter-spacing: var(--tracking-wide);
+	font-family: var(--sl-font);
+	font-size: 0.7rem;
+	font-weight: 600;
+	color: var(--muted);
+	background: var(--surface);
+}
+.fx-table-foot {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: var(--sp-3);
+	padding: 0.7rem var(--sp-5);
+	background: var(--surface);
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-xs);
+	color: var(--muted);
+}
 .fx-svg {
 	width: 100%;
-	max-width: 480px;
 	height: auto;
 	display: block;
-	margin-inline: auto;
 }
-.fx-panel-visual > :not(.fx-svg) {
-	max-width: 460px;
-	margin-inline: auto;
+.fx-svg-card {
+	fill: var(--surface-raised);
+	stroke: var(--control-border);
+	stroke-width: 1.25;
 }
-.fx-muted-stroke rect,
-.fx-muted-stroke path {
+.fx-flow {
 	fill: none;
-	stroke: var(--sl-color-gray-4);
+	stroke: var(--diagram-line);
 	stroke-width: 1.5;
 }
 .fx-accent-stroke {
@@ -857,17 +927,32 @@
 	stroke: var(--sl-color-accent);
 	stroke-width: 1.5;
 }
+.fx-cassette-window {
+	fill: var(--sl-color-bg);
+	stroke: var(--accent-line);
+	stroke-width: 1.25;
+}
+.fx-tape {
+	fill: none;
+	stroke: var(--sl-color-accent);
+	stroke-width: 1.5;
+}
 .fx-arrow {
-	fill: var(--sl-color-gray-4);
+	fill: var(--diagram-line);
 }
 .fx-label {
 	font-family: var(--sl-font-mono);
-	font-size: 11px;
+	font-size: 12.5px;
 	fill: var(--sl-color-text);
+}
+.fx-sub {
+	font-family: var(--sl-font-mono);
+	font-size: 11px;
+	fill: var(--muted);
 }
 .fx-note {
 	font-family: var(--sl-font-mono);
-	font-size: 10.5px;
+	font-size: 11.5px;
 	fill: var(--muted);
 	color: var(--muted);
 }
@@ -890,55 +975,46 @@
 		animation: none;
 	}
 }
-.fx-node {
-	fill: var(--surface);
-	stroke: var(--sl-color-gray-4);
-	stroke-width: 1.5;
-}
-.fx-node.is-ok {
-	stroke: var(--pass-line);
-	fill: var(--pass-soft);
-}
-.fx-check path {
+.fx-glyph {
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
 	fill: none;
-	stroke: var(--pass);
-	stroke-width: 2.4;
+	stroke-width: 2.5;
 	stroke-linecap: round;
 	stroke-linejoin: round;
 }
-.fx-cross path {
-	fill: none;
+.fx-glyph.is-pass {
+	stroke: var(--pass);
+}
+.fx-glyph.is-fail {
 	stroke: var(--fail);
-	stroke-width: 2.4;
-	stroke-linecap: round;
 }
 
 /* Trials */
 .fx-trials {
-	display: flex;
-	flex-direction: column;
-	gap: var(--sp-3);
+	overflow: hidden;
 }
-.fx-trial-row {
-	display: flex;
+.fx-trials-grid {
+	display: grid;
+	grid-template-columns: minmax(6rem, auto) 1fr auto;
 	align-items: center;
 	gap: var(--sp-4);
-	padding: var(--sp-3) var(--sp-4);
-	border: var(--border);
-	border-radius: var(--radius);
+	padding: 0.7rem var(--sp-5);
+}
+.fx-trials > * + * {
+	border-top: 1px solid var(--sl-color-hairline-light);
 }
 .sl-markdown-content .fx-trial-row code {
-	font-size: var(--fs-xs);
-	min-width: 6.5rem;
+	font-size: var(--fs-sm);
 }
 .fx-dots {
 	display: inline-flex;
-	gap: 6px;
-	flex: 1;
+	gap: 7px;
 }
 .fx-dots i {
-	width: 10px;
-	height: 10px;
+	width: 12px;
+	height: 12px;
 	border-radius: 50%;
 }
 .fx-dots i.is-pass {
@@ -977,28 +1053,108 @@
 /* Matrix */
 .fx-matrix {
 	font-family: var(--sl-font-mono);
-	font-size: var(--fs-xs);
-	border: var(--border);
-	border-radius: var(--radius);
+	font-size: var(--fs-sm);
 	overflow: hidden;
 }
 .fx-matrix-row {
 	display: grid;
 	grid-template-columns: 2fr 1fr 1fr 1.2fr;
-	gap: var(--sp-2);
-	padding: 0.5rem var(--sp-4);
+	gap: var(--sp-3);
+	padding: 0.65rem var(--sp-5);
 }
 .fx-matrix-row + .fx-matrix-row {
 	border-top: 1px solid var(--sl-color-hairline-light);
 }
-.fx-matrix-head,
 .fx-matrix-foot {
 	color: var(--muted);
 	background: var(--surface);
 	font-weight: 600;
+	font-size: var(--fs-xs);
+}
+.fx-matrix-cost {
+	font-weight: 400;
 }
 .fx-winner {
 	color: var(--heading);
+	font-weight: 600;
+}
+
+/* Steps + assertions (agent traces) */
+.fx-trace {
+	display: flex;
+	flex-direction: column;
+	gap: var(--sp-5);
+}
+.fx-trace-flow {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--sp-1);
+	flex-wrap: wrap;
+}
+.fx-trace-step {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--sp-1);
+}
+.fx-trace-arrow {
+	width: 18px;
+	height: 9px;
+	fill: none;
+	stroke: var(--diagram-line);
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+.fx-trace-node {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.45rem;
+	padding: 0.45rem 0.65rem;
+	border: 1px solid var(--control-border);
+	border-radius: var(--radius);
+	background: var(--surface-raised);
+	box-shadow: var(--sl-shadow-sm);
+}
+.fx-trace-node i {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1rem;
+	height: 1rem;
+	border-radius: 50%;
+	background: var(--accent-soft);
+	color: var(--sl-color-text-accent);
+	font-family: var(--sl-font-mono);
+	font-size: 0.65rem;
+	font-weight: 600;
+	font-style: normal;
+}
+/* The node and the row are already the container; a boxed inline-code chip
+ * inside them reads as chrome-in-chrome and forces the flow to wrap. */
+.sl-markdown-content .fx-trace-node code {
+	font-size: var(--fs-xs);
+	background: transparent;
+	border: 0;
+	padding: 0;
+}
+.sl-markdown-content .fx-trace-check code {
+	font-size: var(--fs-sm);
+	background: transparent;
+	border: 0;
+	padding: 0;
+}
+.fx-trace-checks {
+	overflow: hidden;
+}
+.fx-trace-check {
+	display: flex;
+	align-items: center;
+	gap: var(--sp-3);
+	padding: 0.65rem var(--sp-5);
+}
+.fx-trace-check + .fx-trace-check {
+	border-top: 1px solid var(--sl-color-hairline-light);
 }
 
 /* Gates */
@@ -1008,24 +1164,23 @@
 	gap: var(--sp-4);
 }
 .fx-gate {
-	border: var(--border);
-	border-radius: var(--radius);
-	padding: var(--sp-4);
+	padding: var(--sp-5);
 }
 .fx-gate-head {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
 	gap: var(--sp-3);
-	margin-bottom: var(--sp-3);
+	margin-bottom: var(--sp-4);
 }
 .sl-markdown-content .fx-gate-head code {
-	font-size: var(--fs-xs);
+	font-size: var(--fs-sm);
 }
 .fx-meter {
 	position: relative;
-	height: 8px;
+	height: 10px;
 	border-radius: 999px;
+	border: 1px solid var(--sl-color-hairline-light);
 	background: var(--surface);
 }
 .fx-meter-fill {
@@ -1034,13 +1189,33 @@
 	border-radius: 999px;
 	background: linear-gradient(90deg, var(--pass-line), var(--pass));
 }
+/* Spend is not a verdict: the cost meter fills with the accent, never green. */
+.fx-meter-fill.is-accent {
+	background: linear-gradient(90deg, var(--accent-line), var(--sl-color-accent));
+}
 .fx-meter-mark {
 	position: absolute;
-	top: -4px;
-	bottom: -4px;
+	top: -5px;
+	bottom: -5px;
 	width: 2px;
 	background: var(--heading);
 	border-radius: 1px;
+}
+.fx-meter-scale {
+	position: relative;
+	display: flex;
+	justify-content: space-between;
+	margin-top: 0.5rem;
+	font-family: var(--sl-font-mono);
+	font-size: 0.7rem;
+	color: var(--muted);
+}
+.fx-meter-cap {
+	position: absolute;
+	translate: -50% 0;
+	color: var(--heading);
+	font-weight: 600;
+	white-space: nowrap;
 }
 .fx-gate-list {
 	list-style: none;
@@ -1048,21 +1223,43 @@
 	padding: 0;
 	font-family: var(--sl-font-mono);
 	font-size: var(--fs-xs);
-	line-height: 2;
+	line-height: 2.1;
 }
 
 /* Reports */
 .fx-report {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
 	gap: var(--sp-5);
 	align-items: center;
 }
 .fx-report-doc {
-	border: var(--border);
-	border-radius: var(--radius);
-	padding: var(--sp-4);
+	overflow: hidden;
+}
+.fx-report-bar {
+	display: flex;
+	align-items: center;
+	gap: var(--sp-3);
+	padding: 0.5rem var(--sp-4);
+	border-bottom: 1px solid var(--sl-color-hairline-light);
 	background: var(--surface);
+}
+.fx-report-dots {
+	display: inline-flex;
+	gap: 5px;
+}
+.fx-report-dots i {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--sl-color-gray-5);
+}
+.sl-markdown-content .fx-report-bar code {
+	font-size: 0.7rem;
+	color: var(--muted);
+}
+.fx-report-body {
+	padding: var(--sp-4) var(--sp-4) var(--sp-5);
 }
 .fx-report-title {
 	display: flex;
@@ -1070,9 +1267,12 @@
 	align-items: center;
 	margin-bottom: var(--sp-3);
 }
+.fx-report-title b {
+	font-family: var(--sl-font-mono);
+}
 .fx-report-title span {
 	display: block;
-	width: 40%;
+	width: 45%;
 	height: 10px;
 	border-radius: 999px;
 	background: var(--sl-color-gray-5);
@@ -1081,13 +1281,14 @@
 	height: 12px;
 	border-radius: var(--radius-sm);
 	margin-top: var(--sp-2);
-	background: var(--sl-color-gray-5);
+	background: var(--surface);
+	border: 1px solid var(--sl-color-hairline-light);
 	position: relative;
 }
 .fx-report-row::before {
 	content: '';
 	position: absolute;
-	inset: 3px auto 3px 4px;
+	inset: 2px auto 2px 4px;
 	width: 6px;
 	border-radius: 50%;
 }
@@ -1100,14 +1301,19 @@
 .fx-report-side {
 	display: flex;
 	flex-direction: column;
-	gap: var(--sp-2);
+	gap: var(--sp-3);
 }
 .sl-markdown-content .fx-report-side code {
+	align-self: flex-start;
+	padding: 0.25rem 0.65rem;
+	border: var(--border);
+	border-radius: var(--radius-sm);
+	background: var(--code-bg);
 	font-size: var(--fs-xs);
 }
 .fx-spark {
 	width: 100%;
-	height: 40px;
+	height: 56px;
 }
 .fx-spark polyline {
 	fill: none;
@@ -1116,33 +1322,46 @@
 	stroke-linecap: round;
 	stroke-linejoin: round;
 }
+.fx-spark-area {
+	fill: var(--pass-soft);
+	stroke: none;
+}
+.fx-spark-dot {
+	fill: var(--pass);
+}
 
 /* Cost */
 .fx-cost {
 	display: flex;
 	flex-direction: column;
-	gap: var(--sp-3);
-	border: var(--border);
-	border-radius: var(--radius);
+	gap: var(--sp-4);
 	padding: var(--sp-5);
 }
-.fx-cost-row {
-	display: flex;
-	justify-content: space-between;
-	gap: var(--sp-3);
-	font-size: var(--fs-sm);
-}
-.fx-cost-row b {
+.fx-cost-stat b {
+	display: block;
 	font-family: var(--sl-font-mono);
-	font-weight: 600;
+	font-size: var(--fs-2xl);
+	font-weight: 650;
+	letter-spacing: var(--tracking-tight);
 	color: var(--heading);
+}
+.fx-cost-stat span {
+	font-family: var(--sl-font-mono);
+	font-size: var(--fs-sm);
+	color: var(--muted);
+}
+.fx-cost-note {
+	margin: 0;
+	font-size: var(--fs-xs);
+	color: var(--muted);
 }
 .fx-cost-replay {
 	display: flex;
 	justify-content: space-between;
-	gap: var(--sp-3);
+	flex-wrap: wrap;
+	gap: var(--sp-2) var(--sp-3);
 	margin-top: var(--sp-2);
-	padding-top: var(--sp-3);
+	padding-top: var(--sp-4);
 	border-top: 1px solid var(--sl-color-hairline-light);
 	font-family: var(--sl-font-mono);
 	font-size: var(--fs-xs);
@@ -1164,13 +1383,13 @@
 
 /* ---- CTA ---------------------------------------------------------------- */
 .ec-cta {
-	max-width: 46rem;
+	max-width: var(--measure-prose);
 	margin: var(--sp-9) auto 0;
 	padding: var(--sp-8) var(--sp-6);
 	border: 1px solid var(--glass-border);
 	border-radius: var(--radius-lg);
 	background: var(--glass-bg);
-	backdrop-filter: blur(14px);
+	backdrop-filter: blur(var(--blur-glass));
 	box-shadow:
 		inset 0 1px 0 var(--glass-highlight),
 		var(--shadow-lg);
@@ -1194,10 +1413,6 @@
 	border: var(--border);
 	border-radius: 999px;
 	background: var(--code-bg);
-	transition: border-color var(--dur-fast) var(--ease-out);
-}
-.ec-cta-cmd:hover {
-	border-color: var(--sl-color-gray-4);
 }
 .sl-markdown-content .ec-cta-cmd code {
 	font-family: var(--sl-font-mono);
@@ -1243,11 +1458,13 @@
 	justify-content: center;
 	width: 1.75rem;
 	height: 1.75rem;
-	border: 1px solid var(--sl-color-hairline);
+	border: 1px solid var(--control-border);
 	border-radius: var(--radius-sm);
 	background: var(--surface);
-	color: var(--muted);
-	opacity: 0.65;
+	color: var(--sl-color-gray-3);
+	/* Idle opacity was 0.65: the muted glyph then rendered ~2.5:1. Present but
+	 * clearly readable idle, full contrast on hover/focus. */
+	opacity: 0.85;
 	cursor: pointer;
 	-webkit-tap-highlight-color: transparent;
 	transition:
@@ -1323,9 +1540,19 @@
 		width: auto;
 		height: 2px;
 	}
+	/* Stacked: copy above the stage; the fixed floor no longer applies because
+	 * the two columns became rows. */
 	.fx-panel {
+		grid-template-columns: 1fr;
+		min-height: 0;
 		padding: var(--sp-5);
 		gap: var(--sp-5);
+	}
+	.fx-panel-copy {
+		max-width: 62ch;
+	}
+	.fx-stage {
+		padding: var(--sp-5) var(--sp-4);
 	}
 }
 @media (max-width: 34rem) {
@@ -1338,5 +1565,42 @@
 	.ec-replay-arrow {
 		rotate: 90deg;
 		justify-self: center;
+	}
+	/* Phone: the data tables keep their columns but drop to the small mono size
+	 * and tighter gutters so nothing clips or scrolls sideways. */
+	.fx-matrix {
+		font-size: var(--fs-xs);
+	}
+	.fx-matrix-row {
+		padding-inline: var(--sp-4);
+		gap: var(--sp-2);
+	}
+	.fx-trials-grid {
+		grid-template-columns: minmax(0, auto) 1fr auto;
+		gap: var(--sp-3);
+		padding-inline: var(--sp-4);
+	}
+	.sl-markdown-content .fx-trial-row code,
+	.sl-markdown-content .fx-trace-check code,
+	.sl-markdown-content .fx-trace-node code {
+		font-size: var(--fs-xs);
+	}
+	.fx-table-foot {
+		padding-inline: var(--sp-4);
+	}
+	.fx-proto-lane {
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--sp-2);
+	}
+	.fx-proto-wire::before {
+		display: none;
+	}
+	/* The cassette diagram is 2:1; squeezed into a phone column its labels drop
+	 * under 7px. Keep them legible and let the stage pan sideways instead. */
+	.fx-stage {
+		overflow-x: auto;
+	}
+	.fx-svg {
+		min-width: 28rem;
 	}
 }

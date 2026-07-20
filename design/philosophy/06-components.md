@@ -16,8 +16,8 @@ Squared (`--radius`), calm, instrument-like.
 
 - Primary, light theme: accent gradient (a white-tinted top edge falling to the flat accent), white text, 1px inset top highlight.
 - Primary, dark theme: the relationship inverts. The dark accent is a light indigo, so a white-tinted gradient under white text washes out. Fill stays bright and the ink goes near-black (`#14141b`).
-- Secondary: raised surface, hairline border, text color. Hover strengthens border and shadow.
-- Hover lifts, it does not re-tint. Changing a button's fill on hover makes it read as a different button; only depth moves, plus the primary's arrow sliding 2px.
+- Secondary: raised surface, hairline border, text color.
+- Hover repaints nothing: no fill change, no border change, no shadow growth. The lift-on-hover pass read as the button flashing a lighter surface. The only hover signal is the primary's arrow sliding 2px; depth changes are reserved for `:active`.
 - Focus: visible 2px accent outline, offset 2px. Tap highlight disabled.
 - Never pills, never translateY hover, never green.
 
@@ -56,9 +56,10 @@ Flat surface fill, radius `--radius`, hairline border, plus a 2px semantic left 
 
 ## Drawn diagrams (fx-* vocabulary)
 
-All explanatory SVGs share one drawing language:
+All explanatory visuals — SVG or DOM — share one drawing language:
 
-- Muted 1.5px strokes for structure; the single focal element takes the accent (fill accent-soft, stroke accent).
-- Mono labels around 11px on a 320 to 480 unit viewBox; cap rendered width so text keeps one optical size across diagrams.
-- Orthogonal elbow connectors, staggered so no two share a lane, detached 4px from every box.
-- Verdict marks inside diagrams use the semantic colors (green check, red cross).
+- Boxes are raised cards (raised surface, control border, small shadow), not bare strokes, so drawings carry the same weight as real UI. The single focal element takes the accent (fill accent-soft, stroke accent).
+- Connectors are muted 1.5px strokes with solid arrowheads; orthogonal, staggered so no two share a lane, detached 4px from every box.
+- Mono labels around 12.5px optical size with muted 11px sublabels; cap rendered width (34rem) so text keeps one optical size across diagrams.
+- Verdict marks use the semantic colors (green check, red cross); the accent never marks a verdict, and green never fills a meter that isn't a pass measure — spend meters fill with the accent.
+- In the feature explorer each visual sits on a **stage**: a hairline plate carrying the same fading dot matrix as the hero, stretched to the panel's height. Copy takes the narrow left column, the visual the wide right one; the panel keeps a fixed floor so tab switches never resize it.

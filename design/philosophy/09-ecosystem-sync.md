@@ -40,3 +40,5 @@ Every surface that says EvalCore uses the same mark, palette, type, and voice: t
 | 2026-07-19 | Geist Variable replaced Inter as the site face; JetBrains Mono retained for code. |
 | 2026-07-19 | Code blocks pinned always-dark (#0e0e11) in both themes. |
 | 2026-07-19 | Glass treatment reserved for window chrome; traffic lights drawn in CSS, never baked into recordings. |
+| 2026-07-19 | Button hovers repaint nothing (no lift, no re-tint); the primary's 2px arrow slide is the only hover motion. Depth changes moved to `:active`. |
+| 2026-07-19 | Feature explorer panels went two-column (copy left, visual right on a dotted stage); diagram boxes are raised cards, not bare strokes. |
