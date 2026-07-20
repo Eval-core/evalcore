@@ -1,14 +1,7 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="design/assets/mark-dark.svg">
-    <img src="design/assets/mark.svg" alt="" width="88" height="88">
-  </picture>
 </p>
 <p align="center">
   <img src="design/assets/social-preview.png" alt="EvalCore: snapshot testing for AI behavior. Know when your AI gets worse, before your users do." width="760">
 </p>
-<h1 align="center">EvalCore</h1>
-
 <p align="center">
   <strong>Know when your AI gets worse, before your users do.</strong>
 </p>
