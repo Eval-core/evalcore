@@ -1653,11 +1653,28 @@ rect.fx-inset {
 }
 
 /* ---- Product Hunt featured badge ---------------------------------------- *
+ * Sits at the top of the hero, above the headline, as a launch trust signal.
  * Product Hunt ships light and dark SVGs; swap on the site theme toggle
  * (data-theme), not prefers-color-scheme, so it tracks the manual switch. */
 .ec-ph-badge {
-	margin-block: var(--sp-8) 0;
+	margin: 0 0 var(--sp-6);
+	line-height: 0;
 	text-align: center;
+}
+.ec-ph-badge a {
+	display: inline-block;
+	border-radius: 10px;
+	transition:
+		transform var(--dur-fast) ease,
+		opacity var(--dur-fast) ease;
+}
+.ec-ph-badge a:hover {
+	transform: translateY(-1px);
+	opacity: 0.92;
+}
+.ec-ph-badge a:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: 3px;
 }
 .ec-ph-badge img {
 	display: inline-block;
