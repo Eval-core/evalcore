@@ -61,7 +61,7 @@
 	height: 680px;
 	z-index: -2;
 	background-image: radial-gradient(
-		color-mix(in srgb, var(--sl-color-gray-4) 55%, transparent) 1px,
+		color-mix(in srgb, var(--sl-color-gray-4) 38%, transparent) 1px,
 		transparent 1px
 	);
 	background-size: 26px 26px;
@@ -457,6 +457,10 @@
 	font-size: var(--fs-sm);
 	font-weight: 500;
 }
+.ec-step-link:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: 2px;
+}
 .ec-step-visual {
 	margin: 0;
 	min-width: 0;
@@ -784,6 +788,10 @@
 .fx-panel-meta a:hover {
 	text-decoration: underline;
 }
+.fx-panel-meta a:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: 2px;
+}
 /* Protocol lanes: what you write, the wire format, what EvalCore calls it. */
 .fx-proto {
 	display: flex;
@@ -864,7 +872,7 @@
 	position: absolute;
 	inset: 0;
 	background-image: radial-gradient(
-		color-mix(in srgb, var(--sl-color-gray-4) 45%, transparent) 1px,
+		color-mix(in srgb, var(--sl-color-gray-4) 32%, transparent) 1px,
 		transparent 1px
 	);
 	background-size: 22px 22px;
@@ -1517,6 +1525,12 @@ rect.fx-inset {
 .ec-cta-cmd .ec-copy {
 	border-radius: 999px;
 }
+/* Starlight's markdown sibling rhythm adds 1rem margin-top to the second svg
+ * (the check), shoving the glyph off center. Both glyphs are chrome, not flow
+ * content. */
+.ec-copy svg {
+	margin: 0;
+}
 .ec-copy .ec-copy-check {
 	display: none;
 	color: var(--pass);
@@ -1552,6 +1566,12 @@ rect.fx-inset {
 		scrollbar-width: none;
 		border-inline-end: 0;
 		border-block-end: var(--border);
+		/* Hidden scrollbar leaves no hint that tabs 5-8 exist; the end fade is
+		 * that hint. End padding keeps the last tab clear of the fade at full
+		 * scroll. */
+		padding-inline-end: var(--sp-8);
+		mask-image: linear-gradient(to right, black calc(100% - 40px), transparent);
+		-webkit-mask-image: linear-gradient(to right, black calc(100% - 40px), transparent);
 	}
 	.fx-rail::-webkit-scrollbar {
 		display: none;

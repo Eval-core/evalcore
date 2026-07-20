@@ -91,6 +91,9 @@
 		border: var(--border);
 		border-radius: var(--radius-lg);
 		background: color-mix(in srgb, var(--sl-color-text) 2%, transparent);
+		/* The svg keeps its legible min-width on phones; the card, not the page,
+		 * is the scroll container. */
+		overflow-x: auto;
 	}
 	.ec-diagram figcaption {
 		margin-top: var(--sp-4);
