@@ -382,3 +382,16 @@ starlight-toc a[aria-current='true']::before {
 	outline: 2px solid var(--sl-color-accent);
 	outline-offset: 2px;
 }
+/* On phones the document ends at the footer. Starlight pads the content panel
+ * and main below it, and iOS Safari's over-scroll stacks on top of that, so
+ * the closing hairline floated above a block of blank page. The footer keeps
+ * its own small bottom inset so the text clears the browser chrome. */
+@media (max-width: 50rem) {
+	main[data-pagefind-body],
+	.content-panel:last-of-type {
+		padding-bottom: 0;
+	}
+	.ec-docs-footer {
+		padding-bottom: var(--sp-4);
+	}
+}
