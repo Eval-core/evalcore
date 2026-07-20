@@ -6,7 +6,7 @@ Two typefaces, one scale, no exceptions.
 
 | Role | Face | Source |
 |---|---|---|
-| UI, headings, body | Geist Variable | Self-hosted via `@fontsource-variable/geist` |
+| UI, headings, body | Manrope Variable | Self-hosted via `@fontsource-variable/manrope` |
 | Code, data, terminal | JetBrains Mono | Self-hosted via `@fontsource/jetbrains-mono` (400/500/700) |
 
 Both are self-hosted; the site makes no external font requests. Fallback stacks: `system-ui, -apple-system, BlinkMacSystemFont, sans-serif` and `ui-monospace, SFMono-Regular, Menlo, monospace`.
@@ -39,7 +39,11 @@ Minor third (1.200) off 1rem:
 
 ## Weight and color
 
-Headings render in the heading token (near-black light, near-white dark) at weight 600. The hero headline runs 650. Body stays at 400; bold within prose is 600. Mono weights: 400 default, 500 for labels, 700 for verdict emphasis.
+Weights are tuned to Manrope, which runs softer and wider than a grotesque at equal weight: headings render in the heading token (near-black light, near-white dark) at weight 700 with -0.02em tracking (600 reads as body-bold, not a heading). The hero headline runs 800 at `--tracking-tight`. Body stays at 400. UI labels and buttons sit at 500-600; card and diagram titles at 600 (label sizes do not need the display bump). Stat figures use 700 with tabular numerals. Mono weights: 400 default, 500 for labels, 700 for verdict emphasis.
+
+## Where mono is allowed
+
+JetBrains Mono marks *literals*: code, config keys, flags, filenames, case ids, terminal output, and tabular data cells. Everything structural — box titles in diagrams, table headers, tags, notes, annotations, stat figures — is set in Manrope. Setting descriptive labels in mono made the drawn visuals read as debug output rather than designed UI; the split is now semantic, not aesthetic.
 
 ## House rule
 

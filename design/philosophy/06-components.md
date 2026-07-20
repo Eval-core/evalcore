@@ -58,8 +58,9 @@ Flat surface fill, radius `--radius`, hairline border, plus a 2px semantic left 
 
 All explanatory visuals — SVG or DOM — share one drawing language:
 
-- Boxes are raised cards (raised surface, control border, small shadow), not bare strokes, so drawings carry the same weight as real UI. The single focal element takes the accent (fill accent-soft, stroke accent).
-- Connectors are muted 1.5px strokes with solid arrowheads; orthogonal, staggered so no two share a lane, detached 4px from every box.
-- Mono labels around 12.5px optical size with muted 11px sublabels; cap rendered width (34rem) so text keeps one optical size across diagrams.
+- Boxes are raised cards (raised surface, control border, resting `--shadow-card` — as a drop-shadow filter in SVG), not bare strokes, so drawings carry the same weight as real UI. The single focal element takes the accent (fill accent-soft, stroke accent).
+- Connectors are muted 1.5px strokes with solid arrowheads; **orthogonal only** (vertical/horizontal runs and elbows, never diagonals), staggered so no two share a lane, detached 4px from every box. Fan-outs route through a horizontal bus line, not spokes.
+- Boxes sit on a column grid: every box center aligns with a column or the diagram's axis, and boxes in the same row share one size. If a box cannot land on the grid, the layout is wrong, not the grid.
+- Labels follow the typography rule ([04-typography.md](04-typography.md)): box titles in Manrope at 600 around 12.5px optical size, muted 11px sublabels; mono only for literals (filenames, flags, config keys). Cap rendered width (34rem) so text keeps one optical size across diagrams.
 - Verdict marks use the semantic colors (green check, red cross); the accent never marks a verdict, and green never fills a meter that isn't a pass measure — spend meters fill with the accent.
 - In the feature explorer each visual sits on a **stage**: a hairline plate carrying the same fading dot matrix as the hero, stretched to the panel's height. Copy takes the narrow left column, the visual the wide right one; the panel keeps a fixed floor so tab switches never resize it.

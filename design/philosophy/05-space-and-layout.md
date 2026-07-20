@@ -39,6 +39,18 @@ Borders are 1px hairlines from the hairline token. No 2px decorative borders, no
 
 Sections separate by vertical space alone. Never draw a horizontal rule under a heading: the original site put a full-width border under every h2, and combined with content margins it read as an empty broken box on every page. That defect is the cautionary tale for this rule. Semantic left rules on asides (2px) are the only sanctioned decorative border.
 
+## Elevation
+
+Two resting levels, tokenized; nothing else casts a shadow.
+
+| Token | Use |
+|---|---|
+| `--shadow-card` | Resting cards: feature-explorer visuals, drawn-diagram boxes, CardGrid cards, small raised controls |
+| `--shadow-card-hover` | The same cards on hover (interactive cards only), paired with a 2px lift |
+| `--shadow-lg` | Glass windows and showpiece frames only |
+
+Shadows are layered (a 1px contact shadow plus a soft ambient one), low-opacity, and always derived from the theme's ink color, never pure black in light mode. A card at rest is *visibly* raised; hover deepens the same shadow rather than introducing one.
+
 ## Glass
 
 The glass treatment: translucent background, `backdrop-filter: blur(14px)`, a 1px inset top highlight, and one large soft shadow. Values live in tokens (`--glass-bg`, `--glass-border`, `--glass-highlight`, `--shadow-lg`).

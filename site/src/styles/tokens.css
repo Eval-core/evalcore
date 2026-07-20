@@ -10,7 +10,7 @@
 
 /* ---- Typefaces + scales (theme-independent) ----------------------------- */
 :root {
-	--sl-font: 'Geist Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+	--sl-font: 'Manrope Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 	--sl-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
 	/* Spacing — 4px base, geometric. Vertical rhythm comes entirely from these. */
@@ -144,6 +144,11 @@
 	--glass-highlight: rgb(255 255 255 / 60%);
 	--surface: #f4f4f6;
 	--surface-raised: #ffffff;
+	/* Elevation: a 1px contact shadow plus a soft ambient one, both cut from the
+	 * ink color. Cards rest on --shadow-card and deepen to -hover; --shadow-lg
+	 * is reserved for glass windows (see design/philosophy/05). */
+	--shadow-card: 0 1px 2px rgb(19 19 22 / 7%), 0 8px 24px -8px rgb(19 19 22 / 16%);
+	--shadow-card-hover: 0 2px 4px rgb(19 19 22 / 8%), 0 24px 48px -16px rgb(19 19 22 / 26%);
 	--shadow-lg: 0 24px 64px -32px rgb(19 19 22 / 22%);
 	--cast-shadow: var(--shadow-lg);
 
@@ -210,6 +215,8 @@
 	--glass-highlight: rgb(255 255 255 / 4%);
 	--surface: #131316;
 	--surface-raised: #18181d;
+	--shadow-card: 0 1px 2px rgb(0 0 0 / 55%), 0 8px 24px -8px rgb(0 0 0 / 55%);
+	--shadow-card-hover: 0 2px 4px rgb(0 0 0 / 60%), 0 24px 56px -16px rgb(0 0 0 / 75%);
 	--shadow-lg: 0 24px 64px -24px rgb(0 0 0 / 70%);
 	--cast-shadow: var(--shadow-lg);
 

@@ -126,7 +126,9 @@
 	margin: 0;
 	max-width: 26ch;
 	font-size: var(--fs-3xl);
-	font-weight: 650;
+	/* Manrope tops out at 800; the hero takes it so the headline reads as
+	 * display type, not enlarged body. */
+	font-weight: 800;
 	letter-spacing: var(--tracking-tight);
 	line-height: var(--lh-tight);
 	color: var(--heading);
@@ -484,23 +486,25 @@
 	display: flex;
 	flex-direction: column;
 }
+/* Segments are annotations, not controls: no hover state (a repaint on a
+ * non-interactive row reads as a broken button, and :hover sticks after tap
+ * on touch screens). The chip and hairline separators do the labeling. */
 .ec-yaml-seg {
 	position: relative;
-	padding: var(--sp-3) var(--sp-5);
-	border-left: 2px solid transparent;
-	transition:
-		border-color var(--dur-fast) var(--ease-out),
-		background var(--dur-fast) var(--ease-out);
+	padding: var(--sp-4) var(--sp-5);
 }
 .ec-yaml-seg + .ec-yaml-seg {
 	border-top: 1px solid var(--sl-color-hairline-light);
 }
-.ec-yaml-seg:hover {
-	border-left-color: var(--sl-color-accent);
-	background: var(--accent-soft);
-}
-.ec-yaml-seg pre {
+/* Starlight's markdown scope styles bare <pre> as a standalone code block
+ * (border, fill, 1rem padding); inside the drawn editor that produced a
+ * box-in-box with lopsided spacing. The editor frame is the surface here. */
+.sl-markdown-content .ec-yaml-seg pre {
 	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
 	font-family: var(--sl-font-mono);
 	font-size: var(--fs-xs);
 	line-height: 1.8;
@@ -544,9 +548,15 @@
 	font-size: var(--fs-xs);
 	color: var(--muted);
 }
+/* Scoped under .sl-markdown-content for the same reason as the editor pre:
+ * Starlight's bare-<pre> chrome must not leak into the drawn terminal. */
+.sl-markdown-content .ec-shot-body,
 .ec-shot-body {
 	margin: 0;
 	padding: var(--sp-4) var(--sp-5);
+	border: 0;
+	border-radius: 0;
+	background: transparent;
 	font-family: var(--sl-font-mono);
 	font-size: var(--fs-sm);
 	line-height: 1.8;
@@ -667,7 +677,7 @@
 	border-radius: var(--radius-lg);
 	background: var(--sl-color-bg);
 	overflow: hidden;
-	box-shadow: var(--sl-shadow-sm);
+	box-shadow: var(--shadow-card);
 }
 .fx-rail {
 	display: flex;
@@ -792,8 +802,9 @@
 	border: var(--border);
 	border-radius: var(--radius-sm);
 	background: var(--surface-raised);
-	box-shadow: var(--sl-shadow-sm);
+	box-shadow: var(--shadow-card);
 	font-size: var(--fs-sm);
+	font-weight: 500;
 	color: var(--sl-color-text);
 	text-align: center;
 }
@@ -880,12 +891,14 @@
 }
 
 /* Explorer visuals — shared vocabulary. Raised cards on the dotted stage; the
- * single focal element takes the accent; verdict colors mark verdicts only. */
+ * single focal element takes the accent; verdict colors mark verdicts only.
+ * Type is semantic: titles, tags, and notes in the sans; mono marks literals
+ * (case ids, flags, filenames, data cells) — see design/philosophy/04. */
 .fx-card {
 	border: var(--border);
 	border-radius: var(--radius);
 	background: var(--surface-raised);
-	box-shadow: var(--sl-shadow-sm);
+	box-shadow: var(--shadow-card);
 }
 .fx-table-head {
 	text-transform: uppercase;
@@ -912,6 +925,16 @@
 	height: auto;
 	display: block;
 }
+/* SVG boxes carry the same resting elevation as DOM cards; box-shadow does not
+ * reach SVG shapes, so the contact + ambient pair becomes drop-shadows. */
+.fx-svg-card,
+rect.fx-accent-stroke {
+	filter: drop-shadow(0 1px 1px rgb(19 19 22 / 10%)) drop-shadow(0 5px 12px rgb(19 19 22 / 10%));
+}
+[data-theme='dark'] .fx-svg-card,
+[data-theme='dark'] rect.fx-accent-stroke {
+	filter: drop-shadow(0 1px 1px rgb(0 0 0 / 55%)) drop-shadow(0 5px 12px rgb(0 0 0 / 50%));
+}
 .fx-svg-card {
 	fill: var(--surface-raised);
 	stroke: var(--control-border);
@@ -927,53 +950,51 @@
 	stroke: var(--sl-color-accent);
 	stroke-width: 1.5;
 }
-.fx-cassette-window {
-	fill: var(--sl-color-bg);
-	stroke: var(--accent-line);
-	stroke-width: 1.25;
+/* The cassette-as-keyed-store visual: hairline row divider, abstract response
+ * bars, and the matched row's hash in accent text. */
+.fx-hairline {
+	stroke: var(--sl-color-hairline);
+	stroke-width: 1;
 }
-.fx-tape {
-	fill: none;
-	stroke: var(--sl-color-accent);
-	stroke-width: 1.5;
+.fx-row-bar {
+	fill: var(--sl-color-gray-5);
+}
+.fx-row-bar.is-hit {
+	fill: var(--sl-color-accent);
+}
+.fx-accent-text {
+	fill: var(--sl-color-text-accent);
+}
+/* Elements inside a card (row highlights) are inset, not raised: no shadow. */
+rect.fx-inset {
+	filter: none;
 }
 .fx-arrow {
 	fill: var(--diagram-line);
 }
 .fx-label {
-	font-family: var(--sl-font-mono);
+	font-family: var(--sl-font);
 	font-size: 12.5px;
-	fill: var(--sl-color-text);
+	font-weight: 600;
+	letter-spacing: -0.005em;
+	fill: var(--heading);
 }
 .fx-sub {
-	font-family: var(--sl-font-mono);
+	font-family: var(--sl-font);
 	font-size: 11px;
 	fill: var(--muted);
 }
 .fx-note {
-	font-family: var(--sl-font-mono);
+	font-family: var(--sl-font);
 	font-size: 11.5px;
 	fill: var(--muted);
 	color: var(--muted);
 }
-.fx-reel {
-	fill: none;
-	stroke: var(--sl-color-accent);
-	stroke-width: 1.5;
-	stroke-dasharray: 3 4;
-	transform-origin: center;
-	animation: fx-spin 6s linear infinite;
-	transform-box: fill-box;
-}
-@keyframes fx-spin {
-	to {
-		rotate: 360deg;
-	}
-}
-@media (prefers-reduced-motion: reduce) {
-	.fx-reel {
-		animation: none;
-	}
+/* Literals inside diagrams — filenames, flags, config keys — keep the mono. */
+.fx-mono {
+	font-family: var(--sl-font-mono);
+	font-weight: 400;
+	letter-spacing: 0;
 }
 .fx-glyph {
 	width: 16px;
@@ -1025,9 +1046,11 @@
 	opacity: 0.75;
 }
 .fx-tag {
-	font-family: var(--sl-font-mono);
+	font-family: var(--sl-font);
 	font-size: 0.7rem;
-	font-weight: 600;
+	font-weight: 700;
+	letter-spacing: 0.01em;
+	font-variant-numeric: tabular-nums;
 	padding: 0.15rem 0.55rem;
 	border-radius: 999px;
 	border: var(--border);
@@ -1114,7 +1137,7 @@
 	border: 1px solid var(--control-border);
 	border-radius: var(--radius);
 	background: var(--surface-raised);
-	box-shadow: var(--sl-shadow-sm);
+	box-shadow: var(--shadow-card);
 }
 .fx-trace-node i {
 	display: inline-flex;
@@ -1206,8 +1229,9 @@
 	display: flex;
 	justify-content: space-between;
 	margin-top: 0.5rem;
-	font-family: var(--sl-font-mono);
+	font-family: var(--sl-font);
 	font-size: 0.7rem;
+	font-variant-numeric: tabular-nums;
 	color: var(--muted);
 }
 .fx-meter-cap {
@@ -1268,7 +1292,9 @@
 	margin-bottom: var(--sp-3);
 }
 .fx-report-title b {
-	font-family: var(--sl-font-mono);
+	font-family: var(--sl-font);
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
 }
 .fx-report-title span {
 	display: block;
@@ -1339,14 +1365,15 @@
 }
 .fx-cost-stat b {
 	display: block;
-	font-family: var(--sl-font-mono);
+	font-family: var(--sl-font);
 	font-size: var(--fs-2xl);
-	font-weight: 650;
+	font-weight: 700;
 	letter-spacing: var(--tracking-tight);
+	font-variant-numeric: tabular-nums;
 	color: var(--heading);
 }
 .fx-cost-stat span {
-	font-family: var(--sl-font-mono);
+	font-family: var(--sl-font);
 	font-size: var(--fs-sm);
 	color: var(--muted);
 }

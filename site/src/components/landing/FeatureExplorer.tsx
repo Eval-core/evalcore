@@ -16,9 +16,15 @@ type Feature = {
 };
 
 function CassetteVisual() {
-	// The pipeline reads left to right into the cassette (the one accent
-	// element), then drops to the replay card. Cards are raised surfaces, not
-	// bare strokes, so the diagram carries the same weight as the DOM visuals.
+	// The cassette drawn as what it is: a keyed store. The request is hashed,
+	// the hash arrow lands on its row in cassette.db (the matched row is the
+	// single accent element), and the recorded response replays byte-for-byte
+	// below. Response bodies are abstract bars; the hashes are the story.
+	const rows: { hash: string; y: number; hit: boolean }[] = [
+		{ hash: '9f3a2c…', y: 56, hit: true },
+		{ hash: '2fb1c4…', y: 80, hit: false },
+		{ hash: 'c81d7e…', y: 104, hit: false },
+	];
 	return (
 		<svg viewBox="0 0 520 268" className="fx-svg" aria-hidden="true">
 			<g>
@@ -40,17 +46,24 @@ function CassetteVisual() {
 				<path d="M278 64 h32" className="fx-flow" markerEnd="url(#fx-arr)" />
 			</g>
 			<g>
-				<rect x="314" y="18" width="186" height="112" rx="14" className="fx-accent-stroke" />
-				<rect x="336" y="38" width="142" height="46" rx="23" className="fx-cassette-window" />
-				<circle cx="366" cy="61" r="12" className="fx-reel" />
-				<circle cx="448" cy="61" r="12" className="fx-reel" />
-				<path d="M380 61 h54" className="fx-tape" />
-				<text x="407" y="112" className="fx-label" textAnchor="middle">
-					cassette.db · sqlite
+				<rect x="314" y="18" width="186" height="118" rx="12" className="fx-svg-card" />
+				<text x="330" y="40" className="fx-label fx-mono">cassette.db</text>
+				<text x="484" y="40" className="fx-sub" textAnchor="end">
+					sqlite
 				</text>
+				<line x1="314" y1="48" x2="500" y2="48" className="fx-hairline" />
+				{rows.map((r) => (
+					<g key={r.hash}>
+						{r.hit && <rect x="322" y={r.y} width="170" height="22" rx="5" className="fx-accent-stroke fx-inset" />}
+						<text x="332" y={r.y + 15} className={r.hit ? 'fx-sub fx-mono fx-accent-text' : 'fx-sub fx-mono'}>
+							{r.hash}
+						</text>
+						<rect x="400" y={r.y + 7} width="84" height="8" rx="4" className={r.hit ? 'fx-row-bar is-hit' : 'fx-row-bar'} />
+					</g>
+				))}
 			</g>
 			<g>
-				<path d="M407 130 v34" className="fx-flow" markerEnd="url(#fx-arr)" />
+				<path d="M407 140 v26" className="fx-flow" markerEnd="url(#fx-arr)" />
 				<rect x="314" y="172" width="186" height="72" rx="10" className="fx-svg-card" />
 				<text x="407" y="203" className="fx-label" textAnchor="middle">
 					replay

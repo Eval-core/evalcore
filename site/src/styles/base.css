@@ -15,11 +15,14 @@ body {
 	line-height: var(--lh-normal);
 }
 
-/* Headings share one voice: tight, heavy, high-contrast against body text. */
+/* Headings share one voice: tight, heavy, high-contrast against body text.
+ * Manrope runs softer and wider than Geist did at equal weight, so headings
+ * sit at 700 with slightly tighter tracking; 600 read as body-bold, not a
+ * heading. */
 .sl-markdown-content :is(h1, h2, h3, h4) {
-	letter-spacing: -0.015em;
+	letter-spacing: -0.02em;
 	line-height: var(--lh-tight);
-	font-weight: 600;
+	font-weight: 700;
 	color: var(--heading);
 }
 

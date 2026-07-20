@@ -31,7 +31,8 @@
 }
 
 /* ---- Cards (CardGrid) --------------------------------------------------- */
-/* Bordered surfaces with a whisper of fill and an accent-lit hover. */
+/* Raised surfaces resting on --shadow-card; hover deepens the same shadow and
+ * lifts 2px. A card is visibly a card at rest, not flat-until-hover. */
 /* Starlight 0.41.3 */
 .card-grid {
 	grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -52,21 +53,20 @@
 	border: var(--border);
 	border-radius: var(--radius);
 	padding: var(--sp-5);
-	background: color-mix(in srgb, var(--sl-color-text) 2%, transparent);
+	background: var(--surface-raised);
+	box-shadow: var(--shadow-card);
 	transition:
 		border-color var(--dur-fast) var(--ease-out),
 		transform var(--dur-fast) var(--ease-out),
-		background var(--dur-fast) var(--ease-out),
 		box-shadow var(--dur-fast) var(--ease-out);
 }
 .sl-markdown-content .card:hover {
 	border-color: color-mix(in srgb, var(--sl-color-accent) 42%, var(--sl-color-hairline));
-	background: color-mix(in srgb, var(--sl-color-text) 4%, transparent);
-	box-shadow: var(--sl-shadow-md, 0 14px 32px -20px rgb(0 0 0 / 55%));
+	box-shadow: var(--shadow-card-hover);
 }
 @media (prefers-reduced-motion: no-preference) {
 	.sl-markdown-content .card:hover {
-		transform: translateY(-3px);
+		transform: translateY(-2px);
 	}
 }
 .card .icon {
@@ -75,6 +75,7 @@
 .card .title {
 	font-size: var(--fs-base);
 	font-weight: 600;
+	letter-spacing: -0.01em;
 	color: var(--heading);
 }
 .card .sl-markdown-content,

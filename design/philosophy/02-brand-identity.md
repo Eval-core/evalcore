@@ -35,7 +35,7 @@ The site renders the mark inline (`site/src/components/Logo.astro`) so it follow
 
 ## The lockup
 
-Mark plus wordmark. The wordmark is the word EvalCore set in Geist at weight 600 with letter-spacing -0.02em, in heading color, with a gap of about 0.625rem between mark and word. The wordmark is type, not a drawing; never convert it to outlines or restyle it per surface.
+Mark plus wordmark. The wordmark is the word EvalCore set in Manrope at weight 600 with letter-spacing -0.02em, in heading color, with a gap of about 0.625rem between mark and word. The wordmark is type, not a drawing; never convert it to outlines or restyle it per surface.
 
 ## Usage rules
 

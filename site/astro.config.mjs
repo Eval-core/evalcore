@@ -36,7 +36,7 @@ export default defineConfig({
 			// then the design system. The five style files load in dependency
 			// order — tokens define the variables every later file reads.
 			customCss: [
-				'@fontsource-variable/geist',
+				'@fontsource-variable/manrope',
 				'@fontsource/jetbrains-mono/400.css',
 				'@fontsource/jetbrains-mono/500.css',
 				'@fontsource/jetbrains-mono/700.css',

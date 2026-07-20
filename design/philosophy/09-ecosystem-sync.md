@@ -42,3 +42,8 @@ Every surface that says EvalCore uses the same mark, palette, type, and voice: t
 | 2026-07-19 | Glass treatment reserved for window chrome; traffic lights drawn in CSS, never baked into recordings. |
 | 2026-07-19 | Button hovers repaint nothing (no lift, no re-tint); the primary's 2px arrow slide is the only hover motion. Depth changes moved to `:active`. |
 | 2026-07-19 | Feature explorer panels went two-column (copy left, visual right on a dotted stage); diagram boxes are raised cards, not bare strokes. |
+| 2026-07-19 | Manrope Variable replaced Geist Variable as the site face; JetBrains Mono retained, but demoted to literals only (code, flags, filenames, data cells). Structural labels, tags, and diagram titles are always Manrope. |
+| 2026-07-19 | Elevation tokenized: `--shadow-card` / `--shadow-card-hover` for resting and hovered cards; `--shadow-lg` reserved for glass. Cards rest visibly raised instead of flat-until-hover. |
+| 2026-07-19 | Drawn diagrams pinned to a column grid with orthogonal connectors and bus-routed fan-outs; diagonal arrows banned. |
+| 2026-07-19 | Cassette visual redrawn as a keyed store (cassette.db card with hash rows, the matched row accented) instead of a literal tape with spinning reels; function over metaphor, the name stays. |
+| 2026-07-19 | Hover states removed from non-interactive annotation segments (the landing YAML editor); hover is reserved for controls. |
