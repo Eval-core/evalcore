@@ -1,6 +1,6 @@
 ---
 title: Comparing models
-description: Run one suite against several targets in a single invocation and get a side-by-side comparison (model A vs B, prompt v1 vs v2) with per-case winners, per-target cost, and one exit code for CI.
+description: Run one suite against several targets in a single invocation for a side-by-side comparison with per-case winners, per-target cost, and one CI exit code.
 ---
 
 import CastFrame from '../../../components/CastFrame.astro';
@@ -121,6 +121,8 @@ case        echo    upper
 refund-1    PASS    PASS     tie
 refund-2    FAIL    PASS     upper
 wins: echo 0 · upper 1 · ties 1
+
+FAILED
 ```
 
 Each arm gets its full terminal block (the same PASS/FAIL lines, summary,

@@ -1,6 +1,6 @@
 ---
 title: Record / replay
-description: "The cassette lifecycle walked end to end: the four cache modes, what's in the cache key, what re-records on what change (table), reviewing cassette diffs, and team workflows."
+description: "The cassette lifecycle end to end: the four cache modes, what's in the cache key, what re-records on each change, and reviewing cassette diffs."
 ---
 
 Record/replay caching is what makes EvalCore deterministic in CI. Every call to

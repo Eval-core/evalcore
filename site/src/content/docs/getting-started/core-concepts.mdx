@@ -29,8 +29,9 @@ load-bearing.
 
 ## Targets: what's evaluated
 
-A target is the thing under test. You select one per run (with `--target <name>`
-when a suite defines several; with one target it is implicit). There are four
+A target is the thing under test. A run evaluates one target (selected with
+`--target <name>` when a suite defines several; implicit with one target), or
+several at once in a [matrix run](/guides/comparing-models/). There are four
 types:
 
 | Type | What it does |
@@ -55,7 +56,7 @@ resolved at run time. Full field-by-field docs are in the
 
 ## Datasets: the inputs
 
-Datasets are JSONL files, one test case per line, merged in listed order. Each
+Datasets are JSONL files, one case per line, merged in listed order. Each
 case has an `id` and, depending on the target, an `input` (and optionally an
 `expected`, used by `exact` and passed to `subprocess`/`judge` scorers):
 

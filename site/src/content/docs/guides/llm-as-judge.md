@@ -1,6 +1,6 @@
 ---
 title: LLM-as-judge
-description: "Grade open-ended answers against a rubric with any OpenAI-compatible endpoint: designing binary-decidable rubrics, choosing a threshold, why cached verdicts are CI-safe, what actually re-records a judge, and the cost-accounting gap."
+description: "Grade open-ended answers against a rubric with any OpenAI-compatible endpoint: designing rubrics, choosing a threshold, and why cached verdicts are CI-safe."
 ---
 
 Some answers can't be checked with `contains` or a regex. Is this grounded in the
@@ -119,13 +119,13 @@ that's why you won't find the rubric listed as an identity field.
   model. Catch it with the nightly `--cache live` job, not by un-determinizing PR
   runs. See [Record / replay](/guides/record-replay/).
 
-:::caution[Known gap]
-**LLM-judge calls are not yet included in the run's cost totals or counted
-against `run.budget_usd`.** The tokens and dollars reported by the summary
-reflect the *target's* usage, not the judge's. A grading-heavy suite spends real
-money on judge calls that the `$` line does not show. This is a documented
-roadmap gap, not a silent behavior. Budget for judge calls separately until it
-lands.
+:::note[Judge calls are costed]
+**LLM-judge calls are included in the run's cost totals and counted against
+`run.budget_usd`** when the judge declares `cost:` rates. Their token usage is
+added to the tokens and dollars reported by the summary, alongside the target's
+usage, so a grading-heavy suite shows the money it spends on judging. A judge
+without `cost:` rates contributes no `$` figure, just like a target without
+rates. See [Cost and budgets](/guides/cost-and-budgets/).
 :::
 
 For the exact judge protocol and verdict parsing, see the
@@ -138,7 +138,7 @@ mechanics, [Record / replay](/guides/record-replay/).
   the recommended judge use, graded against retrieved context.
 - [Semantic similarity](/guides/semantic-similarity/): a cheaper,
   deterministic scorer when a full rubric is more than you need.
-- [Cost and budgets](/guides/cost-and-budgets/): why judge calls are
-  not yet counted in the run's cost.
+- [Cost and budgets](/guides/cost-and-budgets/): how judge calls are
+  counted in the run's cost when the judge declares rates.
 - [Record / replay](/guides/record-replay/): how judge verdicts are
   cached so graded suites replay for $0.

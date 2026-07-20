@@ -1,6 +1,6 @@
 ---
 title: Custom scorers
-description: The subprocess scorer protocol, with a complete runnable Python faithfulness scorer, a Node one-liner, how to debug with echo, and the process-per-case performance note.
+description: The subprocess scorer protocol, with a complete runnable Python faithfulness scorer, a Node one-liner, and the process-per-case performance note.
 ---
 
 When the built-in scorers aren't enough, the `subprocess` scorer is the
@@ -84,6 +84,8 @@ FAIL ungrounded
      subprocess: 0/4 expected keywords grounded in the output
 
 1 passed, 1 failed, 2 total
+
+FAILED
 ```
 
 The failing case surfaces your `reason` verbatim under it.

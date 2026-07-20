@@ -1,6 +1,6 @@
 ---
 title: Cache and determinism
-description: The record/replay cache. Location, cache-key contents per target type, the four modes, the cassette-commit workflow, baseline storage, and EvalCore's determinism guarantees.
+description: The record/replay cache. Location, cache-key contents per target type, the four modes, the commit workflow, baseline storage, and determinism guarantees.
 ---
 
 EvalCore's record/replay cache makes reruns free, offline, and deterministic:

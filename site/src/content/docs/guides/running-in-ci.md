@@ -1,6 +1,6 @@
 ---
 title: Running in CI
-description: "The full EvalCore CI story: commit cassettes, replay offline at $0, gate on regressions, split PR from nightly drift detection, and integrate via the GitHub Action, JUnit, GitLab, or Jenkins."
+description: "The full EvalCore CI story: commit cassettes, replay offline at $0, gate on regressions, and split PR checks from nightly drift detection."
 ---
 
 EvalCore is built to run in CI on every pull request: **offline, free, and
@@ -93,6 +93,8 @@ Gate outcomes print after the summary and ride along in the JSON report:
 1 passed, 1 failed, 2 total
 GATE FAIL pass_rate >= 0.95 (actual 0.50)
 GATE PASS mean_score(contains) >= 0.4 (actual 0.50)
+
+FAILED
 ```
 
 Gates are **additive absolute floors**: the run exits `1` if the existing

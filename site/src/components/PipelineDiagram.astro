@@ -7,7 +7,7 @@
 ---
 
 <figure class="ec-diagram">
-	<svg viewBox="0 0 720 430" class="fx-svg" role="img" aria-label="Diagram of the run pipeline: evals.yaml and cases.jsonl feed the engine, which runs target then scorers per case with the cassette beside the target; results form an ordered RunSummary consumed by gates, reporters, and the exit code.">
+	<svg viewBox="0 0 720 430" class="fx-svg pd-svg" role="img" aria-label="Diagram of the run pipeline: evals.yaml and cases.jsonl feed the engine, which runs target then scorers per case with the cassette beside the target; results form an ordered RunSummary consumed by gates, reporters, and the exit code.">
 		<defs>
 			<marker id="pd-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
 				<path d="M0 0 L10 5 L0 10 z" class="fx-arrow"></path>
@@ -96,9 +96,14 @@
 		font-size: var(--fs-sm);
 		color: var(--muted);
 	}
+	/* This diagram's viewBox is 720 wide; the shared .fx-svg cap of 480px shrank
+	 * its 11px labels to ~7px. Let it fill the column so text renders legibly. */
+	.pd-svg {
+		max-width: 100%;
+	}
 	.pd-engine {
 		fill: transparent;
-		stroke: var(--sl-color-hairline);
+		stroke: var(--diagram-line);
 		stroke-width: 1.5;
 		stroke-dasharray: 5 5;
 	}

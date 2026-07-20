@@ -1,6 +1,6 @@
 ---
 title: Semantic similarity
-description: "Grade an answer by how close it is in meaning to the expected answer: cosine similarity over embeddings, cached and deterministic like the judge, via any OpenAI-compatible /embeddings endpoint."
+description: "Grade an answer by how close it is in meaning to the expected answer: cosine similarity over embeddings, cached and deterministic like the judge."
 ---
 
 `contains` and `exact` grade an answer by its exact characters, which is too

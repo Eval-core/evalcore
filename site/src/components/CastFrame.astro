@@ -31,10 +31,19 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 		<div class="ec-window-body">
 			{
 				cast ? (
-					<video autoplay loop muted playsinline aria-label={alt}>
-						<source src={`${base}/casts/${cast}.webm`} type="video/webm" />
-						<img src={`${base}/casts/${cast}.gif`} alt={alt} loading="lazy" />
-					</video>
+					<div class="ec-cast">
+						{/* No `autoplay` attribute: a script starts it only when motion is
+						    allowed and it scrolls into view, and the button always offers a
+						    way to stop it (WCAG 2.2.2). */}
+						<video loop muted playsinline aria-label={alt} data-cast>
+							<source src={`${base}/casts/${cast}.webm`} type="video/webm" />
+							<img src={`${base}/casts/${cast}.gif`} alt={alt} loading="lazy" />
+						</video>
+						<button type="button" class="ec-cast-toggle" data-cast-toggle aria-label="Pause recording">
+							<svg class="ec-cast-pause" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+							<svg class="ec-cast-play" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+						</button>
+					</div>
 				) : (
 					<slot />
 				)
@@ -52,8 +61,8 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 		border: 1px solid var(--glass-border);
 		border-radius: var(--radius-lg);
 		background: var(--glass-bg);
-		backdrop-filter: blur(14px);
-		-webkit-backdrop-filter: blur(14px);
+		backdrop-filter: blur(var(--blur-glass));
+		-webkit-backdrop-filter: blur(var(--blur-glass));
 		box-shadow:
 			inset 0 1px 0 var(--glass-highlight),
 			var(--shadow-lg);
@@ -105,6 +114,48 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 		width: 100%;
 		height: auto;
 	}
+	.ec-cast {
+		position: relative;
+	}
+	.ec-cast-toggle {
+		position: absolute;
+		inset-block-end: 0.5rem;
+		inset-inline-end: 0.5rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.9rem;
+		height: 1.9rem;
+		border-radius: 999px;
+		border: 1px solid var(--copy-chip-border);
+		background: var(--copy-chip-bg);
+		color: var(--copy-chip-icon);
+		cursor: pointer;
+		opacity: 0.7;
+		transition:
+			opacity var(--dur-fast) var(--ease-out),
+			color var(--dur-fast) var(--ease-out);
+	}
+	.ec-cast:hover .ec-cast-toggle,
+	.ec-cast-toggle:hover,
+	.ec-cast-toggle:focus-visible {
+		opacity: 1;
+		color: var(--copy-chip-icon-hover);
+	}
+	.ec-cast-toggle:focus-visible {
+		outline: 2px solid var(--sl-color-accent);
+		outline-offset: 2px;
+	}
+	/* Default markup shows the pause glyph (playing); the paused class swaps it. */
+	.ec-cast-toggle .ec-cast-play {
+		display: none;
+	}
+	.ec-cast-toggle.is-paused .ec-cast-pause {
+		display: none;
+	}
+	.ec-cast-toggle.is-paused .ec-cast-play {
+		display: block;
+	}
 	figcaption {
 		margin-top: var(--sp-3);
 		text-align: center;
@@ -112,3 +163,42 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 		color: var(--muted);
 	}
 </style>
+
+<script>
+	const reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+	document.querySelectorAll<HTMLDivElement>('.ec-cast').forEach((wrap) => {
+		const video = wrap.querySelector<HTMLVideoElement>('video[data-cast]');
+		const toggle = wrap.querySelector<HTMLButtonElement>('[data-cast-toggle]');
+		if (!video || !toggle) return;
+
+		const sync = () => {
+			const paused = video.paused;
+			toggle.classList.toggle('is-paused', paused);
+			toggle.setAttribute('aria-label', paused ? 'Play recording' : 'Pause recording');
+		};
+
+		toggle.addEventListener('click', () => {
+			if (video.paused) video.play();
+			else video.pause();
+		});
+		video.addEventListener('play', sync);
+		video.addEventListener('pause', sync);
+
+		// Autoplay only when motion is allowed and the tape is on screen.
+		if (!reduce.matches) {
+			const io = new IntersectionObserver(
+				(entries) => {
+					for (const e of entries) {
+						if (e.isIntersecting) video.play().catch(() => {});
+						else video.pause();
+					}
+				},
+				{ threshold: 0.25 }
+			);
+			io.observe(wrap);
+			document.addEventListener('astro:before-swap', () => io.disconnect(), { once: true });
+		}
+		sync();
+	});
+</script>

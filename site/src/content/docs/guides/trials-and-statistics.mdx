@@ -1,6 +1,6 @@
 ---
 title: Trials and statistics
-description: "Run every case N times and aggregate, because one sample of a stochastic model isn't a measurement. Trials, require policies, how verdicts and scores fold together, and the determinism story."
+description: "Run every case N times and aggregate: trials, require policies, how verdicts and scores fold together, and the determinism story."
 ---
 
 import CastFrame from '../../../components/CastFrame.astro';
@@ -103,6 +103,8 @@ FAIL mismatch [0/3 trials]
      contains: trial 0: expected output to contain "hello", got: "goodbye"
 
 1 passed, 1 failed, 2 total
+
+FAILED
 ```
 
 The reason line names the scorer and the **first failing trial** (in trial
@@ -115,6 +117,8 @@ FAIL mismatch
      contains: expected output to contain "hello", got: "goodbye"
 
 1 passed, 1 failed, 2 total
+
+FAILED
 ```
 
 The example above uses a deterministic shell target, so every trial agrees and
@@ -141,6 +145,8 @@ FAIL mismatch [0/3 trials]
      contains: trial 0: expected output to contain "hello", got: "goodbye"
 
 1 passed, 1 failed, 2 total · 0 flaky
+
+FAILED
 ```
 
 This is the same deterministic shell suite as above: every trial of a case
@@ -201,13 +207,11 @@ commit the cassette, and `--cache replay` reruns all N trials of every case
 offline, keyless, and deterministically. It is the same CI story as a
 single-trial suite, just with N recorded samples per case.
 
-:::caution[Known gap]
-With `run.trials` greater than 1, the **cost** totals are correct: they sum
-every trial. The **token** totals in the terminal and HTML summaries currently
-reflect one trial per case rather than the full N. If you gate on cost or
-budget, that path is accurate; if you read the token count as an exact
-multi-trial total, treat it as a per-trial figure for now. This is tracked for a
-follow-up alongside judge-call cost attribution.
+:::note[Token totals are trial-aware]
+With `run.trials` greater than 1, both the **cost** and the **token** totals in
+the terminal and HTML summaries sum every trial, and every priced scorer, so the
+figures are exact multi-trial totals. Gating on cost or budget and reading the
+token count both reflect the full N trials.
 :::
 
 ## See also

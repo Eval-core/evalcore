@@ -1,6 +1,6 @@
 ---
 title: RAG evaluation
-description: "Evaluate a retrieval-augmented app with EvalCore: attach retrieved context to cases, grade groundedness with the cached native judge, assert on what your pipeline retrieved, and wire the shipped Ragas/DeepEval shims into a nightly tier."
+description: "Evaluate a RAG app with EvalCore: attach retrieved context to cases, grade groundedness with the cached judge, and wire in the Ragas/DeepEval shims."
 ---
 
 A retrieval-augmented (RAG) app answers from chunks it retrieved, so its evals

@@ -14,3 +14,9 @@ site/demo/**/.evalcore/
 
 # Local editor/vault state
 .obsidian/
+
+# Local learning sandbox (not tracked)
+playground/
+
+# Playwright MCP session artifacts (screenshots, snapshots, console logs)
+.playwright-mcp/

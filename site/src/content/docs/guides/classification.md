@@ -141,6 +141,8 @@ FAIL ticket-4
 GATE PASS accuracy >= 0.6 (actual 0.67)
 GATE PASS macro_f1 >= 0.6 (actual 0.67)
 classification: accuracy 0.67 · macro-F1 0.67 (3 labeled, 1 unlabeled)
+
+FAILED
 ```
 
 The per-case `PASS`/`FAIL` lines and the `GATE`/`classification` lines answer
@@ -163,6 +165,8 @@ is `0.0` and the gate fails with an explicit reason:
 GATE FAIL accuracy >= 0.6 (actual 0.00)
      no labeled cases
 classification: accuracy 0.00 · macro-F1 0.00 (0 labeled, 2 unlabeled)
+
+FAILED
 ```
 
 This catches the common mistake of gating on classification against a dataset

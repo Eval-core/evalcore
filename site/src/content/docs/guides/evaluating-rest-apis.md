@@ -1,6 +1,6 @@
 ---
 title: Evaluating REST APIs
-description: "Point EvalCore at your own deployed app's HTTP/JSON endpoint: {{input}} substitution, response_path JSON Pointers, auth patterns, the headers-are-cached caveat, timeouts and retries, and keyless replay."
+description: "Point EvalCore at your deployed app's HTTP/JSON endpoint: {{input}} substitution, response_path pointers, auth, timeouts, retries, and keyless replay."
 ---
 
 The `http` target points EvalCore at any HTTP/JSON API, typically your own
@@ -46,6 +46,8 @@ localhost run of exactly this shape produces:
 PASS refund (7ms)
 
 1 passed, 0 failed, 1 total
+
+PASSED
 ```
 
 Re-run offline with the server stopped and `--cache replay`. It replays the
@@ -55,6 +57,8 @@ recorded answer with no network and no key:
 PASS refund (7ms)
 
 1 passed, 0 failed, 1 total
+
+PASSED
 ```
 
 ## `{{input}}` substitution

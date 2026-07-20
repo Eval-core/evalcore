@@ -69,7 +69,10 @@ body {
 	text-decoration-thickness: 1px;
 	text-underline-offset: 2px;
 }
-.sl-markdown-content a:hover {
+/* Exclude the CTA buttons: the hero renders outside .sl-markdown-content and
+ * the CTA inside it, so this prose-link hover (specificity 0,2,1) out-ran
+ * .ec-btn and repainted only the in-content buttons on hover. */
+.sl-markdown-content a:not(.ec-btn):hover {
 	color: var(--accent-hover);
 }
 
@@ -107,4 +110,19 @@ body {
 /* Mint selection tint. */
 ::selection {
 	background: var(--selection-bg);
+}
+
+/* Visually hidden but available to assistive tech — for live status regions
+ * like the copy-command confirmation. */
+.ec-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
 }

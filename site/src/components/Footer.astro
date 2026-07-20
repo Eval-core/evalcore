@@ -55,7 +55,7 @@ const columns = [
 {
 	isSplash ? (
 		<footer class="ec-footer">
-			<div class="ec-footer-cols">
+			<nav class="ec-footer-cols" aria-label="Footer">
 				<div class="ec-footer-brand">
 					<span class="ec-footer-lockup">
 						<Logo size={24} />
@@ -65,7 +65,10 @@ const columns = [
 				</div>
 				{columns.map((col) => (
 					<div class="ec-footer-col">
-						<h2>{col.title}</h2>
+						{/* A styled label, not an <h2>: four column titles as h2 flattened
+						    the page's heading outline; the nav landmark carries the
+						    structure instead. */}
+						<p class="ec-footer-col-title">{col.title}</p>
 						<ul>
 							{col.links.map((link) => (
 								<li>
@@ -75,7 +78,7 @@ const columns = [
 						</ul>
 					</div>
 				))}
-			</div>
+			</nav>
 			<div class="ec-footer-baseline">
 				<span>No telemetry. No signup. No server.</span>
 				<span>Built by Abhishek Manyam and Kuladeep Mantri · Apache-2.0</span>

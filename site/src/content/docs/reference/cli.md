@@ -48,14 +48,17 @@ through every scorer, renders a report, and returns an exit code.
 | Flag | Value | Default | Description |
 |---|---|---|---|
 | `--target` | name | n/a | Target to run. May be omitted only when exactly one target is defined; with several, omitting it is an error naming the available targets. |
-| `--matrix` | comma list of names | n/a | Run the whole suite against several targets and print a side-by-side comparison. At least two distinct, defined names. Overrides `run.matrix`. Mutually exclusive with `--target`, `--baseline`, `--save-baseline`. Since v0.7.5. See [Matrix runs](#matrix-runs). |
+| `--matrix` | comma list of names | n/a | Run the whole suite against several targets and print a side-by-side comparison. At least two distinct, defined names. Overrides `run.matrix`. Mutually exclusive with `--target`, `--baseline`, `--save-baseline`. Since v0.7.0. See [Matrix runs](#matrix-runs). |
 | `--reporter` | `terminal` \| `json` \| `junit` | `terminal` | Report format. See [Reporters](#reporters). |
 | `--output` | path | n/a | Write the report to a file instead of stdout. |
 | `--html` | path | n/a | Also write a self-contained HTML report to this path, in addition to the primary `--reporter` output. Since v0.5.0. |
 | `--cache` | `auto` \| `replay` \| `live` \| `off` | `auto` | Record/replay cache mode for cacheable targets. See [Cache modes](#cache-modes). |
 | `--baseline` | label | n/a | Gate on regressions against a stored baseline instead of absolute pass/fail. |
 | `--save-baseline` | label | n/a | Save this run's results as a named baseline. |
-| `--no-history` | flag | off | Do not append a run-history row for this run (overrides `run.history: true`). The exit code and report bytes are unaffected; history is metadata for [`evalcore serve`](#evalcore-serve). Since v0.7.5. |
+| `--no-history` | flag | off | Do not append a run-history row for this run (overrides `run.history: true`). The exit code and report bytes are unaffected; history is metadata for [`evalcore serve`](#evalcore-serve). Since v0.7.0. |
+| `--color` | `auto` \| `always` \| `never` | `auto` | Semantic color in the terminal report. `auto` colors only an interactive terminal; `always` forces it; `never` disables it. Honors `NO_COLOR`, `TERM=dumb`, and `CLICOLOR_FORCE`. Machine reporters (`json`/`junit`) and `--output` files are never colored. Since v0.7.5. |
+| `--progress` | `auto` \| `never` | `auto` | Live spinner and `k/N` case counter on stderr. `auto` shows it only on an interactive terminal; `never` disables it. Since v0.7.5. |
+| `-q, --quiet` | flag | off | Print failing cases and the summary only, suppressing per-case `PASS` lines. Since v0.7.5. |
 
 ### Target selection
 
@@ -66,7 +69,7 @@ targets defined; pass --target <name> (available: …)`.
 
 ### Matrix runs
 
-Since v0.7.5. `--matrix <name,name,…>` runs the whole suite once
+Since v0.7.0. `--matrix <name,name,…>` runs the whole suite once
 per named target, sequentially in list order, and prints each arm's report
 followed by a `== comparison` table. It overrides `run.matrix` in the config;
 either surface needs at least two distinct, defined names. `run.budget_usd`
@@ -184,6 +187,8 @@ FAIL refund-2
 
 2 passed, 1 failed, 3 total · 210 tokens · $0.0020
 GATE PASS pass_rate >= 0.95 (actual 1.00)
+
+FAILED
 ```
 
 Each passing case is `PASS <id> (<latency>ms)`; each failing case is `FAIL <id>`
@@ -191,7 +196,12 @@ followed by indented failure reasons. The summary line always shows
 `<p> passed, <f> failed, <t> total`, with ` · <n> tokens` and ` · $<cost>`
 appended only when the run reported usage/cost. Gate lines
 (`GATE PASS|FAIL <gate> (actual <n>)`, with an indented reason when present)
-follow, and are absent entirely when no gates are configured.
+follow, and are absent entirely when no gates are configured. A closing
+`PASSED` or `FAILED` verdict line ends the report, matching the run's exit code.
+On an interactive terminal the report also carries restrained semantic color and
+a live progress spinner; piped, redirected, in CI, or under `NO_COLOR`/`TERM=dumb`
+the output is byte-for-byte the previous plain text. See `--color`, `--progress`,
+and `-q/--quiet` above.
 
 ### json
 
@@ -221,7 +231,7 @@ not include gate outcomes; the exit code carries the gate result.
 
 ## `evalcore serve`
 
-Since v0.7.5. Starts a **local, read-only** web viewer over the
+Since v0.7.0. Starts a **local, read-only** web viewer over the
 [run history](/guides/run-history-and-serve/) stored in a `.evalcore/cache.db`
 file. Unlike `validate` and `run`, it takes no config argument, because it reads the
 store rather than a config.

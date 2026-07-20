@@ -34,7 +34,13 @@ const repo = 'https://github.com/eval-core/evalcore';
 	.ec-gh:hover {
 		color: var(--heading);
 		border-color: var(--sl-color-gray-4);
-		background: var(--glass-highlight);
+		/* Neutral tint, not --glass-highlight: that is near-white and vanished
+		 * against the light header. */
+		background: color-mix(in srgb, var(--sl-color-text) 6%, transparent);
+	}
+	.ec-gh:focus-visible {
+		outline: 2px solid var(--sl-color-accent);
+		outline-offset: 2px;
 	}
 	@media (max-width: 50rem) {
 		.ec-gh {

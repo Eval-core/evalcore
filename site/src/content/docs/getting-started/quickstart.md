@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: "Grade a real support bot against its policy context in five minutes, with no API keys and no network. Run the shipped suite, read every line, add an HTML report, then swap in your own app."
+description: "Grade a real support bot against its policy context in five minutes, no API keys and no network. Run the shipped suite, then swap in your own app."
 ---
 
 Five minutes, **no API keys and no network**. You will run a real eval suite (a
@@ -44,6 +44,8 @@ PASS wire-eta (10ms)
 
 4 passed, 0 failed, 4 total
 GATE PASS pass_rate >= 0.95 (actual 1.00)
+
+PASSED
 ```
 
 That is a whole eval suite passing. A support bot answered four customer
@@ -82,7 +84,7 @@ run:
   a stand-in support agent that returns canned, policy-grounded answers, so the
   suite runs with no model and no network. This is where your real app goes
   (step 6).
-- `datasets` are JSONL files of test cases, resolved relative to the config
+- `datasets` are JSONL files of cases, resolved relative to the config
   file. Each case carries an `id`, the customer's `input`, and a `context`
   policy chunk: the retrieved passage the answer is supposed to be grounded in.
 - `scorers` decide how each answer is judged. `contains` passes when the output

@@ -1,6 +1,6 @@
 ---
 title: What teams use it for
-description: "Five real scenarios EvalCore is built for: a regulated support copilot, a model migration, an expensive judge suite made free, claims-triage classification, and an agent that touches money."
+description: "Five real scenarios EvalCore is built for: a regulated support copilot, a model migration, an expensive judge suite made free, and a money-touching agent."
 ---
 
 EvalCore is one small binary, but the same moves (describe a suite as data,

@@ -136,17 +136,17 @@ export default defineConfig({
 				{
 					label: 'Reference',
 					items: [
-						{ label: 'Configuration', slug: 'reference/configuration' },
-						{ label: 'CLI', slug: 'reference/cli' },
-						{ label: 'Subprocess protocol', slug: 'reference/subprocess-protocol' },
+						// Labels match each page's own title so the sidebar, breadcrumb,
+						// and H1 read the same.
+						{ label: 'Configuration reference', slug: 'reference/configuration' },
+						{ label: 'CLI reference', slug: 'reference/cli' },
+						{ label: 'Subprocess scorer protocol', slug: 'reference/subprocess-protocol' },
 						{ label: 'Trajectory format', slug: 'reference/trajectory-format' },
 						{ label: 'Cache and determinism', slug: 'reference/cache-and-determinism' },
 					],
 				},
-				{
-					label: 'FAQ',
-					items: [{ label: 'FAQ', slug: 'faq' }],
-				},
+				// A single-item group rendered as "FAQ > FAQ"; a plain top-level link.
+				{ label: 'FAQ', slug: 'faq' },
 			],
 		}),
 	],

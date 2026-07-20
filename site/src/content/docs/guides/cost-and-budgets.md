@@ -1,6 +1,6 @@
 ---
 title: Cost and budgets
-description: Declare token rates, read per-case and total cost, cap spend with budget_usd, understand why replayed runs report $0 actual, and price agent-trace runs from span tokens.
+description: Declare token rates, read per-case and total cost, cap spend with budget_usd, and price replayed and agent-trace runs from recorded or span tokens.
 ---
 
 EvalCore reports token usage and cost per case and across the run, and can stop a
@@ -120,12 +120,12 @@ The shipped agent-trace example shows this. One case's OTel trace carries
 See [Agents and traces](/guides/agents-and-traces/) for how usage is
 extracted from spans.
 
-:::caution[Known gap]
-**LLM-judge calls are not yet included in cost totals or budgets.**
-The reported tokens and `$` reflect the *target's* usage only. A judge-heavy
-suite spends real money on grading that the `$` line does not show, and those
-calls do not count against `run.budget_usd`. This is a documented roadmap gap.
-Budget for judge calls separately for now. See
+:::note[Judge and embedding calls are costed]
+**LLM-judge and embedding/similarity calls are included in cost totals and
+budgets** when the judge or scorer declares `cost:` rates. Their token usage is
+attributed to the run's reported tokens and `$`, and it counts against
+`run.budget_usd` alongside the target's usage. A scorer without `cost:` rates
+still contributes no `$` figure, exactly like a target without rates. See
 [LLM-as-judge](/guides/llm-as-judge/).
 :::
 
@@ -136,9 +136,9 @@ For field-level details, see the
 
 - [Comparing models](/guides/comparing-models/): per-target cost across
   a matrix, and how `budget_usd` bounds each arm.
-- [Trials and statistics](/guides/trials-and-statistics/): how cost sums
-  across trials, and the token-total gap under `run.trials`.
-- [LLM-as-judge](/guides/llm-as-judge/): why judge calls are not yet
-  counted in the run's cost.
+- [Trials and statistics](/guides/trials-and-statistics/): how cost and
+  token totals sum across every trial under `run.trials`.
+- [LLM-as-judge](/guides/llm-as-judge/): how judge calls are counted
+  in the run's cost when the judge declares rates.
 - [Configuration reference](/reference/configuration/#cost-rates): the
   `cost:` input and output rate fields.

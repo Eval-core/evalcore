@@ -1,6 +1,6 @@
 ---
 title: Agents and traces
-description: Evaluate what the agent did. Export OTel/OpenInference traces, grade the trajectory (tool calls, ordering, step budgets) and the final answer in one suite, and read token, cost, and latency straight from the spans.
+description: Evaluate what the agent did. Export OTel/OpenInference traces, grade the trajectory and the final answer, and read token, cost, and latency from the spans.
 ---
 
 import CastFrame from '../../../components/CastFrame.astro';
@@ -57,6 +57,8 @@ PASS refund-flow-native (0ms)
 PASS refund-flow-otel (4400ms)
 
 2 passed, 0 failed, 2 total · 268 tokens · $0.0002
+
+PASSED
 ```
 
 Note the second case: its latency (`4400ms`) and the run's tokens and cost come

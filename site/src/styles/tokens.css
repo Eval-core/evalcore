@@ -42,7 +42,28 @@
 
 	--radius-sm: 6px;
 	--radius: 10px;
+	--radius-md: 12px;
 	--radius-lg: 16px;
+
+	/* Glass blur — one value for every translucent surface (hero terminal,
+	 * editor, replay, CTA, cast window, header). Was hardcoded blur(14px) in
+	 * six places. */
+	--blur-glass: 14px;
+
+	/* Code chrome — code blocks are ALWAYS dark in both themes (see the design
+	 * canon), so their chrome colors are fixed here, never theme-adaptive.
+	 * Using the theme-adaptive --muted for the filename/copy chrome dropped to
+	 * 3.7:1 on the dark surface in light mode; these are tuned to pass AA on
+	 * the #0e0e11 code surface. */
+	--code-chrome-bg: #0e0e11;
+	--code-chrome-border: #26262c;
+	--code-chrome-text: #c4c4cc;
+	--code-chrome-text-strong: #e4e4e7;
+	--copy-chip-bg: rgb(24 24 29 / 88%);
+	--copy-chip-border: #3c3c46;
+	--copy-chip-border-hover: #55555f;
+	--copy-chip-icon: #c4c4cc;
+	--copy-chip-icon-hover: #f4f4f5;
 
 	/* Resolves against the current theme's --sl-color-hairline at use time. */
 	--border: 1px solid var(--sl-color-hairline);
@@ -99,14 +120,24 @@
 	--accent-soft: rgb(79 70 229 / 7%);
 	--accent-line: rgb(79 70 229 / 30%);
 
-	/* Semantic verdict colors — data only, never brand chrome. */
-	--pass: #0b8a66;
-	--pass-soft: rgb(11 138 102 / 9%);
-	--pass-line: rgb(11 138 102 / 32%);
-	--fail: #d33e36;
-	--fail-soft: rgb(211 62 54 / 10%);
-	--warn: #a16207;
+	/* Semantic verdict colors — data only, never brand chrome. Darkened from
+	 * the first pass so the text passes AA (>=4.5:1) both on the page bg and on
+	 * its own soft fill; the old values sat at 3.8-4.2:1. */
+	--pass: #067254;
+	--pass-soft: rgb(6 114 84 / 9%);
+	--pass-line: rgb(6 114 84 / 34%);
+	--fail: #c02a22;
+	--fail-soft: rgb(192 42 34 / 10%);
+	--fail-line: rgb(192 42 34 / 34%);
+	--warn: #8f5606;
 	--code-blue: #0b63b8;
+
+	/* Control + diagram boundaries. The hairline is right for dividers but sat
+	 * at ~1.3:1 as a button border and ~2.6:1 as a diagram stroke — invisible /
+	 * sub-3:1. These are the darker boundary colors for anything that has to
+	 * read as an interactive edge or a data line. */
+	--control-border: #b7b7c1;
+	--diagram-line: #75757f;
 
 	--glass-bg: rgb(255 255 255 / 80%);
 	--glass-border: rgb(19 19 22 / 10%);
@@ -153,7 +184,9 @@
 	--heading: #f4f4f5;
 	--accent-hover: #c7d2fe;
 	--selection-bg: rgb(129 140 248 / 26%);
-	--code-bg: #101014;
+	/* Aligned to the code surface (#0e0e11) so page chips that use --code-bg
+	 * match the always-dark code blocks in dark mode. */
+	--code-bg: #0e0e11;
 
 	--accent-soft: rgb(129 140 248 / 10%);
 	--accent-line: rgb(129 140 248 / 35%);
@@ -163,8 +196,14 @@
 	--pass-line: rgb(45 212 160 / 35%);
 	--fail: #f8746e;
 	--fail-soft: rgb(248 116 110 / 12%);
+	--fail-line: rgb(248 116 110 / 35%);
 	--warn: #eab308;
 	--code-blue: #8cc7ff;
+
+	/* Boundaries — brighter than the dark hairline so controls and diagram
+	 * strokes clear 3:1 on the dark surfaces. */
+	--control-border: #3a3a44;
+	--diagram-line: #7c7c86;
 
 	--glass-bg: rgb(19 19 22 / 78%);
 	--glass-border: rgb(255 255 255 / 9%);

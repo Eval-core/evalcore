@@ -13,8 +13,8 @@
 header.header {
 	border-bottom: var(--border);
 	background: var(--sl-color-bg-nav);
-	backdrop-filter: blur(14px);
-	-webkit-backdrop-filter: blur(14px);
+	backdrop-filter: blur(var(--blur-glass));
+	-webkit-backdrop-filter: blur(var(--blur-glass));
 }
 
 /* Search: quiet bordered field, centered weight, mono shortcut hint. */
@@ -32,6 +32,10 @@ header.header button[data-open-modal] {
 header.header button[data-open-modal]:hover {
 	border-color: var(--sl-color-gray-4);
 	color: var(--sl-color-text);
+}
+header.header button[data-open-modal]:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: 2px;
 }
 /* Starlight nests kbd>kbd+kbd; only the outer wrapper is a chip. */
 header.header button[data-open-modal] > kbd {
@@ -83,6 +87,10 @@ header.header button[data-open-modal] > kbd kbd {
 .sidebar-content a:hover {
 	color: var(--heading);
 	background: color-mix(in srgb, var(--sl-color-text) 5%, transparent);
+}
+.sidebar-content a:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: 2px;
 }
 
 /* Starlight 0.41.3 */
@@ -192,7 +200,10 @@ starlight-toc a[aria-current='true']::before {
 	font-family: var(--sl-font-mono);
 	font-size: var(--fs-xs);
 	font-weight: 400;
-	color: var(--muted);
+	/* Fixed light-gray, not the theme-adaptive --muted: the code surface is
+	 * always dark, so --muted (a dark gray in light mode) dropped this label to
+	 * ~3.7:1. --code-chrome-text clears AA on #0e0e11 in both themes. */
+	color: var(--code-chrome-text);
 }
 
 /* Copy button — the same chip as landing.css `.ec-copy`, in fixed dark values
@@ -214,10 +225,11 @@ starlight-toc a[aria-current='true']::before {
 	width: 1.75rem;
 	height: 1.75rem;
 	border-radius: var(--radius-sm);
-	background: rgb(24 24 29 / 82%) !important;
-	border: 1px solid #2f2f37;
+	background: var(--copy-chip-bg) !important;
+	border: 1px solid var(--copy-chip-border);
 	backdrop-filter: blur(6px);
-	opacity: 0.55;
+	/* Idle was 0.55, dropping the glyph to ~2.4:1; present but readable idle. */
+	opacity: 0.72;
 	transition:
 		opacity var(--dur-fast) var(--ease-out),
 		border-color var(--dur-fast) var(--ease-out);
@@ -233,25 +245,25 @@ starlight-toc a[aria-current='true']::before {
 	opacity: 1;
 }
 .expressive-code .copy button:hover {
-	border-color: #52525c;
+	border-color: var(--copy-chip-border-hover);
 }
 .expressive-code .copy button:focus-visible {
 	outline: 2px solid var(--sl-color-accent);
 	outline-offset: 2px;
 }
 .expressive-code .copy button::after {
-	background-color: #a1a1aa;
+	background-color: var(--copy-chip-icon);
 }
 .expressive-code .copy button:hover::after {
-	background-color: #e4e4e7;
+	background-color: var(--copy-chip-icon-hover);
 }
 /* Neutral chip, matching the landing control: the word stays plain, the pass
  * color is reserved for run verdicts. */
 .expressive-code .copy .feedback {
 	--tooltip-bg: #18181d;
 	background: #18181d;
-	border: 1px solid #2f2f37;
-	color: #e4e4e7;
+	border: 1px solid var(--copy-chip-border);
+	color: var(--code-chrome-text-strong);
 	font-size: var(--fs-xs);
 	font-weight: 500;
 	padding-inline: 0.5rem;
@@ -285,7 +297,7 @@ starlight-toc a[aria-current='true']::before {
 	font-weight: 600;
 	color: var(--heading);
 }
-.ec-footer-col h2 {
+.ec-footer-col-title {
 	margin: 0 0 var(--sp-3);
 	padding: 0;
 	border: 0;

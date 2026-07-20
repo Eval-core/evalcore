@@ -1,6 +1,6 @@
 ---
 title: Run history and serve
-description: "EvalCore records every run to a local SQLite file and serves a read-only web viewer over it: browse past runs, watch the pass-rate trend, and diff any two runs (model A vs B, yesterday vs today). Local-first, so nothing leaves your machine."
+description: "EvalCore records every run to a local SQLite file and serves a read-only web viewer: browse past runs, watch the pass-rate trend, and diff any two."
 ---
 
 Every `evalcore run` already tells you whether *this* run passed. But the

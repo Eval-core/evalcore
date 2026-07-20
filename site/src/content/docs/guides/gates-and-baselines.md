@@ -1,6 +1,6 @@
 ---
 title: Gates and baselines
-description: Baseline save, compare and rolling; what regressed/new-failing/fixed/removed mean; pass_rate and mean_score gates; the 1e-9 tolerance and no-scores failure mode; the additive exit-code truth table; and when to re-baseline.
+description: Save and compare baselines, read the regressed/new/fixed/removed diff, configure pass_rate and mean_score gates, and gate CI on the exit code.
 ---
 
 Two mechanisms let you gate CI on more than "did every case pass". Baselines
@@ -84,6 +84,8 @@ Outcomes print after the summary and ride along in the JSON report:
 1 passed, 1 failed, 2 total
 GATE FAIL pass_rate >= 0.95 (actual 0.50)
 GATE PASS mean_score(contains) >= 0.4 (actual 0.50)
+
+FAILED
 ```
 
 ### `pass_rate`

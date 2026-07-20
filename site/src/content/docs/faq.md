@@ -1,6 +1,6 @@
 ---
 title: FAQ
-description: "Philosophy and practical questions: cached responses vs mocks, running offline, evaluating a Python app, cache misses in replay, no pricing table, no Rust required, and how EvalCore compares to promptfoo, LangSmith, and Braintrust."
+description: "Philosophy and practical questions: cassettes vs mocks, running offline, evaluating a Python app, no Rust required, and how EvalCore compares to other tools."
 ---
 
 This page answers the common objections to EvalCore's design and the practical
