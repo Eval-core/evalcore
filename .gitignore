@@ -15,6 +15,12 @@ site/demo/**/.evalcore/
 # Local editor/vault state
 .obsidian/
 
+# Private knowledge base (its own repo, pushed to eval-core/brain) and the raw
+# PRD export it was seeded from. Product-internal material never enters this
+# repo's history.
+/wiki/
+/prd.zip
+
 # Local learning sandbox (not tracked)
 playground/
 

@@ -2,6 +2,8 @@
 
 Snapshot testing for AI behavior: a single-binary, config-first eval runner for LLM apps and agents. Rust workspace, Apache-2.0, GitHub org `eval-core`. Full product context (positioning, roadmap, competitive landscape) lives in an internal Notion doc, "EvalCore PRD — Internal", kept outside this repository — there is no `PRD.md`. Agents with the Notion MCP connected should read it from there (search the workspace by that title); its URL is deliberately uncommitted. Never copy PRD contents into tracked files — it stays private.
 
+A local, gitignored `wiki/` directory may exist at the repo root: the private knowledge base (its own git repo, pushed to the private `eval-core/brain` remote), seeded from the PRD. Read `wiki/index.md` first when product context is needed and Notion is unavailable; follow `wiki/CLAUDE.md` when maintaining it. The same privacy rule applies: nothing from `wiki/` is ever copied into tracked files of this repo.
+
 ## Commands
 
 ```sh
@@ -20,9 +22,10 @@ Before declaring any change done, run the `verify` skill.
 |---|---|
 | `crates/evalcore-config` | `evals.yaml` schema, parsing, validation. Pure data. |
 | `crates/evalcore-core` | Domain types, `Target`/`Scorer` traits, dataset loading, run engine. |
-| `crates/evalcore-scorers` | Built-in scorers (contains, exact, regex, subprocess). One per file. |
-| `crates/evalcore-report` | Pure `&RunSummary -> String` reporters (terminal, JSON, JUnit). |
-| `crates/evalcore-store` | SQLite storage: the record/replay cache (`CachedTarget`, `--cache` modes). |
+| `crates/evalcore-scorers` | Built-in scorers (contains, exact, regex, json-schema, similarity, judge, trajectory, subprocess). One per file. |
+| `crates/evalcore-report` | Pure `&RunSummary -> String` reporters (terminal, JSON, JUnit, HTML). |
+| `crates/evalcore-store` | SQLite storage: the record/replay cache (`CachedTarget`, `--cache` modes), baselines, run history. |
+| `crates/evalcore-serve` | Local read-only web viewer over the store (run list, report, diff). Leaf crate. |
 | `crates/evalcore` | The CLI binary. Wiring only — no logic. |
 
 Each crate has its own CLAUDE.md with local rules. `examples/quickstart/` doubles as the CLI test fixture.
