@@ -203,6 +203,8 @@ Bug reports, feature requests, and pull requests are welcome. Start with
 [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues through
 [SECURITY.md](SECURITY.md), not the public issue tracker.
 
+New to the codebase? [`MAP.md`](MAP.md) is the repository map: every doc with a one-line purpose.
+
 ```sh
 cargo build
 cargo nextest run --workspace                    # or: cargo test --workspace

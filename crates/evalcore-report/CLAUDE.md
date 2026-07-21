@@ -1,5 +1,7 @@
 # evalcore-report
 
+> Parent: [root CLAUDE.md](../../CLAUDE.md) · architecture: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) · map: [MAP.md](../../MAP.md)
+
 Report rendering over `RunSummary`. Depends only on `evalcore-core`.
 
 ## Rules

@@ -2,6 +2,9 @@
 
 Where to find what, across the repository and beyond.
 
+> The full repository catalog is [`/MAP.md`](../MAP.md): every markdown file with a one-line
+> purpose. This page is the contributor-facing guide to the `docs/` folder and the wider layout.
+
 ## For users
 
 - **[evalcore.cc](https://evalcore.cc)** is the documentation site: installation,
@@ -22,7 +25,8 @@ Where to find what, across the repository and beyond.
   format used by trace targets.
 - **[`CONTRIBUTING.md`](../CONTRIBUTING.md)**: setup, workflow, and the architecture
   rules contributions must follow.
-- Each crate under [`crates/`](../crates/) carries its own README and local rules.
+- Each crate under [`crates/`](../crates/) carries its own `README.md` (crates.io landing) and
+  `CLAUDE.md` (local rules for agents).
 
 ## For designers
 

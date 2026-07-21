@@ -1,5 +1,7 @@
 # evalcore-config
 
+> Parent: [root CLAUDE.md](../../CLAUDE.md) · architecture: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) · map: [MAP.md](../../MAP.md)
+
 The `evals.yaml` schema: serde types, parsing, validation. **Pure data — this crate must never grow I/O (beyond reading the file), network calls, or engine logic**, and it depends on no other workspace crate.
 
 ## Rules

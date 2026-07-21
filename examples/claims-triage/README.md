@@ -66,4 +66,4 @@ build red.
 Replace the `shell` target with your live classifier (an `openai-compatible`
 model or your own `http` endpoint) and the cases, labels, and gates stay
 identical. See the [classification
-guide](https://eval-core.github.io/evalcore/guides/classification/).
+guide](https://evalcore.cc/guides/classification/).

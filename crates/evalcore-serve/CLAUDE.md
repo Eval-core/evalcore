@@ -1,5 +1,7 @@
 # evalcore-serve
 
+> Parent: [root CLAUDE.md](../../CLAUDE.md) · architecture: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) · map: [MAP.md](../../MAP.md)
+
 The `evalcore serve` viewer: a **local, read-only** web UI over the run-history
 in an `.evalcore/cache.db` store. Depends on `evalcore-core`,
 `evalcore-report`, and `evalcore-store` — **never** `evalcore-config` (it reads
