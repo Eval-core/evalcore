@@ -1,5 +1,7 @@
 # evalcore-store
 
+> Parent: [root CLAUDE.md](../../CLAUDE.md) · architecture: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) · map: [MAP.md](../../MAP.md)
+
 Local SQLite storage. Today: the **record/replay cache** (`Store`, `CacheMode`, `CachedTarget`). Next: run history for `--baseline` diffing. Depends only on `evalcore-core`.
 
 ## Cache semantics (user-facing contract — change with care)

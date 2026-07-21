@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Documentation
-    url: https://eval-core.github.io/evalcore/
+    url: https://evalcore.cc/
     about: Guides and the full configuration reference. Most "how do I…" answers live here.
   - name: Question or idea
     url: https://github.com/eval-core/evalcore/discussions

@@ -19,11 +19,9 @@ template).
 
 ## Base path
 
-`astro.config.mjs` sets `site: https://eval-core.github.io` and `base: /evalcore`
-so the site serves correctly under the GitHub Pages repo subpath. When a custom
-domain lands, flip `base` to `/` and point `site` at the custom domain. Internal
-links in the content include the `/evalcore` prefix, so update them if the base
-changes.
+`astro.config.mjs` sets `site: https://evalcore.cc` and `base: /`, so the site serves
+from the custom domain at the root. `public/CNAME` pins that domain across GitHub Pages
+deploys. Internal content links are root-relative (no path prefix).
 
 ## Demo tape
 

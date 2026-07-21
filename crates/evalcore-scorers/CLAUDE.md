@@ -1,5 +1,7 @@
 # evalcore-scorers
 
+> Parent: [root CLAUDE.md](../../CLAUDE.md) · architecture: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) · map: [MAP.md](../../MAP.md)
+
 Built-in scorer implementations. The `Scorer` trait lives in `evalcore-core`; this crate implements it and exposes `build_scorers(&[ScorerConfig])`. **One scorer per file.**
 
 ## Current scorers

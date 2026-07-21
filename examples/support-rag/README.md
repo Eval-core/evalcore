@@ -54,4 +54,4 @@ the run cleared its 95% pass-rate floor.
 Replace the `shell` target with your live RAG endpoint (an `openai-compatible`
 model or your own `http` service) and the cases, `context`, scorers, and gate
 stay identical. See the [RAG evaluation
-guide](https://eval-core.github.io/evalcore/guides/rag-evaluation/).
+guide](https://evalcore.cc/guides/rag-evaluation/).

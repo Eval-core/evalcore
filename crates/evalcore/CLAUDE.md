@@ -1,5 +1,7 @@
 # evalcore (CLI binary)
 
+> Parent: [root CLAUDE.md](../../CLAUDE.md) · architecture: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) · map: [MAP.md](../../MAP.md)
+
 The user-facing binary. This crate is **wiring only**: clap parsing, config→factory→engine→reporter composition, file writing, exit codes. Logic lives in the library crates — if you're writing an algorithm here, it belongs elsewhere.
 
 ## Contracts (breaking these breaks users' CI)

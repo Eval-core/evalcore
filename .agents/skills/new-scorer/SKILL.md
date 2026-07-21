@@ -19,7 +19,7 @@ Checklist — all steps, in order:
    - Never panic on malformed input — return `Err` with context or a failing `Score` with a reason.
 3. **Factory** (`crates/evalcore-scorers/src/lib.rs`): wire the new variant into `build_scorers`, doing any expensive/validating construction (compile regexes, resolve paths) here so errors surface before the run starts.
 4. **Tests** (same file, `#[cfg(test)]`): minimum three — passing case, failing case (assert the reason text), and one malformed/edge input. Subprocess-style scorers must use commands that read stdin.
-5. **Docs**: add the YAML snippet to the scorer table in `crates/evalcore-scorers/AGENTS.md` and, if user-facing, to README.md.
+5. **Docs**: add the YAML snippet to the scorer table in `crates/evalcore-scorers/CLAUDE.md` and, if user-facing, to README.md.
 6. Run the `verify` skill.
 
 Design rule: if the scorer needs user-provided logic, it must work via the subprocess protocol (JSON on stdin → `{"score": ..}` on stdout) — never require users to write Rust.

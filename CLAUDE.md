@@ -4,6 +4,8 @@ Snapshot testing for AI behavior: a single-binary, config-first eval runner for 
 
 A local, gitignored `wiki/` directory may exist at the repo root: the private knowledge base (its own git repo, pushed to the private `eval-core/brain` remote), seeded from the PRD. Read `wiki/index.md` first when product context is needed and Notion is unavailable; follow `wiki/CLAUDE.md` when maintaining it. The same privacy rule applies: nothing from `wiki/` is ever copied into tracked files of this repo.
 
+**Repository map:** [`MAP.md`](MAP.md) catalogs every doc in the repo with a one-line purpose. Start there to find anything.
+
 ## Commands
 
 ```sh
@@ -28,12 +30,12 @@ Before declaring any change done, run the `verify` skill.
 | `crates/evalcore-serve` | Local read-only web viewer over the store (run list, report, diff). Leaf crate. |
 | `crates/evalcore` | The CLI binary. Wiring only — no logic. |
 
-Each crate has its own CLAUDE.md with local rules. `examples/quickstart/` doubles as the CLI test fixture.
+Each crate has its own CLAUDE.md with local rules; the canonical architecture reference is [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). `examples/quickstart/` doubles as the CLI test fixture.
 
 ## Architecture rules (do not break)
 
 1. **Protocols over SDKs.** Extension points are language-agnostic protocols: targets speak HTTP or shell; custom scorers speak JSON over stdin/stdout; judges are OpenAI-compatible endpoints; agent traces (v0.2) arrive as OTel/OpenInference. Any design that forces users to write Rust is wrong — Rust is the engine, never the interface.
-2. **Dependency direction:** `evalcore-config` ← `evalcore-core` ← {`evalcore-scorers`, `evalcore-report`, `evalcore-store`} ← `evalcore` (bin). Traits live in `evalcore-core`; implementations live downstream. Never invert.
+2. **Dependency direction:** `evalcore-config` ← `evalcore-core` ← {`evalcore-scorers`, `evalcore-report`, `evalcore-store`} ← {`evalcore-serve`, `evalcore` (bin)}. The last two are leaves. Traits live in `evalcore-core`; implementations live downstream. Never invert.
 3. **YAML-first features.** Every user-facing feature starts as config surface in `evalcore-config` (design the YAML before the types).
 4. **Determinism is the product.** Identical inputs → identical outputs everywhere: results stay in dataset order, reporters are pure functions, nothing user-visible reads the clock except latency measurement. The record/replay cache is built on this: cache keys hash canonical request JSON (see `evalcore-store/CLAUDE.md` for the invariants, including why serde_json's `preserve_order` feature is banned).
 5. **Failures are data.** A target error is a failed case with a reason, a scorer error is a failing score with a reason — runs never panic and one bad case never aborts the suite.
