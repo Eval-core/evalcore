@@ -114,6 +114,7 @@ export default defineConfig({
 						{ label: 'Evaluating REST APIs', slug: 'guides/evaluating-rest-apis' },
 						{ label: 'Agents and traces', slug: 'guides/agents-and-traces' },
 						{ label: 'RAG evaluation', slug: 'guides/rag-evaluation' },
+						{ label: 'RAG faithfulness cookbook', slug: 'guides/rag-faithfulness-cookbook' },
 					],
 				},
 				{
