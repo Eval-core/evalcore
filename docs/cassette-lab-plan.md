@@ -2,10 +2,10 @@
 
 > One job: define the cassette experiment: grow the recorder to capture and replay whole agent runs, in a separate lab repo, with a hard bar for merging anything back into core.
 
-Adopted by the maintainers in July 2026, following the direction proposal in
-[issue #22](https://github.com/Eval-core/evalcore/issues/22). The experiment runs
-in a separate repository; core only takes what proves itself. The deeper
-competitive rationale lives in the private knowledge base and stays there.
+Adopted by the maintainers in July 2026 as part of refocusing EvalCore on the
+offline, fail-closed CI gate. The experiment runs in a separate repository; core
+only takes what proves itself. The deeper competitive rationale lives in the
+private knowledge base and stays there.
 
 ## The bet
 
