@@ -50,6 +50,7 @@ both start here.
 | [`docs/README.md`](docs/README.md) | Contributor doc guide for the `docs/` folder; defers to this map for the full catalog. |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Canonical architecture: seven-crate map, dependency direction, run flow, the five core rules. |
 | [`docs/trajectory-spec.md`](docs/trajectory-spec.md) | Versioned v0 spec for the agent-trajectory JSON format and the trajectory scorer's matcher rules. |
+| [`docs/cassette-lab-plan.md`](docs/cassette-lab-plan.md) | The cassette experiment: record/replay for whole agent runs, run in a separate lab repo, with research questions, graduation bar, kill triggers. |
 
 ## Crates
 

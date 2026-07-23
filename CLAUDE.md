@@ -4,6 +4,8 @@ Snapshot testing for AI behavior: a single-binary, config-first eval runner for 
 
 **Repository map:** [`MAP.md`](MAP.md) catalogs every doc in the repo with a one-line purpose. Start there to find anything.
 
+**Active experiment:** growing the cassette (record/replay) system to capture whole agent runs, explored in a separate lab repo in the same org, not on this codebase. The plan, phases, and the bar for merging anything back live in [`docs/cassette-lab-plan.md`](docs/cassette-lab-plan.md). Core stays stable while that runs.
+
 ## Commands
 
 ```sh
