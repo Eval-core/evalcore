@@ -8,8 +8,8 @@ repos:
     default_branch: main
 collaboration: team
 maintainers: [abhishekmanyam, kuladeepmantri]
-main_shared: true          # co-maintained: branch + PR + review, no direct push, no force-push
-branching: always-branch
+main_shared: false         # equal co-owners: either maintainer pushes direct to main; no review gate; no force-push
+branching: direct-to-main  # branch/PR only when a maintainer wants discussion first
 commit_trailer: |
   Co-Authored-By: Claude <noreply@anthropic.com>
   # the harness may also append a per-session "Claude-Session: <url>" line
@@ -32,9 +32,10 @@ verified: 2026-07-20
 
 Two repos, one wall:
 
-- **`Eval-core/evalcore`** (public) is co-maintained, so `main` is shared: every
-  change goes through a branch and a PR that a co-maintainer reviews. No direct
-  pushes to main, no force-push on shared history.
+- **`Eval-core/evalcore`** (public) is owned equally by its two maintainers.
+  Either pushes direct to main; neither needs the other's review or permission.
+  Branches and PRs exist only for changes one of them wants discussed first.
+  No force-push on main.
 - **`Eval-core/brain`** (private) is the `wiki/` knowledge base. It lives at
   `wiki/` inside this checkout, is gitignored here, and is pushed only to `brain`.
   Nothing from it ever lands in a public tracked file. It is a curated vault, so
