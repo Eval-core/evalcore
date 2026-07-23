@@ -27,8 +27,10 @@ replay one offline and gate it in CI, the experiment has proven its point.
 
 ## Where it happens
 
-- A separate repository in the `eval-core` org, proposed name `evalcore-lab`,
-  seeded as a duplicate of this repo at the commit that creates it.
+- A separate repository in the `eval-core` org: `evalcore-beta` (private,
+  created 2026-07-22), seeded as a duplicate of this repo at `dbd5f75`, the
+  commit that created it. Its `REPOS.md` holds the guardrails that keep the
+  two repos from cross-shipping.
 - Core (`eval-core/evalcore`) stays the stable foundation. Nothing lands here
   from the lab until the experiment passes the graduation bar below.
 - The lab may bend process (spike-quality code, no TDD, throwaway branches) but

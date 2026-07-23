@@ -4,7 +4,7 @@ Snapshot testing for AI behavior: a single-binary, config-first eval runner for 
 
 **Repository map:** [`MAP.md`](MAP.md) catalogs every doc in the repo with a one-line purpose. Start there to find anything.
 
-**Active experiment:** growing the cassette (record/replay) system to capture whole agent runs, explored in a separate lab repo in the same org, not on this codebase. The plan, phases, and the bar for merging anything back live in [`docs/cassette-lab-plan.md`](docs/cassette-lab-plan.md). Core stays stable while that runs.
+**Active experiment:** growing the cassette (record/replay) system to capture whole agent runs, explored in the private spike fork `Eval-core/evalcore-beta` (local checkout at `../evalcore-beta`), never on this codebase. The plan, phases, and the bar for merging anything back live in [`docs/cassette-lab-plan.md`](docs/cassette-lab-plan.md); the cross-repo guardrails live in beta's `REPOS.md`. Core stays stable while that runs: nothing lands here from beta except spikes that cleared the bar, re-implemented with full ceremony. When both checkouts are open, check `git remote -v` before any push.
 
 ## Commands
 

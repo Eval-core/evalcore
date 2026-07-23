@@ -25,7 +25,13 @@ release:
   license: Apache-2.0
   changelog: CHANGELOG.md
   versioning: semver
-verified: 2026-07-20
+cross_repo: |
+  Eval-core/evalcore-beta (private) is the spike fork, seeded from this repo at
+  dbd5f75. It has its own checkout (../evalcore-beta) and its own git profile.
+  Nothing moves beta -> core except graduated spikes re-implemented here with
+  full ceremony (docs/cassette-lab-plan.md). Never push to beta from this
+  checkout; beta's REPOS.md is the full contract.
+verified: 2026-07-22
 ---
 
 # EvalCore git profile
