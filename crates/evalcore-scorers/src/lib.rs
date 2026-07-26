@@ -23,7 +23,7 @@ pub use trajectory::TrajectoryScorer;
 use std::path::Path;
 
 use anyhow::{bail, Context};
-use evalcore_config::{ScorerConfig, TargetConfig};
+use evalcore_config::{JudgeProvider, ScorerConfig, TargetConfig};
 use evalcore_core::embeddings::TargetSpec;
 use evalcore_core::{CostRates, Scorer, Target};
 
@@ -76,6 +76,7 @@ where
                 ScorerConfig::Judge {
                     url,
                     model,
+                    provider,
                     rubric,
                     api_key_env,
                     threshold,
@@ -84,23 +85,54 @@ where
                     if !(0.0..=1.0).contains(threshold) {
                         bail!("judge threshold {threshold} outside 0.0..=1.0");
                     }
-                    let target_config = TargetConfig::OpenaiCompatible {
-                        url: url.clone(),
-                        model: model.clone(),
-                        api_key_env: api_key_env.clone(),
-                        max_retries: evalcore_config::DEFAULT_MAX_RETRIES,
-                        // Judges get the default timeout in v1 (no judge-level
-                        // knob); it flows to the call via build_judge_target.
-                        timeout_seconds: evalcore_config::DEFAULT_TIMEOUT_SECONDS,
-                        // The judge's cost is carried on `JudgeScorer`, not the
-                        // target: pricing is not part of the request, so it stays
-                        // OUT of the target's cache identity and existing judge
-                        // cassettes keep their keys.
-                        cost: None,
-                        system: None,
-                        params: None,
+                    // Judges get the default retries/timeout in v1 (no
+                    // judge-level knobs); they flow to the call via
+                    // build_scorer_target. The judge's cost is carried on
+                    // `JudgeScorer`, not the target: pricing is not part of the
+                    // request, so it stays OUT of the target's cache identity
+                    // and existing judge cassettes keep their keys.
+                    let target_config = match provider {
+                        JudgeProvider::Openai => TargetConfig::OpenaiCompatible {
+                            url: url.clone(),
+                            model: model.clone(),
+                            api_key_env: api_key_env.clone(),
+                            max_retries: evalcore_config::DEFAULT_MAX_RETRIES,
+                            timeout_seconds: evalcore_config::DEFAULT_TIMEOUT_SECONDS,
+                            cost: None,
+                            system: None,
+                            params: None,
+                        },
+                        JudgeProvider::Anthropic => TargetConfig::Anthropic {
+                            url: url.clone(),
+                            model: model.clone(),
+                            api_key_env: api_key_env.clone(),
+                            max_retries: evalcore_config::DEFAULT_MAX_RETRIES,
+                            timeout_seconds: evalcore_config::DEFAULT_TIMEOUT_SECONDS,
+                            // Required by the Messages API; no judge-level knob,
+                            // so verdicts (a short JSON object) get the default.
+                            max_tokens: evalcore_config::DEFAULT_MAX_TOKENS,
+                            cost: None,
+                            system: None,
+                            params: None,
+                            // A judge is an API-key endpoint. SigV4-signed
+                            // Bedrock judges would need AWS config the judge
+                            // schema doesn't carry; use a gateway URL instead.
+                            auth: evalcore_config::AnthropicAuth::ApiKey,
+                            dialect: evalcore_config::AnthropicDialectConfig::Messages,
+                            aws: None,
+                        },
+                        JudgeProvider::Gemini => TargetConfig::Gemini {
+                            url: url.clone(),
+                            model: model.clone(),
+                            api_key_env: api_key_env.clone(),
+                            max_retries: evalcore_config::DEFAULT_MAX_RETRIES,
+                            timeout_seconds: evalcore_config::DEFAULT_TIMEOUT_SECONDS,
+                            cost: None,
+                            system: None,
+                            params: None,
+                        },
                     };
-                    let target = build_scorer_target(TargetSpec::Chat(target_config))
+                    let target = build_scorer_target(TargetSpec::Chat(Box::new(target_config)))
                         .context("failed to build judge target")?;
                     let cost_rates = cost.as_ref().map(|c| CostRates {
                         input_per_1m: c.input_per_1m,
@@ -185,6 +217,7 @@ mod tests {
         let configs = vec![ScorerConfig::Judge {
             url: "http://localhost:9/v1".into(),
             model: "m".into(),
+            provider: JudgeProvider::Openai,
             rubric: "r".into(),
             api_key_env: None,
             threshold: 1.5,
@@ -206,17 +239,20 @@ mod tests {
         let configs = vec![ScorerConfig::Judge {
             url: "http://localhost:9/v1".into(),
             model: "judge".into(),
+            provider: JudgeProvider::Openai,
             rubric: "grounded?".into(),
             api_key_env: None,
             threshold: 0.5,
             cost: None,
         }];
         build_scorers(&configs, Path::new("."), |spec| {
-            if let TargetSpec::Chat(TargetConfig::OpenaiCompatible {
-                timeout_seconds, ..
-            }) = &spec
-            {
-                seen.set(Some(*timeout_seconds));
+            if let TargetSpec::Chat(config) = &spec {
+                if let TargetConfig::OpenaiCompatible {
+                    timeout_seconds, ..
+                } = config.as_ref()
+                {
+                    seen.set(Some(*timeout_seconds));
+                }
             }
             build(spec)
         })
@@ -234,6 +270,7 @@ mod tests {
         let configs = vec![ScorerConfig::Judge {
             url: "http://localhost:9/v1".into(),
             model: "judge-model".into(),
+            provider: JudgeProvider::Openai,
             rubric: "grounded?".into(),
             api_key_env: None,
             threshold: 0.5,
@@ -255,6 +292,55 @@ mod tests {
         );
     }
 
+    /// An Anthropic-backed judge maps to the Messages wire format, carries the
+    /// `max_tokens` that API requires, and lands in a disjoint keyspace — an
+    /// OpenAI judge on the same url/model keeps its recorded verdicts.
+    #[test]
+    fn anthropic_judge_maps_to_the_messages_target() {
+        use std::cell::RefCell;
+        let captured: RefCell<Option<serde_json::Value>> = RefCell::new(None);
+        let configs = vec![ScorerConfig::Judge {
+            url: "http://localhost:9/v1".into(),
+            model: "judge-model".into(),
+            provider: JudgeProvider::Anthropic,
+            rubric: "grounded?".into(),
+            api_key_env: None,
+            threshold: 0.5,
+            cost: None,
+        }];
+        build_scorers(&configs, Path::new("."), |spec| {
+            match &spec {
+                TargetSpec::Chat(config) => match config.as_ref() {
+                    TargetConfig::Anthropic {
+                        timeout_seconds,
+                        max_tokens,
+                        ..
+                    } => {
+                        assert_eq!(*timeout_seconds, evalcore_config::DEFAULT_TIMEOUT_SECONDS);
+                        assert_eq!(*max_tokens, evalcore_config::DEFAULT_MAX_TOKENS);
+                    }
+                    other => {
+                        panic!("anthropic judge must build an anthropic target, got {other:?}")
+                    }
+                },
+                _ => panic!("anthropic judge must build a chat target"),
+            }
+            let target = build(spec)?;
+            *captured.borrow_mut() = target.cache_identity();
+            Ok(target)
+        })
+        .unwrap();
+        assert_eq!(
+            captured.into_inner().expect("judge target has an identity"),
+            serde_json::json!({
+                "type": "anthropic",
+                "url": "http://localhost:9/v1",
+                "model": "judge-model",
+                "max_tokens": evalcore_config::DEFAULT_MAX_TOKENS,
+            })
+        );
+    }
+
     #[test]
     fn build_scorers_builds_all_variants() {
         let configs = vec![
@@ -270,6 +356,7 @@ mod tests {
             ScorerConfig::Judge {
                 url: "http://localhost:9/v1".into(),
                 model: "judge".into(),
+                provider: JudgeProvider::Openai,
                 rubric: "grounded?".into(),
                 api_key_env: None,
                 threshold: 0.5,

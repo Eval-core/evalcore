@@ -117,6 +117,68 @@ impl EvalConfig {
                     }
                     cost
                 }
+                TargetConfig::Gemini {
+                    cost,
+                    params,
+                    timeout_seconds,
+                    ..
+                } => {
+                    if *timeout_seconds == 0 {
+                        return Err(ConfigError::Invalid(format!(
+                            "target {name:?}: timeout_seconds must be at least 1"
+                        )));
+                    }
+                    if let Some(params) = params {
+                        for reserved in ["model", "contents", "systemInstruction"] {
+                            if params.contains_key(reserved) {
+                                return Err(ConfigError::Invalid(format!(
+                                    "target {name:?}: params may not set {reserved:?} \
+                                     (model/contents/systemInstruction are managed by EvalCore)"
+                                )));
+                            }
+                        }
+                    }
+                    cost
+                }
+                TargetConfig::Anthropic {
+                    cost,
+                    params,
+                    timeout_seconds,
+                    max_tokens,
+                    auth,
+                    dialect,
+                    aws,
+                    api_key_env,
+                    url,
+                    ..
+                } => {
+                    validate_anthropic_auth(name, *auth, *dialect, aws, api_key_env, url)?;
+                    if *timeout_seconds == 0 {
+                        return Err(ConfigError::Invalid(format!(
+                            "target {name:?}: timeout_seconds must be at least 1"
+                        )));
+                    }
+                    if *max_tokens == 0 {
+                        return Err(ConfigError::Invalid(format!(
+                            "target {name:?}: max_tokens must be at least 1"
+                        )));
+                    }
+                    if let Some(params) = params {
+                        // `system` and `max_tokens` join the reserved set here:
+                        // unlike OpenAI, the Messages API carries both as
+                        // top-level body fields that EvalCore itself sets.
+                        for reserved in ["model", "messages", "system", "max_tokens", "stream"] {
+                            if params.contains_key(reserved) {
+                                return Err(ConfigError::Invalid(format!(
+                                    "target {name:?}: params may not set {reserved:?} \
+                                     (model/messages/system/max_tokens are managed by EvalCore; \
+                                     streaming responses are unsupported)"
+                                )));
+                            }
+                        }
+                    }
+                    cost
+                }
                 TargetConfig::Trace { cost } => cost,
                 TargetConfig::Shell { .. } => &None,
                 TargetConfig::Http {
@@ -237,6 +299,64 @@ impl EvalConfig {
         }
         Ok(())
     }
+}
+
+/// Structural checks for an `anthropic` target's auth mode. The two modes take
+/// disjoint credential config, so a target carrying both — or neither — is a
+/// mistake worth catching before any case runs.
+fn validate_anthropic_auth(
+    name: &str,
+    auth: AnthropicAuth,
+    dialect: AnthropicDialectConfig,
+    aws: &Option<SigV4Config>,
+    api_key_env: &Option<String>,
+    url: &str,
+) -> Result<(), ConfigError> {
+    let invalid = |msg: String| Err(ConfigError::Invalid(msg));
+    match auth {
+        AnthropicAuth::ApiKey => {
+            if aws.is_some() {
+                return invalid(format!(
+                    "target {name:?}: `aws` is only valid with `auth: sigv4`"
+                ));
+            }
+            // `bedrock-invoke` exists only on AWS bedrock-runtime, which has no
+            // API-key mode — accepting the pair would produce a 403 at run time.
+            if dialect == AnthropicDialectConfig::BedrockInvoke {
+                return invalid(format!(
+                    "target {name:?}: `dialect: bedrock-invoke` requires `auth: sigv4` \
+                     (legacy bedrock-runtime accepts no API key)"
+                ));
+            }
+        }
+        AnthropicAuth::Sigv4 => {
+            let Some(aws) = aws else {
+                return invalid(format!(
+                    "target {name:?}: `auth: sigv4` requires an `aws` block with a `region`"
+                ));
+            };
+            if aws.region.trim().is_empty() {
+                return invalid(format!("target {name:?}: `aws.region` must be non-empty"));
+            }
+            if api_key_env.is_some() {
+                return invalid(format!(
+                    "target {name:?}: `api_key_env` is not used with `auth: sigv4` \
+                     (credentials come from the `aws` block); remove one of them"
+                ));
+            }
+            // The default URL is Anthropic's own API, which does not accept a
+            // SigV4 signature. Signing a request to it would fail at run time
+            // with an opaque 401; say so now instead.
+            if url == DEFAULT_ANTHROPIC_URL {
+                return invalid(format!(
+                    "target {name:?}: `auth: sigv4` needs an explicit AWS `url`, e.g. \
+                     https://bedrock-runtime.{}.amazonaws.com",
+                    aws.region
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Structural checks for an `http` target. Deeper resolution (env vars,
@@ -571,6 +691,99 @@ fn default_timeout_seconds() -> u64 {
     DEFAULT_TIMEOUT_SECONDS
 }
 
+/// Default base URL for `anthropic` targets.
+pub const DEFAULT_ANTHROPIC_URL: &str = "https://api.anthropic.com/v1";
+
+fn default_anthropic_url() -> String {
+    DEFAULT_ANTHROPIC_URL.into()
+}
+
+/// Default base URL for `gemini` targets.
+pub const DEFAULT_GEMINI_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
+
+fn default_gemini_url() -> String {
+    DEFAULT_GEMINI_URL.into()
+}
+
+/// How an `anthropic` target proves who it is. Orthogonal to the wire format:
+/// the request body is the same either way.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AnthropicAuth {
+    /// Send `api_key_env`'s value as `x-api-key`. Works against
+    /// api.anthropic.com and any Messages-shaped gateway that accepts it.
+    #[default]
+    ApiKey,
+    /// Sign with AWS Signature Version 4. Pairs with either dialect: the
+    /// Messages-shaped AWS endpoints (Bedrock Mantle, Claude Platform on AWS)
+    /// take `dialect: messages`, while legacy `bedrock-runtime` takes
+    /// `dialect: bedrock-invoke`.
+    Sigv4,
+}
+
+/// Which deployment of the Messages format an endpoint speaks. Separate from
+/// [`AnthropicAuth`]: the two axes combine freely.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AnthropicDialectConfig {
+    /// `POST {url}/messages` with `model` in the body. api.anthropic.com, any
+    /// Messages-shaped gateway, Bedrock Mantle, and Claude Platform on AWS.
+    #[default]
+    Messages,
+    /// `POST {url}/model/{model}/invoke` with `anthropic_version` in the body
+    /// and the model in the path. Legacy AWS `bedrock-runtime` only.
+    BedrockInvoke,
+}
+
+/// AWS credentials and scope for `auth: sigv4`, as **names of environment
+/// variables** — the same secret model as `api_key_env`. EvalCore deliberately
+/// does not implement the AWS credential chain (profile files, IMDS, assumed
+/// roles): resolving those reads the network and the clock at target-build
+/// time. Export the variables yourself, or have your CI do it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SigV4Config {
+    /// AWS region the signature is scoped to, e.g. `us-east-1`. Required.
+    pub region: String,
+    /// Environment variable holding the access key id.
+    #[serde(default = "default_access_key_env")]
+    pub access_key_env: String,
+    /// Environment variable holding the secret access key.
+    #[serde(default = "default_secret_key_env")]
+    pub secret_key_env: String,
+    /// Environment variable holding the session token, for temporary
+    /// credentials. Absent or unset means long-lived credentials.
+    #[serde(default = "default_session_token_env")]
+    pub session_token_env: String,
+    /// AWS service the signature is scoped to.
+    #[serde(default = "default_sigv4_service")]
+    pub service: String,
+}
+
+fn default_access_key_env() -> String {
+    "AWS_ACCESS_KEY_ID".into()
+}
+
+fn default_secret_key_env() -> String {
+    "AWS_SECRET_ACCESS_KEY".into()
+}
+
+fn default_session_token_env() -> String {
+    "AWS_SESSION_TOKEN".into()
+}
+
+fn default_sigv4_service() -> String {
+    "bedrock".into()
+}
+
+/// Default `max_tokens` for `anthropic` targets and Anthropic-backed judges.
+/// The Messages API requires the field, so EvalCore must always send one.
+pub const DEFAULT_MAX_TOKENS: u64 = 4096;
+
+fn default_max_tokens() -> u64 {
+    DEFAULT_MAX_TOKENS
+}
+
 /// USD prices per **1 million** tokens, as published by the provider. EvalCore
 /// deliberately ships no pricing table — prices change and differ per
 /// deployment, so they're config.
@@ -614,6 +827,95 @@ pub enum TargetConfig {
         /// max_tokens, top_p, …). EvalCore doesn't enumerate provider params —
         /// protocols over SDKs. `model`, `messages`, and `stream` are
         /// reserved and rejected at validation.
+        #[serde(default)]
+        params: Option<serde_json::Map<String, serde_json::Value>>,
+    },
+    /// POST to `{url}/messages` in the Anthropic Messages wire format. A second
+    /// wire format, not a second SDK: the differences from `openai-compatible`
+    /// are the auth headers, a top-level `system` field, a required
+    /// `max_tokens`, typed content blocks in the response, and
+    /// `input_tokens`/`output_tokens` usage.
+    Anthropic {
+        /// Base URL; `/messages` is appended. Override for gateways, proxies,
+        /// or the bearer-token AWS endpoints (Claude Platform on AWS, Bedrock
+        /// Mantle), which speak this same format.
+        #[serde(default = "default_anthropic_url")]
+        url: String,
+        model: String,
+        /// Name of the environment variable holding the API key, sent as
+        /// `x-api-key`. Secrets are never written into the YAML itself.
+        #[serde(default)]
+        api_key_env: Option<String>,
+        /// Retries on transient failures (429/5xx/network), with exponential
+        /// backoff honoring `Retry-After`.
+        #[serde(default = "default_max_retries")]
+        max_retries: u32,
+        /// Per-attempt total time budget in seconds (connect + reading the
+        /// response body). Each retry gets a fresh budget. Must be at least 1.
+        #[serde(default = "default_timeout_seconds")]
+        timeout_seconds: u64,
+        /// Maximum tokens to sample. First-class rather than a `params`
+        /// passthrough because the Messages API rejects a request without it.
+        /// Must be at least 1.
+        #[serde(default = "default_max_tokens")]
+        max_tokens: u64,
+        /// Token prices; enables per-case cost reporting and `run.budget_usd`.
+        #[serde(default)]
+        cost: Option<CostConfig>,
+        /// System prompt, sent as the top-level `system` body field (the
+        /// Messages API has no `system` message role).
+        #[serde(default)]
+        system: Option<String>,
+        /// Extra request-body fields passed through verbatim (temperature,
+        /// top_p, thinking, …). `model`, `messages`, `system`, `max_tokens`,
+        /// and `stream` are reserved and rejected at validation.
+        #[serde(default)]
+        params: Option<serde_json::Map<String, serde_json::Value>>,
+        /// How requests authenticate. A genuinely orthogonal axis: the same
+        /// Messages body is accepted by api.anthropic.com with an API key and
+        /// by Bedrock Mantle with a SigV4 signature.
+        #[serde(default)]
+        auth: AnthropicAuth,
+        /// Which deployment of the Messages format the endpoint speaks.
+        /// Independent of `auth` — SigV4 pairs with either.
+        #[serde(default)]
+        dialect: AnthropicDialectConfig,
+        /// AWS settings. Required when `auth: sigv4`, rejected otherwise.
+        #[serde(default)]
+        aws: Option<SigV4Config>,
+    },
+    /// POST to `{url}/models/{model}:generateContent` in the Gemini wire
+    /// format. Google also ships an OpenAI-compatible endpoint — prefer
+    /// `openai-compatible` unless you need a native-only feature.
+    Gemini {
+        /// Base URL; `/models/{model}:generateContent` is appended.
+        #[serde(default = "default_gemini_url")]
+        url: String,
+        model: String,
+        /// Name of the environment variable holding the API key, sent as
+        /// `x-goog-api-key`. Secrets are never written into the YAML itself,
+        /// and never into the URL — a `?key=` query parameter would leak the
+        /// key into error messages, reports, and the cache identity.
+        #[serde(default)]
+        api_key_env: Option<String>,
+        /// Retries on transient failures (429/5xx/network), with exponential
+        /// backoff honoring `Retry-After`.
+        #[serde(default = "default_max_retries")]
+        max_retries: u32,
+        /// Per-attempt total time budget in seconds (connect + reading the
+        /// response body). Each retry gets a fresh budget. Must be at least 1.
+        #[serde(default = "default_timeout_seconds")]
+        timeout_seconds: u64,
+        /// Token prices; enables per-case cost reporting and `run.budget_usd`.
+        #[serde(default)]
+        cost: Option<CostConfig>,
+        /// System prompt, sent as the top-level `systemInstruction` field.
+        #[serde(default)]
+        system: Option<String>,
+        /// Extra request-body fields passed through verbatim. Generation
+        /// tunables live under `generationConfig` in this API, so they nest:
+        /// `params: {generationConfig: {temperature: 0}}`. `contents`,
+        /// `systemInstruction`, and `model` are reserved.
         #[serde(default)]
         params: Option<serde_json::Map<String, serde_json::Value>>,
     },
@@ -716,13 +1018,17 @@ pub enum ScorerConfig {
     /// Assert on an agent trajectory (tool calls, ordering, step budget).
     /// Requires a `trace` target, whose output is the normalized trajectory.
     Trajectory { rules: Vec<TrajectoryRule> },
-    /// LLM-as-judge: grade the output against a rubric using any
-    /// OpenAI-compatible endpoint. Judge calls go through the record/replay
-    /// cache, so replayed verdicts are deterministic.
+    /// LLM-as-judge: grade the output against a rubric using an
+    /// OpenAI-compatible or Anthropic Messages endpoint. Judge calls go through
+    /// the record/replay cache, so replayed verdicts are deterministic.
     Judge {
         /// Base URL, e.g. `https://api.openai.com/v1`.
         url: String,
         model: String,
+        /// Wire format the judge endpoint speaks. Defaults to `openai`, which
+        /// keeps every existing suite (and its recorded verdicts) unchanged.
+        #[serde(default)]
+        provider: JudgeProvider,
         /// What the judge should assess, e.g. "Is the answer grounded in the
         /// provided context?".
         rubric: String,
@@ -783,6 +1089,20 @@ impl ScorerConfig {
             ScorerConfig::Similarity { .. } => "similarity",
         }
     }
+}
+
+/// Wire format a `judge` scorer's endpoint speaks. `Openai` is the default so
+/// configs written before this field parse — and cache-key — identically.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum JudgeProvider {
+    /// `POST {url}/chat/completions` in the OpenAI wire format.
+    #[default]
+    Openai,
+    /// `POST {url}/messages` in the Anthropic Messages wire format.
+    Anthropic,
+    /// `POST {url}/models/{model}:generateContent` in the Gemini wire format.
+    Gemini,
 }
 
 fn default_true() -> bool {
@@ -934,6 +1254,253 @@ run:
             }
             other => panic!("expected judge scorer, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn parses_anthropic_target_with_defaults_and_overrides() {
+        let yaml = r#"
+targets:
+  bare: { type: anthropic, model: claude-opus-5 }
+  tuned:
+    type: anthropic
+    url: https://gateway.internal/v1
+    model: claude-opus-5
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 1024
+    system: "You are a support agent."
+    cost:
+      input_per_1m: 5.0
+      output_per_1m: 25.0
+    params:
+      temperature: 0
+datasets: [{ file: cases.jsonl }]
+scorers: [{ type: exact }]
+"#;
+        let config = EvalConfig::from_yaml_str(yaml).unwrap();
+        match config.targets.get("bare") {
+            Some(TargetConfig::Anthropic {
+                url,
+                max_tokens,
+                max_retries,
+                timeout_seconds,
+                system,
+                params,
+                cost,
+                ..
+            }) => {
+                assert_eq!(url, DEFAULT_ANTHROPIC_URL);
+                assert_eq!(*max_tokens, DEFAULT_MAX_TOKENS);
+                assert_eq!(*max_retries, DEFAULT_MAX_RETRIES);
+                assert_eq!(*timeout_seconds, DEFAULT_TIMEOUT_SECONDS);
+                assert!(system.is_none() && params.is_none() && cost.is_none());
+            }
+            other => panic!("expected anthropic target, got {other:?}"),
+        }
+        match config.targets.get("tuned") {
+            Some(TargetConfig::Anthropic {
+                url,
+                max_tokens,
+                api_key_env,
+                system,
+                params,
+                cost,
+                ..
+            }) => {
+                assert_eq!(url, "https://gateway.internal/v1");
+                assert_eq!(*max_tokens, 1024);
+                assert_eq!(api_key_env.as_deref(), Some("ANTHROPIC_API_KEY"));
+                assert_eq!(system.as_deref(), Some("You are a support agent."));
+                assert_eq!(
+                    params.as_ref().unwrap()["temperature"],
+                    serde_json::json!(0)
+                );
+                assert_eq!(cost.unwrap().output_per_1m, 25.0);
+            }
+            other => panic!("expected anthropic target, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rejects_anthropic_targets_that_can_never_produce_a_request() {
+        let with = |field: &str| {
+            format!(
+                "targets:\n  claude: {{ type: anthropic, model: m, {field} }}\n\
+                 datasets: [{{ file: cases.jsonl }}]\nscorers: [{{ type: exact }}]\n"
+            )
+        };
+        // max_tokens is required by the Messages API, so 0 can never be sent.
+        let err = EvalConfig::from_yaml_str(&with("max_tokens: 0")).unwrap_err();
+        assert!(err.to_string().contains("max_tokens must be at least 1"));
+        let err = EvalConfig::from_yaml_str(&with("timeout_seconds: 0")).unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("timeout_seconds must be at least 1"));
+        // `system` and `max_tokens` are top-level Messages fields EvalCore
+        // owns; a params passthrough would silently fight the builder.
+        for reserved in ["system", "max_tokens", "messages", "model", "stream"] {
+            let yaml = with(&format!("params: {{ {reserved}: 1 }}"));
+            let err = EvalConfig::from_yaml_str(&yaml)
+                .err()
+                .unwrap_or_else(|| panic!("params.{reserved} must be rejected"));
+            assert!(
+                err.to_string()
+                    .contains(&format!("params may not set {reserved:?}")),
+                "got: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn parses_gemini_target_with_defaults_and_rejects_reserved_params() {
+        let yaml = r#"
+targets:
+  bare: { type: gemini, model: gemini-2.5-pro }
+  tuned:
+    type: gemini
+    url: https://gateway.internal/v1beta
+    model: gemini-2.5-pro
+    api_key_env: GEMINI_API_KEY
+    system: "Be terse."
+    params:
+      generationConfig:
+        temperature: 0
+datasets: [{ file: cases.jsonl }]
+scorers: [{ type: exact }]
+"#;
+        let config = EvalConfig::from_yaml_str(yaml).unwrap();
+        match config.targets.get("bare") {
+            Some(TargetConfig::Gemini { url, system, .. }) => {
+                assert_eq!(url, DEFAULT_GEMINI_URL);
+                assert!(system.is_none());
+            }
+            other => panic!("expected gemini target, got {other:?}"),
+        }
+        match config.targets.get("tuned") {
+            Some(TargetConfig::Gemini { params, .. }) => {
+                // Generation tunables nest under generationConfig in this API;
+                // EvalCore passes the structure through rather than inventing
+                // a translation layer.
+                assert_eq!(
+                    params.as_ref().unwrap()["generationConfig"]["temperature"],
+                    serde_json::json!(0)
+                );
+            }
+            other => panic!("expected gemini target, got {other:?}"),
+        }
+
+        for reserved in ["model", "contents", "systemInstruction"] {
+            let yaml = format!(
+                "targets:\n  g: {{ type: gemini, model: m, params: {{ {reserved}: 1 }} }}\n\
+                 datasets: [{{ file: cases.jsonl }}]\nscorers: [{{ type: exact }}]\n"
+            );
+            let err = EvalConfig::from_yaml_str(&yaml)
+                .err()
+                .unwrap_or_else(|| panic!("params.{reserved} must be rejected"));
+            assert!(
+                err.to_string()
+                    .contains(&format!("params may not set {reserved:?}")),
+                "got: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn anthropic_auth_and_dialect_are_independent_axes() {
+        let target = |fields: &str| {
+            format!(
+                "targets:\n  t:\n    type: anthropic\n    model: m\n{fields}\
+                 datasets: [{{ file: cases.jsonl }}]\nscorers: [{{ type: exact }}]\n"
+            )
+        };
+        // SigV4 + the plain Messages dialect is a real, supported combination:
+        // it is how the Messages-shaped AWS endpoints are reached.
+        let yaml = target(
+            "    url: https://bedrock-mantle.us-east-1.api.aws/anthropic\n\
+             \x20   auth: sigv4\n    aws:\n      region: us-east-1\n",
+        );
+        let config = EvalConfig::from_yaml_str(&yaml).unwrap();
+        match config.targets.get("t") {
+            Some(TargetConfig::Anthropic {
+                auth, dialect, aws, ..
+            }) => {
+                assert_eq!(*auth, AnthropicAuth::Sigv4);
+                assert_eq!(*dialect, AnthropicDialectConfig::Messages);
+                let aws = aws.as_ref().unwrap();
+                assert_eq!(aws.region, "us-east-1");
+                // Credentials are env-var NAMES, never values.
+                assert_eq!(aws.access_key_env, "AWS_ACCESS_KEY_ID");
+                assert_eq!(aws.service, "bedrock");
+            }
+            other => panic!("expected anthropic target, got {other:?}"),
+        }
+
+        // Every way of configuring AWS auth incoherently is rejected up front.
+        let cases = [
+            ("    auth: sigv4\n", "requires an `aws` block"),
+            (
+                "    url: https://bedrock-runtime.us-east-1.amazonaws.com\n\
+                 \x20   auth: sigv4\n    aws:\n      region: \"\"\n",
+                "`aws.region` must be non-empty",
+            ),
+            (
+                "    url: https://bedrock-runtime.us-east-1.amazonaws.com\n\
+                 \x20   auth: sigv4\n    api_key_env: K\n    aws:\n      region: us-east-1\n",
+                "`api_key_env` is not used with `auth: sigv4`",
+            ),
+            (
+                "    auth: sigv4\n    aws:\n      region: us-east-1\n",
+                "needs an explicit AWS `url`",
+            ),
+            (
+                "    aws:\n      region: us-east-1\n",
+                "`aws` is only valid with `auth: sigv4`",
+            ),
+            ("    dialect: bedrock-invoke\n", "requires `auth: sigv4`"),
+        ];
+        for (fields, expected) in cases {
+            let err = EvalConfig::from_yaml_str(&target(fields))
+                .err()
+                .unwrap_or_else(|| panic!("must be rejected: {fields}"));
+            assert!(
+                err.to_string().contains(expected),
+                "expected {expected:?}, got: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn judge_provider_defaults_to_openai_and_accepts_every_wire_format() {
+        let with_provider = |line: &str| {
+            format!(
+                "targets:\n  echo: {{ type: shell, cmd: \"cat\" }}\n\
+                 datasets: [{{ file: cases.jsonl }}]\n\
+                 scorers:\n  - type: judge\n    url: \"http://x/v1\"\n    model: m\n\
+                 \x20   rubric: r\n{line}"
+            )
+        };
+        // Omitting `provider` must keep pre-existing suites on the OpenAI wire
+        // format — otherwise every recorded judge verdict would re-record.
+        let config = EvalConfig::from_yaml_str(&with_provider("")).unwrap();
+        match &config.scorers[0] {
+            ScorerConfig::Judge { provider, .. } => {
+                assert_eq!(*provider, JudgeProvider::Openai);
+            }
+            other => panic!("expected judge scorer, got {other:?}"),
+        }
+        for (name, expected) in [
+            ("anthropic", JudgeProvider::Anthropic),
+            ("gemini", JudgeProvider::Gemini),
+            ("openai", JudgeProvider::Openai),
+        ] {
+            let yaml = with_provider(&format!("    provider: {name}\n"));
+            let config = EvalConfig::from_yaml_str(&yaml).unwrap();
+            match &config.scorers[0] {
+                ScorerConfig::Judge { provider, .. } => assert_eq!(*provider, expected),
+                other => panic!("expected judge scorer, got {other:?}"),
+            }
+        }
+        let err = EvalConfig::from_yaml_str(&with_provider("    provider: mistral\n")).unwrap_err();
+        assert!(err.to_string().contains("mistral"), "got: {err}");
     }
 
     #[test]

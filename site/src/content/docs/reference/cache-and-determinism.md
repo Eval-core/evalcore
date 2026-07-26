@@ -62,6 +62,59 @@ See [Trials and statistics](/guides/trials-and-statistics/).
 | `timeout_seconds` | **no** (operational knob; excluded since v0.5.0 so older cassettes keep their keys) |
 | `cost` rates | **no** (accounting, not request content) |
 
+### `anthropic` identity
+
+Since v0.8.0.
+
+```json
+{"type": "anthropic", "url": "…", "model": "…", "max_tokens": 4096,
+ "system": "…", "params": {…}}
+```
+
+| Field | In the key? |
+|---|---|
+| `url`, `model` | yes |
+| `max_tokens` | **yes** (a lower cap truncates the answer, so it changes what the model returns) |
+| `system` | yes, when set (omitted otherwise) |
+| `params` | yes, when set and non-empty (omitted otherwise) |
+| `api_key_env` / the resolved key | **no** (a secret) |
+| `dialect` | yes, when `bedrock-invoke` (omitted for the default `messages`) — it changes both the path and the body |
+| `max_retries`, `timeout_seconds` | **no** (operational knobs) |
+| `auth` mode and AWS credentials | **no** (secrets; signing the same body a different way does not change the answer) |
+| `cost` rates | **no** (accounting, not request content) |
+
+`max_tokens` is the one field that differs in kind from the
+`openai-compatible` identity: there it arrives inside `params` (and is hashed
+as part of it), here it is a first-class key because the Messages API requires
+it on every request.
+
+The `type` discriminator puts the two wire formats in disjoint keyspaces. An
+`anthropic` target and an `openai-compatible` target pointed at the same `url`
+and `model` can never share an entry, so adding this target invalidated no
+existing cassette — the same trick that keeps chat and embedding keys apart.
+
+### `gemini` identity
+
+Since v0.8.0.
+
+```json
+{"type": "gemini", "url": "…", "model": "…", "system": "…", "params": {…}}
+```
+
+| Field | In the key? |
+|---|---|
+| `url`, `model` | yes |
+| `system` | yes, when set (omitted otherwise) |
+| `params` | yes, when set and non-empty (omitted otherwise) |
+| `api_key_env` / the resolved key | **no** (a secret) |
+| `max_retries`, `timeout_seconds` | **no** (operational knobs) |
+| `cost` rates | **no** (accounting, not request content) |
+
+Gemini's own OpenAI-compatible endpoint is a common setup, so the `type`
+discriminator matters here in practice: the same model reached both ways keeps
+two disjoint sets of cassettes rather than replaying one provider's answer for
+the other's request.
+
 ### `http` identity
 
 ```json

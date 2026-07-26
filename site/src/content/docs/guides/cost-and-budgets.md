@@ -10,8 +10,8 @@ table can't produce confidently-wrong dollars.
 
 ## Declaring rates
 
-Add a `cost:` block to an `openai-compatible` or `trace` target, in USD per 1
-million tokens:
+Add a `cost:` block to an `openai-compatible`, `anthropic`, `gemini`, or
+`trace` target, in USD per 1 million tokens:
 
 ```yaml
 targets:

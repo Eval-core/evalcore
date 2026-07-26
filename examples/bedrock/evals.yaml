@@ -1,0 +1,53 @@
+# Live example: Claude on AWS, signed with SigV4.
+#
+# `auth` and `dialect` are independent axes. This suite defines all three AWS
+# shapes so you can see the difference; pick one with --target.
+#
+# Credentials are env var NAMES, never values. EvalCore deliberately does not
+# implement the AWS credential chain (profile files, IMDS, assumed roles):
+# resolving those reads the network and the clock at target-build time. Export
+# the variables yourself, or have your CI do it.
+targets:
+  # Legacy bedrock-runtime InvokeModel: model in the path, anthropic_version in
+  # the body. This is the dialect that needs `bedrock-invoke`.
+  bedrock-invoke:
+    type: anthropic
+    auth: sigv4
+    dialect: bedrock-invoke
+    url: https://bedrock-runtime.us-east-1.amazonaws.com
+    model: anthropic.claude-opus-4-5-20251101-v1:0
+    max_tokens: 512
+    aws:
+      region: us-east-1
+      # These are the defaults; shown here to make the secret model explicit.
+      access_key_env: AWS_ACCESS_KEY_ID
+      secret_key_env: AWS_SECRET_ACCESS_KEY
+      session_token_env: AWS_SESSION_TOKEN
+      service: bedrock
+
+  # Bedrock Mantle speaks the plain Messages format — same SigV4 auth, ordinary
+  # `/messages` path, model in the body (with an `anthropic.` prefix).
+  bedrock-mantle:
+    type: anthropic
+    auth: sigv4
+    url: https://bedrock-mantle.us-east-1.api.aws/anthropic
+    model: anthropic.claude-opus-5
+    max_tokens: 512
+    aws:
+      region: us-east-1
+
+  # A Messages-shaped gateway that accepts an API key needs no AWS config at
+  # all — this is the same target type with the default auth.
+  gateway:
+    type: anthropic
+    url: https://claude-gateway.internal/v1
+    model: claude-opus-5
+    api_key_env: ANTHROPIC_GATEWAY_KEY
+    max_tokens: 512
+
+datasets:
+  - file: cases.jsonl
+
+scorers:
+  - type: contains
+    value: "30"

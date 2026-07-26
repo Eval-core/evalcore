@@ -229,11 +229,17 @@ fn record_history(
 }
 
 /// Token cost rates declared by a target's config, if any. Only the priced
-/// target types (openai-compatible, trace) carry a `cost` block; others are
-/// uncosted.
+/// target types (openai-compatible, anthropic, gemini, trace) carry a `cost`
+/// block; others are uncosted.
 fn cost_rates_for(target_config: &TargetConfig) -> Option<CostRates> {
     match target_config {
         TargetConfig::OpenaiCompatible {
+            cost: Some(cost), ..
+        }
+        | TargetConfig::Anthropic {
+            cost: Some(cost), ..
+        }
+        | TargetConfig::Gemini {
             cost: Some(cost), ..
         }
         | TargetConfig::Trace { cost: Some(cost) } => Some(CostRates {
@@ -403,16 +409,9 @@ async fn run(args: RunArgs<'_>) -> anyhow::Result<ExitCode> {
         bail!("datasets contain no test cases");
     }
 
-    let cost_rates = match target_config {
-        TargetConfig::OpenaiCompatible {
-            cost: Some(cost), ..
-        }
-        | TargetConfig::Trace { cost: Some(cost) } => Some(CostRates {
-            input_per_1m: cost.input_per_1m,
-            output_per_1m: cost.output_per_1m,
-        }),
-        _ => None,
-    };
+    // One place decides which target types are priced (see `cost_rates_for`);
+    // duplicating the match here would let a new priced target go uncosted.
+    let cost_rates = cost_rates_for(target_config);
     // Interactive progress on stderr (TTY-only): the sink ticks per completed
     // case; the handle erases the line before the report prints. Disabled → the
     // engine gets no sink and the run is byte-identical.
