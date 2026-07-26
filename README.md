@@ -150,7 +150,7 @@ cassette lifecycle and cache-key rules.
 
 | Need | EvalCore surface | Guide |
 |---|---|---|
-| Test a CLI, service, model, or trace | `shell`, `http`, `openai-compatible`, `trace` targets | [Core concepts](https://evalcore.cc/getting-started/core-concepts/) |
+| Test a CLI, service, model, or trace | `shell`, `http`, `openai-compatible`, `anthropic`, `gemini`, `trace` targets | [Core concepts](https://evalcore.cc/getting-started/core-concepts/) |
 | Check text, JSON, meaning, or a rubric | `contains`, `exact`, `regex`, `json-schema`, `similarity`, `judge` | [Configuration](https://evalcore.cc/reference/configuration/) |
 | Bring your own scorer in any language | JSON over stdin/stdout with `subprocess` | [Custom scorers](https://evalcore.cc/guides/custom-scorers/) |
 | Catch only new regressions | `--baseline` and `--save-baseline` | [Gates and baselines](https://evalcore.cc/guides/gates-and-baselines/) |

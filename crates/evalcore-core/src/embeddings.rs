@@ -30,7 +30,9 @@ use crate::types::{TargetOutput, TestCase};
 pub enum TargetSpec {
     /// A chat/completions target, built exactly like before — used by the
     /// judge scorer, so its cache identity stays byte-for-byte identical.
-    Chat(TargetConfig),
+    /// Boxed: `TargetConfig` is much larger than the embeddings variant, and an
+    /// unboxed enum would pay that size on every scorer spec.
+    Chat(Box<TargetConfig>),
     /// An OpenAI-compatible embeddings target for the `similarity` scorer.
     Embeddings {
         url: String,
@@ -313,7 +315,7 @@ mod tests {
     fn embeddings_identity_never_collides_with_chat_at_same_url_model() {
         let embed = EmbeddingsTarget::new("http://x/v1".into(), "m".into(), None, 120).unwrap();
         let chat =
-            crate::target::OpenAiCompatTarget::new("http://x/v1".into(), "m".into(), None, 120)
+            crate::openai::OpenAiCompatTarget::new("http://x/v1".into(), "m".into(), None, 120)
                 .unwrap();
         assert_ne!(
             embed.cache_identity().unwrap(),
@@ -327,7 +329,7 @@ mod tests {
         // The judge routes through TargetSpec::Chat; its cache identity must be
         // byte-for-byte what an openai-compatible target has always produced,
         // or every recorded judge cassette invalidates on upgrade.
-        let spec = TargetSpec::Chat(TargetConfig::OpenaiCompatible {
+        let spec = TargetSpec::Chat(Box::new(TargetConfig::OpenaiCompatible {
             url: "http://x/v1".into(),
             model: "m".into(),
             api_key_env: None,
@@ -336,7 +338,7 @@ mod tests {
             cost: None,
             system: None,
             params: None,
-        });
+        }));
         let target = build_scorer_target(spec, SecretPolicy::Require).unwrap();
         assert_eq!(
             target.cache_identity().unwrap(),

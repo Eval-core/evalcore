@@ -31,12 +31,14 @@ load-bearing.
 
 A target is the thing under test. A run evaluates one target (selected with
 `--target <name>` when a suite defines several; implicit with one target), or
-several at once in a [matrix run](/guides/comparing-models/). There are four
+several at once in a [matrix run](/guides/comparing-models/). There are six
 types:
 
 | Type | What it does |
 |---|---|
 | `openai-compatible` | POSTs to `{url}/chat/completions` in the OpenAI wire format. Supports `model`, `system`, pass-through `params`, `api_key_env`, retries, `timeout_seconds`, and `cost` rates. |
+| `anthropic` | POSTs to `{url}/messages` in the Anthropic Messages wire format. Same knobs, plus the required `max_tokens`; `system` rides as a top-level field and auth is `x-api-key` or AWS SigV4. |
+| `gemini` | POSTs to `{url}/models/{model}:generateContent` in the Gemini format. Prefer `openai-compatible` against Gemini's compat endpoint unless you need a native-only feature. |
 | `http` | Calls any HTTP/JSON endpoint (typically your own deployed app's REST API) and caches it like an LLM call. `{{input}}` is substituted into the `url` and `body`; `response_path` pulls the answer out of the JSON. |
 | `shell` | Runs a command with the case input piped to stdin; stdout is the output. Never cached, because it runs your local code. |
 | `trace` | Ingests a recorded agent trace (native or OTel/OpenInference) named by each case, instead of invoking anything. Pair with the `trajectory` scorer. |

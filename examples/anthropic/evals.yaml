@@ -1,0 +1,33 @@
+# Live example: evaluates Claude through the `anthropic` target (the Messages
+# wire format) with a deterministic check AND a Claude judge. Needs
+# ANTHROPIC_API_KEY in the environment (see repo .env).
+targets:
+  claude:
+    type: anthropic
+    # url defaults to https://api.anthropic.com/v1 — set it for a gateway, or
+    # for the bearer-token AWS endpoints, which speak this same format.
+    model: claude-opus-5
+    api_key_env: ANTHROPIC_API_KEY
+    max_retries: 3
+    # Required by the Messages API, so EvalCore always sends it (default 4096).
+    max_tokens: 512
+    cost: # verify against current Anthropic pricing; prices are yours to declare
+      input_per_1m: 5.0
+      output_per_1m: 25.0
+    system: "You are a support agent for an online store. Answer in one sentence."
+    params:
+      temperature: 0
+
+datasets:
+  - file: cases.jsonl
+
+scorers:
+  - type: contains
+    value: "30"
+  - type: judge
+    provider: anthropic
+    url: https://api.anthropic.com/v1
+    model: claude-opus-5
+    api_key_env: ANTHROPIC_API_KEY
+    rubric: "Does the answer state a concrete refund window in days?"
+    threshold: 0.6

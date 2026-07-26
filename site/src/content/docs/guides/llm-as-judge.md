@@ -1,13 +1,13 @@
 ---
 title: LLM-as-judge
-description: "Grade open-ended answers against a rubric with any OpenAI-compatible endpoint: designing binary-decidable rubrics, choosing a threshold, why cached verdicts are CI-safe, what actually re-records a judge, and how judge tokens and cost count toward totals and budgets."
+description: "Grade open-ended answers against a rubric with an OpenAI-compatible, Anthropic, or Gemini endpoint: designing binary-decidable rubrics, choosing a threshold, why cached verdicts are CI-safe, what actually re-records a judge, and how judge tokens and cost count toward totals and budgets."
 ---
 
 Some answers can't be checked with `contains` or a regex. Is this grounded in the
 context? Is the tone appropriate? Does it actually answer the question? The
-`judge` scorer grades the output against a natural-language rubric using any
-OpenAI-compatible endpoint. Its verdicts go through the record/replay cache, so a
-replayed judge is deterministic and CI-safe.
+`judge` scorer grades the output against a natural-language rubric using an
+OpenAI-compatible, Anthropic Messages, or Gemini endpoint. Its verdicts go through the
+record/replay cache, so a replayed judge is deterministic and CI-safe.
 
 ```yaml
 scorers:
@@ -26,6 +26,23 @@ The judge is prompted to return `{"score": 0.0..1.0, "reason": "..."}`; the case
 **passes** iff `score >= threshold`. Code-fenced verdicts are tolerated, and an
 un-parseable or out-of-range verdict becomes a *failing score with a reason*,
 never a crash.
+
+To judge with Claude, add `provider: anthropic` — everything else is the same,
+because the scorer itself is provider-agnostic:
+
+```yaml
+scorers:
+  - type: judge
+    provider: anthropic
+    url: https://api.anthropic.com/v1
+    model: claude-opus-5
+    rubric: "Does the answer state a concrete refund window in days?"
+    api_key_env: ANTHROPIC_API_KEY
+    threshold: 0.6
+```
+
+`provider` accepts `openai`, `anthropic`, or `gemini`, and defaults to `openai`,
+so suites written before it existed keep their recorded verdicts.
 
 ## Rubric design: specific and binary-decidable
 
@@ -98,6 +115,7 @@ answer being graded. So a judge verdict re-records when any of these change:
 |---|---|---|
 | The **rubric** | **Yes** | The rubric is part of the judge prompt, which *is* the judge call's cached input. |
 | The judge `model` or `url` | Yes | Part of the judge target's identity. |
+| The judge `provider` | Yes | The wire format is the identity's `type` discriminator, so the two keyspaces are disjoint. |
 | The graded answer (because the main target changed) | Yes | The answer is embedded in the judge prompt. |
 | A case's `input` or `expected` | Yes | Both are embedded in the judge prompt. |
 | `threshold` | No | It's applied *after* the verdict; the cached score is reused, only the pass/fail line moves. |

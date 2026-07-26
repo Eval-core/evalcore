@@ -1,0 +1,37 @@
+# Live example: evaluates Gemini through the `gemini` target (the native
+# generateContent format). Needs GEMINI_API_KEY in the environment.
+#
+# Google also ships an OpenAI-compatible endpoint that works with
+# `type: openai-compatible` today — prefer that unless you need something
+# native-only, like safetySettings or thinking parts.
+targets:
+  gemini:
+    type: gemini
+    # url defaults to https://generativelanguage.googleapis.com/v1beta
+    model: gemini-2.5-pro
+    api_key_env: GEMINI_API_KEY
+    max_retries: 3
+    cost: # verify against current Google pricing; prices are yours to declare
+      input_per_1m: 1.25
+      output_per_1m: 10.0
+    system: "You are a support agent for an online store. Answer in one sentence."
+    params:
+      # Generation tunables nest under generationConfig in this API. EvalCore
+      # passes the structure through rather than inventing a translation layer.
+      generationConfig:
+        temperature: 0
+        maxOutputTokens: 256
+
+datasets:
+  - file: cases.jsonl
+
+scorers:
+  - type: contains
+    value: "30"
+  - type: judge
+    provider: gemini
+    url: https://generativelanguage.googleapis.com/v1beta
+    model: gemini-2.5-pro
+    api_key_env: GEMINI_API_KEY
+    rubric: "Does the answer state a concrete refund window in days?"
+    threshold: 0.6

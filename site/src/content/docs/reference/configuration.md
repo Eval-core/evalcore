@@ -9,7 +9,7 @@ unknown fields on most structs are rejected (`deny_unknown_fields`), so a typo
 fails at parse time rather than being silently ignored.
 
 :::note[Jump to a type]
-**Targets:** [`shell`](#shell) · [`openai-compatible`](#openai-compatible) · [`http`](#http) · [`trace`](#trace)
+**Targets:** [`shell`](#shell) · [`openai-compatible`](#openai-compatible) · [`anthropic`](#anthropic) · [`gemini`](#gemini) · [`http`](#http) · [`trace`](#trace)
 
 **Scorers:** [`contains`](#contains) · [`exact`](#exact) · [`regex`](#regex) · [`subprocess`](#subprocess) · [`trajectory`](#trajectory) · [`judge`](#judge) · [`json-schema`](#json-schema) · [`similarity`](#similarity)
 
@@ -38,8 +38,9 @@ Validation rejects an empty `targets`, `datasets`, or `scorers` section with
 ## Targets
 
 `targets` is a map from a name you choose to a target definition. Every target
-carries a `type` discriminator (`shell`, `openai-compatible`, `http`, or
-`trace`). Names appear in `--target` and in error messages.
+carries a `type` discriminator (`shell`, `openai-compatible`, `anthropic`,
+`gemini`, `http`, or `trace`). Names appear in `--target` and in error
+messages.
 
 ### `shell`
 
@@ -113,6 +114,187 @@ targets:
 The response text is read from `choices[0].message.content`; a missing field or
 a non-JSON 200 body is a permanent (non-retried) case failure. Token usage is
 captured from `usage.prompt_tokens` / `usage.completion_tokens` when present.
+
+### `anthropic`
+
+Since v0.8.0. POSTs to `{url}/messages` in the Anthropic Messages wire format.
+A second wire format, not a second SDK — you still write only YAML. Retries,
+timeouts, secret handling, and the record/replay cache work exactly as they do
+for `openai-compatible`.
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `type` | `"anthropic"` | yes | n/a | Selects this target. |
+| `url` | string | no | `https://api.anthropic.com/v1` | Base URL. `/messages` is appended (a trailing slash is trimmed first). Override for gateways, proxies, or the AWS endpoints (see [`auth: sigv4`](#auth-sigv4)). |
+| `model` | string | yes | n/a | Model name sent in the request body. |
+| `api_key_env` | string | no | none | Name of the environment variable holding the API key. Secrets never appear inline in YAML. The key is sent as `x-api-key: <key>`, and every request also carries `anthropic-version: 2023-06-01`. |
+| `max_retries` | integer | no | `2` | Retries on transient failures (429 / 5xx / transport), with exponential backoff honoring `Retry-After`. |
+| `timeout_seconds` | integer | no | `120` | Per-attempt total time budget (connect + reading the response body). Each retry gets a fresh budget. Must be at least 1. |
+| `max_tokens` | integer | no | `4096` | Maximum tokens to sample. A first-class field rather than a `params` passthrough because the Messages API rejects a request without it. Must be at least 1. |
+| `cost` | [cost block](#cost-rates) | no | none | Token prices; enables per-case cost reporting and `run.budget_usd`. |
+| `system` | string | no | none | System prompt, sent as the **top-level** `system` body field. The Messages API has no `system` message role. |
+| `params` | JSON object | no | none | Extra request-body fields passed through verbatim (`temperature`, `top_p`, `thinking`, …). |
+| `auth` | `"api-key"` or `"sigv4"` | no | `"api-key"` | How requests authenticate. See [`auth: sigv4`](#auth-sigv4). |
+| `dialect` | `"messages"` or `"bedrock-invoke"` | no | `"messages"` | Which deployment of the format the endpoint speaks. See [`dialect`](#dialect). |
+| `aws` | AWS block | no | none | Region and credential env-var names. Required with `auth: sigv4`, rejected otherwise. |
+
+```yaml
+targets:
+  claude:
+    type: anthropic
+    model: claude-opus-5
+    api_key_env: ANTHROPIC_API_KEY
+    max_tokens: 512
+    cost:
+      input_per_1m: 5.0
+      output_per_1m: 25.0
+    system: "You are a terse support agent."
+    params:
+      temperature: 0
+```
+
+**Validation rules:**
+
+- `timeout_seconds: 0` and `max_tokens: 0` are rejected, each naming the target:
+  `target "<name>": max_tokens must be at least 1`.
+- `params` may not contain the reserved keys `model`, `messages`, `system`,
+  `max_tokens`, or `stream`. `system` and `max_tokens` are reserved here (but
+  not on `openai-compatible`) because the Messages API carries both as
+  top-level body fields that EvalCore sets itself.
+- If a `cost` block is present, `input_per_1m` and `output_per_1m` must be
+  non-negative.
+
+The response `content` is an **array of typed blocks**. EvalCore filters to
+blocks with `type: "text"` and concatenates them in order, so a response that
+leads with a `thinking` block parses correctly. A body with no text block, or a
+non-JSON 200 body, is a permanent (non-retried) case failure. Token usage is
+captured from `usage.input_tokens` / `usage.output_tokens`.
+
+A policy decline arrives as **HTTP 200** with `stop_reason: "refusal"` and empty
+content. That becomes a failed case whose reason names the refusal — not a parse
+error blaming the response body — and it is never retried.
+
+**AWS and gateways.** Any endpoint that speaks the Messages format works here;
+which fields you set depends on how it authenticates.
+
+| Endpoint | `auth` | `dialect` | Notes |
+|---|---|---|---|
+| api.anthropic.com, API-key gateways and proxies | `api-key` | `messages` | Both defaults — set only `url` and `api_key_env`. |
+| Bedrock Mantle (`https://bedrock-mantle.{region}.api.aws/anthropic`) | `sigv4` | `messages` | Model IDs take an `anthropic.` prefix. |
+| Legacy `bedrock-runtime` InvokeModel | `sigv4` | `bedrock-invoke` | Model moves into the path; `anthropic_version` replaces `model` in the body. |
+
+Claude Platform on AWS (`https://aws-external-anthropic.{region}.api.aws/v1`)
+is Messages-shaped and SigV4-signed with `service: aws-external-anthropic`, but
+additionally requires a workspace identifier that this target does not yet
+send — it is not supported today.
+
+### `auth: sigv4`
+
+Since v0.8.0. Signs requests with AWS Signature Version 4 instead of sending an
+API key. An axis orthogonal to [`dialect`](#dialect): SigV4 signs a plain
+Messages request exactly as readily as an InvokeModel one.
+
+Credentials are **names of environment variables**, the same secret model as
+`api_key_env`. EvalCore signs requests but deliberately does not implement the
+AWS credential chain (profile files, IMDS, assumed roles): resolving those reads
+the network and the clock at target-build time. Export the variables yourself.
+
+| `aws` field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `region` | string | yes | n/a | Region the signature is scoped to, e.g. `us-east-1`. Must be non-empty. |
+| `access_key_env` | string | no | `AWS_ACCESS_KEY_ID` | Environment variable holding the access key id. |
+| `secret_key_env` | string | no | `AWS_SECRET_ACCESS_KEY` | Environment variable holding the secret access key. |
+| `session_token_env` | string | no | `AWS_SESSION_TOKEN` | Environment variable holding the session token, for temporary credentials. Absent or unset means long-lived credentials. |
+| `service` | string | no | `bedrock` | AWS service the signature is scoped to. |
+
+```yaml
+targets:
+  bedrock:
+    type: anthropic
+    auth: sigv4
+    dialect: bedrock-invoke
+    url: https://bedrock-runtime.us-east-1.amazonaws.com
+    model: anthropic.claude-opus-4-5-20251101-v1:0
+    max_tokens: 512
+    aws:
+      region: us-east-1
+```
+
+**Validation rules:** `auth: sigv4` requires an `aws` block with a non-empty
+`region`, rejects `api_key_env` (two credentials configured), and requires an
+explicit `url` — the default is Anthropic's own API, which does not accept a
+SigV4 signature. `auth: api-key` rejects an `aws` block, and rejects
+`dialect: bedrock-invoke` (legacy bedrock-runtime accepts no API key).
+
+Missing credentials fail at target-build time naming the variable, before any
+case runs. Under `--cache replay` they resolve to empty and nothing is signed,
+so CI can replay a committed cassette with no AWS credentials configured.
+
+Signing reads the clock once per request, for the `X-Amz-Date` header. That
+timestamp is never user-visible output and never enters a cache identity, so
+determinism is untouched.
+
+### `dialect`
+
+Since v0.8.0. Which deployment of the Messages format the endpoint speaks.
+
+| Value | Endpoint | Request |
+|---|---|---|
+| `messages` (default) | api.anthropic.com, gateways, Bedrock Mantle, Claude Platform on AWS | `POST {url}/messages`, `model` in the body, `anthropic-version` header |
+| `bedrock-invoke` | Legacy AWS `bedrock-runtime` | `POST {url}/model/{model}/invoke` (the model is percent-encoded — Bedrock IDs contain `:`), `anthropic_version: bedrock-2023-05-31` in the body, no version header |
+
+The dialect is part of the cache identity, since it changes both the path and
+the body. `dialect: bedrock-invoke` requires `auth: sigv4`.
+
+### `gemini`
+
+Since v0.8.0. POSTs to `{url}/models/{model}:generateContent` in the Gemini wire
+format. **Google also ships an OpenAI-compatible endpoint that works with
+[`openai-compatible`](#openai-compatible) and no new code** — prefer that unless
+you need a native-only feature such as `safetySettings` or thinking parts.
+
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `type` | `"gemini"` | yes | n/a | Selects this target. |
+| `url` | string | no | `https://generativelanguage.googleapis.com/v1beta` | Base URL. `/models/{model}:generateContent` is appended. |
+| `model` | string | yes | n/a | Model name. It rides in the URL path, not the body. |
+| `api_key_env` | string | no | none | Name of the environment variable holding the API key, sent as `x-goog-api-key`. |
+| `max_retries` | integer | no | `2` | Retries on transient failures (429 / 5xx / transport). |
+| `timeout_seconds` | integer | no | `120` | Per-attempt total time budget. Must be at least 1. |
+| `cost` | [cost block](#cost-rates) | no | none | Token prices; enables per-case cost reporting and `run.budget_usd`. |
+| `system` | string | no | none | System prompt, sent as the top-level `systemInstruction` field. |
+| `params` | JSON object | no | none | Extra request-body fields passed through verbatim. Generation tunables live under `generationConfig` in this API, so they nest. |
+
+```yaml
+targets:
+  gemini:
+    type: gemini
+    model: gemini-2.5-pro
+    api_key_env: GEMINI_API_KEY
+    system: "You are a terse support agent."
+    params:
+      generationConfig:
+        temperature: 0
+        maxOutputTokens: 256
+```
+
+**The API key is never placed in the URL.** Gemini also accepts a `?key=` query
+parameter; EvalCore always uses the `x-goog-api-key` header instead, because
+request URLs are quoted in error messages and reports and a query-string secret
+would leak into them.
+
+**Validation rules:** `params` may not contain `model`, `contents`, or
+`systemInstruction`; `timeout_seconds: 0` is rejected.
+
+The answer is read from `candidates[0].content.parts[]`, filtered to parts that
+carry `text` and are **not** flagged `thought: true` — a thought part is the
+model's reasoning, not its answer. Token usage comes from
+`usageMetadata.promptTokenCount` / `candidatesTokenCount`.
+
+Two kinds of safety outcome arrive as **HTTP 200** and become failed cases with
+readable reasons rather than parse errors: a blocked prompt
+(`promptFeedback.blockReason`, no candidates) and a filtered candidate (a
+non-`STOP` `finishReason` with no text part).
 
 ### `http`
 
@@ -211,8 +393,8 @@ the `trajectory` scorer. Latency and token usage come from the trace itself.
 
 ### Cost rates
 
-The `cost` block (on `openai-compatible` and `trace` targets) declares USD
-prices per **one million** tokens. EvalCore ships no pricing table. Prices
+The `cost` block (on `openai-compatible`, `anthropic`, `gemini`, and `trace`
+targets) declares USD prices per **one million** tokens. EvalCore ships no pricing table. Prices
 change and differ per deployment, so they are config.
 
 | Field | Type | Required | Description |
@@ -413,15 +595,16 @@ given; all present constraints must hold. A missing field never matches.
 
 ### `judge`
 
-Since v0.2.0. LLM-as-judge: grade the output against a rubric using any
-OpenAI-compatible endpoint. Judge calls go through the record/replay cache, so
-replayed verdicts are deterministic.
+Since v0.2.0. LLM-as-judge: grade the output against a rubric using an
+OpenAI-compatible or Anthropic Messages endpoint. Judge calls go through the
+record/replay cache, so replayed verdicts are deterministic.
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `type` | `"judge"` | yes | n/a | Selects this scorer. |
 | `url` | string | yes | n/a | Base URL, e.g. `https://api.openai.com/v1`. |
 | `model` | string | yes | n/a | Judge model name. |
+| `provider` | `"openai"`, `"anthropic"`, or `"gemini"` | no | `"openai"` | Wire format the endpoint speaks. `openai` POSTs to `{url}/chat/completions`; `anthropic` POSTs to `{url}/messages` with `max_tokens: 4096` (no judge-level knob); `gemini` POSTs to `{url}/models/{model}:generateContent`. All three use API-key auth — a SigV4-signed judge would need AWS config the judge schema does not carry, so point it at a gateway URL instead. Since v0.8.0. |
 | `rubric` | string | yes | n/a | What the judge should assess, e.g. "Is the answer grounded in the provided context?". |
 | `api_key_env` | string | no | none | Name of the environment variable holding the judge's API key. |
 | `threshold` | number | no | `0.5` | Minimum score (0.0 to 1.0) to pass. |
@@ -435,7 +618,18 @@ scorers:
     rubric: "Is the answer grounded in the provided context?"
     api_key_env: OPENAI_API_KEY
     threshold: 0.7
+  - type: judge
+    provider: anthropic
+    url: https://api.anthropic.com/v1
+    model: claude-opus-5
+    rubric: "Does the answer state a concrete refund window in days?"
+    api_key_env: ANTHROPIC_API_KEY
 ```
+
+Omitting `provider` keeps a judge on the OpenAI wire format, so configs written
+before the field existed parse — and cache-key — identically. Switching a judge
+to `anthropic` changes its cache identity, so its verdicts re-record rather than
+replaying the other provider's answer.
 
 ### `json-schema`
 

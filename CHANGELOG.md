@@ -4,6 +4,80 @@ All notable changes to EvalCore. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com); versions follow semver
 (pre-1.0: minor bumps may break APIs and config).
 
+## [Unreleased]
+
+### Added
+- **`anthropic` target** — the Anthropic Messages wire format as a second
+  protocol, not a second SDK: `POST {url}/messages`, `x-api-key` auth with a
+  pinned `anthropic-version` header, `system` as a top-level body field, and
+  usage read from `input_tokens`/`output_tokens`. `url` defaults to
+  `https://api.anthropic.com/v1`, so any Messages-shaped gateway that accepts an
+  API key is a `url:` away; the AWS endpoints are SigV4-signed and need
+  `auth: sigv4` (below). `max_tokens` is a first-class
+  field (default 4096) because the API rejects a request without it, and it is
+  part of the cache key — a lower cap truncates the answer. Responses are
+  parsed as an array of typed content blocks, so a leading `thinking` block no
+  longer breaks extraction, and a policy decline (HTTP 200 with
+  `stop_reason: "refusal"`) becomes a failed case naming the refusal rather
+  than a parse error. Retries, timeouts, secret resolution, and record/replay
+  are the same shared implementation every HTTP target uses.
+- **`provider:` on the `judge` scorer** — `openai` (default) or `anthropic`,
+  so an LLM judge can run on Claude. The default keeps every existing suite
+  parsing and cache-keying identically; the `type` discriminator puts the two
+  wire formats in disjoint keyspaces, so no recorded cassette was invalidated.
+- **`gemini` target** — the third wire format:
+  `POST {url}/models/{model}:generateContent`, with the model in the URL path,
+  `contents[].parts[]` in place of `messages[]`, a `systemInstruction` Content
+  value, and generation tunables nested under `generationConfig` (so `params`
+  nests too — the structure passes through rather than being translated). The
+  API key rides in the `x-goog-api-key` **header**, never the `?key=` query
+  parameter the API also accepts: request URLs are quoted in error messages and
+  reports, so a query-string secret would leak into them. `thought` parts are
+  skipped, and both safety outcomes — a blocked prompt and a filtered candidate,
+  each an HTTP 200 — become failed cases with readable reasons. Google's
+  OpenAI-compatible endpoint still needs no code at all; prefer it unless you
+  need a native-only feature.
+- **`auth: sigv4` on `anthropic` targets** — AWS Signature Version 4 signing,
+  for Claude on AWS. Credentials are **names of environment variables**
+  (`region`, `access_key_env`, `secret_key_env`, `session_token_env`,
+  `service`), the same secret model as `api_key_env`; EvalCore deliberately does
+  not implement the AWS credential chain, whose profile/IMDS lookups would put a
+  network round-trip and a clock read behind every target build. Signing is
+  hand-rolled over `sha2` + `hmac` rather than pulling `aws-config`, and is a
+  pure function of its inputs plus an explicit timestamp — the clock is read at
+  exactly one call site, and the timestamp never reaches a cache identity.
+  Missing credentials fail at build time naming the variable; replay-only runs
+  build without any.
+- **`dialect:` on `anthropic` targets** — `messages` (default) or
+  `bedrock-invoke`, which moves the model into the path and swaps the body's
+  `model` for `anthropic_version`. Independent of `auth`: SigV4 signs a plain
+  Messages request against Bedrock Mantle exactly as it signs a legacy
+  `bedrock-runtime` InvokeModel one. The dialect is part of the cache key, since
+  it changes both path and body.
+- **`provider: gemini`** on the `judge` scorer, alongside `openai` and
+  `anthropic`.
+- **`examples/anthropic/`, `examples/gemini/`, `examples/bedrock/`** — live
+  Claude and Gemini calls, and the three AWS shapes side by side.
+
+### Changed
+- **Three wire formats now share one implementation.** `ChatWireFormat` and
+  `ChatTarget<F>` in `evalcore-core::chat` hold the retry loop, client
+  construction, transient/permanent classification, body-read timeout, and
+  latency measurement that were byte-identical in all three copies; each format
+  supplies only its endpoint, body, auth header, response parsing, and cache
+  identity. `OpenAiCompatTarget`, `AnthropicTarget`, and `GeminiTarget` are type
+  aliases, so every call site and the public API are unchanged — and every
+  cache-identity shape-pinning test still passes byte-for-byte, so no cassette
+  moved.
+
+### Fixed
+- The `anthropic` target's documented AWS story was wrong: Bedrock Mantle and
+  Claude Platform on AWS are SigV4-signed, not `x-api-key` endpoints, so the
+  "set a `url` and you're done" guidance could not have worked. Both are now
+  reachable via `auth: sigv4`. Claude Platform on AWS additionally requires a
+  workspace identifier this target does not yet send, and is documented as
+  unsupported rather than implied to work.
+
 ## [0.7.5] — 2026-07-19
 
 ### Changed

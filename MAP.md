@@ -92,6 +92,9 @@ source of truth. Philosophy topics:
 | [`examples/claims-triage/README.md`](examples/claims-triage/README.md) | Offline claims-triage: a misclassified fraud case demonstrating accuracy/macro-F1 gates. |
 | [`examples/support-rag/README.md`](examples/support-rag/README.md) | Offline support-RAG: grounding + safety-guard scorers plus a commented production judge path. |
 | [`examples/openai/README.md`](examples/openai/README.md) | Live OpenAI-compatible model calls with usage, cost, and record/replay. |
+| [`examples/anthropic/README.md`](examples/anthropic/README.md) | Live Claude calls over the Messages wire format, with an Anthropic-backed judge. |
+| [`examples/gemini/README.md`](examples/gemini/README.md) | Live Gemini calls over the native generateContent format, and when to prefer the compat endpoint. |
+| [`examples/bedrock/README.md`](examples/bedrock/README.md) | Claude on AWS: SigV4 auth and the Bedrock dialects, as two independent axes. |
 | [`examples/agent-trace/README.md`](examples/agent-trace/README.md) | Scoring a recorded OTel/OpenInference agent trajectory. |
 
 ## Shims
