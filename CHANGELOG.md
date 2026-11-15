@@ -58,6 +58,12 @@ All notable changes to EvalCore. Format loosely follows
   `anthropic`.
 - **`examples/anthropic/`, `examples/gemini/`, `examples/bedrock/`** — live
   Claude and Gemini calls, and the three AWS shapes side by side.
+- **Output diff on baseline regressions** — a `REGRESSED` case whose baseline
+  and current runs both recorded output now shows how the output moved: an
+  order-aware word similarity and the changed runs, e.g.
+  `output vs baseline: 89% similar: -2.1 +2.2`, in the terminal and HTML
+  baseline sections (`CaseRegression::output_change`). Pure and deterministic;
+  gate semantics are unchanged. Word diff via `llm-diff`.
 
 ### Changed
 - **Three wire formats now share one implementation.** `ChatWireFormat` and
