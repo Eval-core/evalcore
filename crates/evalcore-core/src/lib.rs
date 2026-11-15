@@ -22,7 +22,7 @@ pub mod trace;
 pub mod types;
 
 pub use anthropic::{AnthropicDialect, AnthropicTarget};
-pub use baseline::{compare, BaselineDiff, CaseRegression};
+pub use baseline::{compare, BaselineDiff, CaseRegression, OutputChange};
 pub use classification::compute_classification;
 pub use comparison::{
     compare_arms, ArmStats, ComparisonCell, ComparisonRow, MatrixArm, MatrixComparison,

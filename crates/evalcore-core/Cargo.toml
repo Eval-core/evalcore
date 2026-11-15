@@ -16,6 +16,7 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 futures = { workspace = true }
 hmac = { workspace = true }
+llm-diff = { workspace = true }
 percent-encoding = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }

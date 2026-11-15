@@ -386,6 +386,15 @@ pub fn baseline(diff: &evalcore_core::BaselineDiff, label: &str, style: &Style) 
         for reason in &regression.reasons {
             out.push_str(&format!("     {}\n", sanitize(reason)));
         }
+        if let Some(change) = &regression.output_change {
+            out.push_str(&format!(
+                "     {}\n",
+                style.muted(&format!(
+                    "output vs baseline: {}",
+                    sanitize(&change.summary())
+                ))
+            ));
+        }
     }
     for new_failing in &diff.new_failing {
         out.push_str(&format!(
@@ -973,10 +982,16 @@ fn push_regression_group(
     out.push_str(&format!("<h3 class=\"{cls}\">{title}</h3>\n<ul>\n"));
     for case in cases {
         out.push_str(&format!("<li><code>{}</code>", html_escape(&case.case_id)));
-        if !case.reasons.is_empty() {
+        if !case.reasons.is_empty() || case.output_change.is_some() {
             out.push_str("<ul class=\"reasons\">\n");
             for reason in &case.reasons {
                 out.push_str(&format!("<li>{}</li>\n", html_escape(reason)));
+            }
+            if let Some(change) = &case.output_change {
+                out.push_str(&format!(
+                    "<li class=\"muted\">output vs baseline: {}</li>\n",
+                    html_escape(&change.summary())
+                ));
             }
             out.push_str("</ul>");
         }
@@ -1368,6 +1383,41 @@ mod tests {
             "angle brackets must be escaped"
         );
         assert!(!xml.contains("<more>"), "no unescaped payload in XML");
+    }
+
+    #[test]
+    fn baseline_shows_how_a_regressed_output_changed() {
+        let passing = |text: &str| CaseResult {
+            case_id: "refund-2".into(),
+            output: Some(TargetOutput {
+                text: text.into(),
+                latency_ms: 0,
+                tokens: None,
+                trajectory: None,
+            }),
+            error: None,
+            scores: vec![],
+            cost_usd: None,
+            context: None,
+            trials: None,
+        };
+        let baseline_run = RunSummary {
+            results: vec![passing("we can help with a refund")],
+            gates: Vec::new(),
+            classification: None,
+        };
+        let diff = evalcore_core::compare(&baseline_run, &fixture());
+
+        let terminal = baseline(&diff, "main", &Style::plain());
+        assert!(
+            terminal.contains("output vs baseline: 29% similar: -we can +cannot -with a refund\n"),
+            "{terminal}"
+        );
+        let report = html(&fixture(), Some(&diff));
+        assert!(
+            report.contains("<li class=\"muted\">output vs baseline: 29% similar:"),
+            "{report}"
+        );
     }
 
     #[test]

@@ -42,6 +42,9 @@ futures = "0.3"
 # which the scorer requires for determinism and no-network. Draft 2020-12
 # validation lives in the crate core and needs no feature flag.
 jsonschema = { version = "0.48", default-features = false }
+# Word diff of baseline vs current output on regressed cases. default-features
+# = false drops the version store (uuid/chrono/sha2); only the diff core is used.
+llm-diff = { version = "0.3", default-features = false }
 percent-encoding = "2"
 regex = "1"
 reqwest = { version = "0.12", features = ["json"] }
